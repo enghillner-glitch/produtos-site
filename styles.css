@@ -15,6 +15,10 @@ body {
   background: #f4f6f8;
 }
 
+a {
+  color: inherit;
+}
+
 button,
 input,
 textarea {
@@ -56,6 +60,71 @@ button.danger:hover {
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
   padding: 28px 0;
+}
+
+.home-shell {
+  align-items: center;
+  display: flex;
+  min-height: 100vh;
+  padding: 28px 16px;
+}
+
+.home-hero {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #dce3e8;
+  border-radius: 8px;
+  box-shadow: 0 12px 28px rgba(29, 36, 48, 0.08);
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  margin: 0 auto;
+  max-width: 760px;
+  padding: 34px;
+  width: 100%;
+}
+
+.eyebrow {
+  color: #146c63;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.home-copy {
+  color: #60717f;
+  line-height: 1.5;
+  margin-top: 10px;
+  max-width: 440px;
+}
+
+.primary-link {
+  background: #146c63;
+  border-radius: 6px;
+  color: #ffffff;
+  display: inline-flex;
+  font-weight: 700;
+  justify-content: center;
+  min-width: 178px;
+  padding: 12px 18px;
+  text-decoration: none;
+}
+
+.primary-link:hover {
+  background: #0f5b54;
+}
+
+.back-link {
+  color: #146c63;
+  display: inline-block;
+  font-weight: 700;
+  margin-bottom: 8px;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  text-decoration: underline;
 }
 
 .toolbar {
@@ -259,7 +328,8 @@ textarea:focus {
 @media (max-width: 840px) {
   .toolbar,
   .workspace,
-  .list-header {
+  .list-header,
+  .home-hero {
     display: grid;
   }
 
