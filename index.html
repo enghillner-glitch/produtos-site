@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cadastro de Produtos</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="toolbar" aria-label="Resumo do cadastro">
+        <div>
+          <h1>Produtos</h1>
+          <p id="storageStatus">Banco local ativo</p>
+        </div>
+        <div class="metrics">
+          <span id="totalProducts">0 produtos</span>
+          <button class="secondary" id="clearFormButton" type="button">Novo</button>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <form class="editor" id="productForm">
+          <input type="hidden" id="productId" />
+
+          <label>
+            Nome
+            <input id="name" name="name" type="text" autocomplete="off" required maxlength="120" />
+          </label>
+
+          <label>
+            Descrição
+            <textarea id="description" name="description" rows="5" required maxlength="900"></textarea>
+          </label>
+
+          <label>
+            Preço
+            <input id="price" name="price" type="number" min="0" step="0.01" required />
+          </label>
+
+          <label>
+            Imagem
+            <input id="image" name="image" type="file" accept="image/*" />
+          </label>
+
+          <div class="preview" id="imagePreview">
+            <span>Sem imagem selecionada</span>
+          </div>
+
+          <div class="actions">
+            <button type="submit" id="submitButton">Salvar produto</button>
+            <button class="secondary" id="cancelButton" type="button">Cancelar</button>
+          </div>
+        </form>
+
+        <section class="list-panel" aria-label="Produtos cadastrados">
+          <div class="list-header">
+            <h2>Lista</h2>
+            <input id="search" type="search" placeholder="Buscar produto" autocomplete="off" />
+          </div>
+          <div class="product-grid" id="productGrid"></div>
+          <div class="empty-state" id="emptyState">
+            Nenhum produto cadastrado.
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <template id="productCardTemplate">
+      <article class="product-card">
+        <div class="product-image"></div>
+        <div class="product-body">
+          <h3></h3>
+          <p></p>
+          <strong></strong>
+        </div>
+        <div class="card-actions">
+          <button class="secondary edit-button" type="button">Editar</button>
+          <button class="danger delete-button" type="button">Apagar</button>
+        </div>
+      </article>
+    </template>
+
+    <script src="./config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
