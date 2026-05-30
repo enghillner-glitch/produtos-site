@@ -4,270 +4,1111 @@ const supabaseClient = hasSupabaseConfig
   ? window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey)
   : null;
 
-const localStorageKey = "produtos-site-products";
-const currency = new Intl.NumberFormat("pt-BR", {
+const categories = [
+  "Eletrônicos",
+  "Casa",
+  "Roupas",
+  "Livros",
+  "Esporte",
+  "Ferramentas",
+  "Brinquedos",
+  "Outros"
+];
+
+const conditions = ["Novo", "Muito bom", "Bom", "Usado", "Precisa reparo"];
+
+const statusLabels = {
+  available: "Disponível",
+  traded: "Trocado",
+  inactive: "Inativo"
+};
+
+const proposalStatusLabels = {
+  pending: "Pendente",
+  accepted: "Aceita",
+  rejected: "Recusada",
+  cancelled: "Cancelada",
+  failed: "Não aconteceu"
+};
+
+const cashDirectionLabels = {
+  none: "Sem diferença em dinheiro",
+  requester_pays: "Interessado pagaria a diferença",
+  owner_pays: "Dono do objeto pagaria a diferença"
+};
+
+const state = {
+  user: null,
+  profile: null,
+  contact: null,
+  publicItems: [],
+  myItems: [],
+  proposals: [],
+  imagesByItem: new Map(),
+  proposalsItemsById: new Map(),
+  profilesById: new Map(),
+  contactsByUserId: new Map(),
+  selectedDetailItem: null
+};
+
+const $ = (id) => document.getElementById(id);
+const formatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL"
 });
 
-const form = document.querySelector("#productForm");
-const productIdInput = document.querySelector("#productId");
-const nameInput = document.querySelector("#name");
-const descriptionInput = document.querySelector("#description");
-const priceInput = document.querySelector("#price");
-const imageInput = document.querySelector("#image");
-const preview = document.querySelector("#imagePreview");
-const grid = document.querySelector("#productGrid");
-const emptyState = document.querySelector("#emptyState");
-const template = document.querySelector("#productCardTemplate");
-const submitButton = document.querySelector("#submitButton");
-const cancelButton = document.querySelector("#cancelButton");
-const clearFormButton = document.querySelector("#clearFormButton");
-const searchInput = document.querySelector("#search");
-const totalProducts = document.querySelector("#totalProducts");
-const storageStatus = document.querySelector("#storageStatus");
-
-let products = [];
-let selectedImageData = "";
-
-storageStatus.textContent = hasSupabaseConfig
-  ? "Supabase ativo"
-  : "Banco local ativo";
+const elements = {
+  notice: $("notice"),
+  homeView: $("homeView"),
+  dashboardView: $("dashboardView"),
+  authControls: $("authControls"),
+  pendingBadge: $("pendingBadge"),
+  searchInput: $("searchInput"),
+  cityFilter: $("cityFilter"),
+  neighborhoodFilter: $("neighborhoodFilter"),
+  categoryFilter: $("categoryFilter"),
+  conditionFilter: $("conditionFilter"),
+  itemGrid: $("itemGrid"),
+  homeEmpty: $("homeEmpty"),
+  resultsCount: $("resultsCount"),
+  signedOutPanel: $("signedOutPanel"),
+  signedInPanel: $("signedInPanel"),
+  profileForm: $("profileForm"),
+  profileName: $("profileName"),
+  profileWhatsapp: $("profileWhatsapp"),
+  profileStatus: $("profileStatus"),
+  myItemsGrid: $("myItemsGrid"),
+  myItemsEmpty: $("myItemsEmpty"),
+  receivedProposals: $("receivedProposals"),
+  sentProposals: $("sentProposals"),
+  receivedEmpty: $("receivedEmpty"),
+  sentEmpty: $("sentEmpty"),
+  authModal: $("authModal"),
+  authEmail: $("authEmail"),
+  authPassword: $("authPassword"),
+  itemModal: $("itemModal"),
+  itemModalTitle: $("itemModalTitle"),
+  itemForm: $("itemForm"),
+  itemId: $("itemId"),
+  itemTitle: $("itemTitle"),
+  itemCategory: $("itemCategory"),
+  itemCondition: $("itemCondition"),
+  itemCity: $("itemCity"),
+  itemNeighborhood: $("itemNeighborhood"),
+  itemPreferences: $("itemPreferences"),
+  itemDescription: $("itemDescription"),
+  itemImages: $("itemImages"),
+  imageRequirement: $("imageRequirement"),
+  itemImagePreview: $("itemImagePreview"),
+  detailModal: $("detailModal"),
+  itemDetail: $("itemDetail"),
+  proposalModal: $("proposalModal"),
+  proposalIntro: $("proposalIntro"),
+  proposalForm: $("proposalForm"),
+  proposalRequestedItemId: $("proposalRequestedItemId"),
+  offeredItemSelect: $("offeredItemSelect"),
+  noOfferItems: $("noOfferItems"),
+  cashDifference: $("cashDifference"),
+  cashDirection: $("cashDirection"),
+  proposalMessage: $("proposalMessage")
+};
 
 init();
 
 async function init() {
+  populateSelects();
   bindEvents();
-  await loadProducts();
-  renderProducts();
+
+  if (!supabaseClient) {
+    showNotice("Supabase não está configurado. Preencha config.js para ativar o banco.", "error");
+    renderAuthControls();
+    renderHome();
+    return;
+  }
+
+  const { data } = await supabaseClient.auth.getSession();
+  state.user = data.session?.user ?? null;
+
+  supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+    state.user = session?.user ?? null;
+    await refreshAll();
+  });
+
+  await refreshAll();
+  routeFromHash();
+}
+
+function populateSelects() {
+  addOptions(elements.categoryFilter, categories);
+  addOptions(elements.conditionFilter, conditions);
+  addOptions(elements.itemCategory, categories);
+  addOptions(elements.itemCondition, conditions);
+}
+
+function addOptions(select, options) {
+  for (const option of options) {
+    const node = document.createElement("option");
+    node.value = option;
+    node.textContent = option;
+    select.appendChild(node);
+  }
 }
 
 function bindEvents() {
-  form.addEventListener("submit", handleSubmit);
-  imageInput.addEventListener("change", handleImageChange);
-  cancelButton.addEventListener("click", resetForm);
-  clearFormButton.addEventListener("click", resetForm);
-  searchInput.addEventListener("input", renderProducts);
+  window.addEventListener("hashchange", routeFromHash);
+  document.addEventListener("click", handleDocumentClick);
+
+  for (const input of [
+    elements.searchInput,
+    elements.cityFilter,
+    elements.neighborhoodFilter,
+    elements.categoryFilter,
+    elements.conditionFilter
+  ]) {
+    input.addEventListener("input", renderHome);
+  }
+
+  elements.profileForm.addEventListener("submit", saveProfile);
+  elements.itemForm.addEventListener("submit", saveItem);
+  elements.itemImages.addEventListener("change", previewSelectedImages);
+  elements.proposalForm.addEventListener("submit", sendProposal);
+
+  document.querySelectorAll("[data-auth-action]").forEach((button) => {
+    button.addEventListener("click", () => handleAuth(button.dataset.authAction));
+  });
 }
 
-async function loadProducts() {
-  if (supabaseClient) {
-    const { data, error } = await supabaseClient
-      .from(config.productsTable)
-      .select("*")
-      .order("created_at", { ascending: false });
+async function refreshAll() {
+  clearNotice();
+  renderAuthControls();
+  await Promise.all([loadPublicItems(), loadUserData()]);
+  renderHome();
+  renderDashboard();
+}
 
-    if (error) {
-      alert(`Erro ao carregar produtos: ${error.message}`);
-      products = [];
-      return;
-    }
+async function loadPublicItems() {
+  const { data, error } = await supabaseClient
+    .from("items")
+    .select("*")
+    .eq("status", "available")
+    .order("created_at", { ascending: false });
 
-    products = data ?? [];
+  if (handleDbError(error, "carregar objetos disponíveis")) {
+    state.publicItems = [];
     return;
   }
 
-  products = JSON.parse(localStorage.getItem(localStorageKey) || "[]");
+  state.publicItems = data ?? [];
+  await loadImagesForItems(state.publicItems.map((item) => item.id));
 }
 
-async function saveLocalProducts() {
-  localStorage.setItem(localStorageKey, JSON.stringify(products));
+async function loadUserData() {
+  state.profile = null;
+  state.contact = null;
+  state.myItems = [];
+  state.proposals = [];
+  state.proposalsItemsById = new Map();
+  state.profilesById = new Map();
+  state.contactsByUserId = new Map();
+
+  if (!state.user) {
+    return;
+  }
+
+  await Promise.all([loadProfile(), loadMyItems(), loadProposals()]);
 }
 
-async function handleSubmit(event) {
+async function loadProfile() {
+  const profileResponse = await supabaseClient
+    .from("profiles")
+    .select("*")
+    .eq("id", state.user.id)
+    .maybeSingle();
+
+  handleDbError(profileResponse.error, "carregar perfil");
+  state.profile = profileResponse.data ?? null;
+
+  const contactResponse = await supabaseClient
+    .from("profile_contacts")
+    .select("*")
+    .eq("user_id", state.user.id)
+    .maybeSingle();
+
+  handleDbError(contactResponse.error, "carregar contato");
+  state.contact = contactResponse.data ?? null;
+}
+
+async function loadMyItems() {
+  const { data, error } = await supabaseClient
+    .from("items")
+    .select("*")
+    .eq("owner_id", state.user.id)
+    .order("created_at", { ascending: false });
+
+  if (handleDbError(error, "carregar seus objetos")) {
+    state.myItems = [];
+    return;
+  }
+
+  state.myItems = data ?? [];
+  await loadImagesForItems(state.myItems.map((item) => item.id));
+}
+
+async function loadProposals() {
+  const { data, error } = await supabaseClient
+    .from("exchange_proposals")
+    .select("*")
+    .or(`requester_id.eq.${state.user.id},owner_id.eq.${state.user.id}`)
+    .order("created_at", { ascending: false });
+
+  if (handleDbError(error, "carregar propostas")) {
+    state.proposals = [];
+    return;
+  }
+
+  state.proposals = data ?? [];
+  const itemIds = unique(
+    state.proposals.flatMap((proposal) => [proposal.requested_item_id, proposal.offered_item_id])
+  );
+  const userIds = unique(
+    state.proposals.flatMap((proposal) => [proposal.requester_id, proposal.owner_id])
+  );
+
+  await Promise.all([
+    loadProposalItems(itemIds),
+    loadImagesForItems(itemIds),
+    loadProfiles(userIds),
+    loadContacts(userIds)
+  ]);
+}
+
+async function loadProposalItems(itemIds) {
+  if (!itemIds.length) {
+    state.proposalsItemsById = new Map();
+    return;
+  }
+
+  const { data, error } = await supabaseClient.from("items").select("*").in("id", itemIds);
+
+  if (handleDbError(error, "carregar objetos das propostas")) {
+    state.proposalsItemsById = new Map();
+    return;
+  }
+
+  state.proposalsItemsById = new Map((data ?? []).map((item) => [item.id, item]));
+}
+
+async function loadProfiles(userIds) {
+  if (!userIds.length) {
+    return;
+  }
+
+  const { data, error } = await supabaseClient.from("profiles").select("*").in("id", userIds);
+
+  if (!handleDbError(error, "carregar nomes de usuários")) {
+    state.profilesById = new Map((data ?? []).map((profile) => [profile.id, profile]));
+  }
+}
+
+async function loadContacts(userIds) {
+  if (!userIds.length) {
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("profile_contacts")
+    .select("*")
+    .in("user_id", userIds);
+
+  if (!handleDbError(error, "carregar contatos liberados")) {
+    state.contactsByUserId = new Map((data ?? []).map((contact) => [contact.user_id, contact]));
+  }
+}
+
+async function loadImagesForItems(itemIds) {
+  const ids = unique(itemIds.filter(Boolean));
+
+  if (!ids.length) {
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("item_images")
+    .select("*")
+    .in("item_id", ids)
+    .order("sort_order", { ascending: true });
+
+  if (handleDbError(error, "carregar imagens")) {
+    return;
+  }
+
+  for (const id of ids) {
+    state.imagesByItem.set(id, []);
+  }
+
+  for (const image of data ?? []) {
+    const images = state.imagesByItem.get(image.item_id) ?? [];
+    images.push(image);
+    state.imagesByItem.set(image.item_id, images);
+  }
+}
+
+function routeFromHash() {
+  const view = window.location.hash === "#dashboard" ? "dashboard" : "home";
+  setView(view);
+}
+
+function setView(view) {
+  elements.homeView.hidden = view !== "home";
+  elements.dashboardView.hidden = view !== "dashboard";
+  window.location.hash = view === "dashboard" ? "dashboard" : "home";
+}
+
+function handleDocumentClick(event) {
+  const viewLink = event.target.closest("[data-view-link]");
+  if (viewLink) {
+    setView(viewLink.dataset.viewLink);
+    return;
+  }
+
+  const actionTarget = event.target.closest("[data-action]");
+  if (!actionTarget) {
+    return;
+  }
+
+  const { action } = actionTarget.dataset;
+
+  if (action === "open-auth") {
+    openModal(elements.authModal);
+  } else if (action === "logout") {
+    logout();
+  } else if (action === "close-modal") {
+    closeModals();
+  } else if (action === "open-item-form") {
+    openItemForm();
+  } else if (action === "view-item") {
+    openItemDetail(actionTarget.dataset.itemId);
+  } else if (action === "edit-item") {
+    openItemForm(actionTarget.dataset.itemId);
+  } else if (action === "toggle-item") {
+    toggleItemStatus(actionTarget.dataset.itemId);
+  } else if (action === "open-proposal") {
+    openProposalModal(actionTarget.dataset.itemId);
+  } else if (action === "accept-proposal") {
+    runProposalRpc("accept_exchange_proposal", actionTarget.dataset.proposalId);
+  } else if (action === "reject-proposal") {
+    runProposalRpc("reject_exchange_proposal", actionTarget.dataset.proposalId);
+  } else if (action === "cancel-proposal") {
+    runProposalRpc("cancel_exchange_proposal", actionTarget.dataset.proposalId);
+  } else if (action === "fail-proposal") {
+    runProposalRpc("mark_exchange_failed", actionTarget.dataset.proposalId);
+  } else if (action === "report-item") {
+    reportTarget("item", actionTarget.dataset.itemId, actionTarget.dataset.userId);
+  } else if (action === "report-user") {
+    reportTarget("user", null, actionTarget.dataset.userId);
+  }
+}
+
+function renderAuthControls() {
+  elements.authControls.innerHTML = "";
+
+  if (state.user) {
+    const button = document.createElement("button");
+    button.className = "secondary auth-button";
+    button.type = "button";
+    button.dataset.action = "logout";
+    button.textContent = "Sair";
+    elements.authControls.appendChild(button);
+    return;
+  }
+
+  const button = document.createElement("button");
+  button.className = "auth-button";
+  button.type = "button";
+  button.dataset.action = "open-auth";
+  button.textContent = "Entrar";
+  elements.authControls.appendChild(button);
+}
+
+function renderHome() {
+  const filtered = filterPublicItems();
+  elements.itemGrid.innerHTML = "";
+  elements.homeEmpty.hidden = filtered.length > 0;
+  elements.resultsCount.textContent = `${filtered.length} objeto${filtered.length === 1 ? "" : "s"}`;
+
+  for (const item of filtered) {
+    elements.itemGrid.appendChild(renderItemCard(item, { context: "public" }));
+  }
+}
+
+function filterPublicItems() {
+  const search = normalize(elements.searchInput.value);
+  const city = normalize(elements.cityFilter.value);
+  const neighborhood = normalize(elements.neighborhoodFilter.value);
+  const category = elements.categoryFilter.value;
+  const condition = elements.conditionFilter.value;
+
+  return state.publicItems.filter((item) => {
+    const searchable = normalize(
+      `${item.title} ${item.description} ${item.trade_preferences} ${item.city} ${item.neighborhood}`
+    );
+    return (
+      (!search || searchable.includes(search)) &&
+      (!city || normalize(item.city).includes(city)) &&
+      (!neighborhood || normalize(item.neighborhood).includes(neighborhood)) &&
+      (!category || item.category === category) &&
+      (!condition || item.condition === condition)
+    );
+  });
+}
+
+function renderDashboard() {
+  elements.signedOutPanel.hidden = Boolean(state.user);
+  elements.signedInPanel.hidden = !state.user;
+
+  if (!state.user) {
+    elements.pendingBadge.hidden = true;
+    return;
+  }
+
+  elements.profileName.value = state.profile?.full_name ?? "";
+  elements.profileWhatsapp.value = state.contact?.whatsapp ?? "";
+  const profileComplete = Boolean(state.profile?.full_name && state.contact?.whatsapp);
+  elements.profileStatus.textContent = profileComplete ? "Completo" : "Pendente";
+  elements.profileStatus.classList.toggle("complete", profileComplete);
+
+  renderMyItems();
+  renderProposals();
+}
+
+function renderMyItems() {
+  elements.myItemsGrid.innerHTML = "";
+  elements.myItemsEmpty.hidden = state.myItems.length > 0;
+
+  for (const item of state.myItems) {
+    elements.myItemsGrid.appendChild(renderItemCard(item, { context: "mine" }));
+  }
+}
+
+function renderProposals() {
+  const received = state.proposals.filter((proposal) => proposal.owner_id === state.user.id);
+  const sent = state.proposals.filter((proposal) => proposal.requester_id === state.user.id);
+  const pendingReceived = received.filter((proposal) => proposal.status === "pending").length;
+
+  elements.pendingBadge.hidden = pendingReceived === 0;
+  elements.pendingBadge.textContent = String(pendingReceived);
+
+  renderProposalList(elements.receivedProposals, elements.receivedEmpty, received, "received");
+  renderProposalList(elements.sentProposals, elements.sentEmpty, sent, "sent");
+}
+
+function renderProposalList(container, empty, proposals, mode) {
+  container.innerHTML = "";
+  empty.hidden = proposals.length > 0;
+
+  for (const proposal of proposals) {
+    container.appendChild(renderProposalCard(proposal, mode));
+  }
+}
+
+function renderItemCard(item, options) {
+  const images = state.imagesByItem.get(item.id) ?? [];
+  const firstImage = images[0]?.public_url;
+  const article = document.createElement("article");
+  article.className = "item-card";
+
+  const actionButtons =
+    options.context === "mine"
+      ? `
+        <button class="secondary" type="button" data-action="edit-item" data-item-id="${item.id}">Editar</button>
+        <button class="secondary" type="button" data-action="toggle-item" data-item-id="${item.id}">
+          ${item.status === "inactive" ? "Reativar" : "Inativar"}
+        </button>
+      `
+      : `
+        <button type="button" data-action="view-item" data-item-id="${item.id}">Ver detalhes</button>
+      `;
+
+  article.innerHTML = `
+    <div class="item-cover">
+      ${firstImage ? `<img src="${escapeAttr(firstImage)}" alt="${escapeAttr(item.title)}">` : "Sem imagem"}
+    </div>
+    <div class="item-body">
+      <div class="item-title-row">
+        <h3>${escapeHtml(item.title)}</h3>
+        <span class="pill status ${item.status}">${statusLabels[item.status] ?? item.status}</span>
+      </div>
+      <div class="pill-row">
+        <span class="pill">${escapeHtml(item.category)}</span>
+        <span class="pill">${escapeHtml(item.condition)}</span>
+      </div>
+      <p class="location">${escapeHtml(item.city)} - ${escapeHtml(item.neighborhood)}</p>
+      <p>${escapeHtml(truncate(item.description, 110))}</p>
+      <p><strong>Busca:</strong> ${escapeHtml(truncate(item.trade_preferences, 90))}</p>
+    </div>
+    <div class="card-actions">${actionButtons}</div>
+  `;
+
+  return article;
+}
+
+function renderProposalCard(proposal, mode) {
+  const requested = state.proposalsItemsById.get(proposal.requested_item_id);
+  const offered = state.proposalsItemsById.get(proposal.offered_item_id);
+  const counterpartId = mode === "received" ? proposal.requester_id : proposal.owner_id;
+  const profile = state.profilesById.get(counterpartId);
+  const contact = state.contactsByUserId.get(counterpartId);
+  const card = document.createElement("article");
+  card.className = "proposal-card";
+
+  const cashText = proposal.cash_difference > 0
+    ? `${formatter.format(Number(proposal.cash_difference))} - ${cashDirectionLabels[proposal.cash_direction]}`
+    : "Sem diferença em dinheiro";
+
+  const actions = [];
+  if (proposal.status === "pending" && mode === "received") {
+    actions.push(`<button type="button" data-action="accept-proposal" data-proposal-id="${proposal.id}">Aceitar</button>`);
+    actions.push(`<button class="secondary" type="button" data-action="reject-proposal" data-proposal-id="${proposal.id}">Recusar</button>`);
+  }
+  if (proposal.status === "pending" && mode === "sent") {
+    actions.push(`<button class="secondary" type="button" data-action="cancel-proposal" data-proposal-id="${proposal.id}">Cancelar</button>`);
+  }
+  if (proposal.status === "accepted") {
+    actions.push(`<button class="secondary" type="button" data-action="fail-proposal" data-proposal-id="${proposal.id}">Troca não aconteceu</button>`);
+  }
+  actions.push(`<button class="secondary" type="button" data-action="report-user" data-user-id="${counterpartId}">Denunciar usuário</button>`);
+
+  card.innerHTML = `
+    <div class="item-title-row">
+      <h3>${mode === "received" ? "Proposta recebida" : "Proposta enviada"}</h3>
+      <span class="pill status">${proposalStatusLabels[proposal.status] ?? proposal.status}</span>
+    </div>
+    <p class="muted">Pessoa: ${escapeHtml(profile?.full_name ?? "Usuário do trocacomtroca")}</p>
+    <div class="proposal-summary">
+      <div class="proposal-item">
+        <strong>Objeto desejado</strong>
+        <p>${escapeHtml(requested?.title ?? "Objeto indisponível")}</p>
+      </div>
+      <div class="proposal-arrow">por</div>
+      <div class="proposal-item">
+        <strong>Objeto oferecido</strong>
+        <p>${escapeHtml(offered?.title ?? "Objeto indisponível")}</p>
+      </div>
+    </div>
+    <p><strong>Diferença:</strong> ${escapeHtml(cashText)}</p>
+    ${proposal.message ? `<p><strong>Mensagem:</strong> ${escapeHtml(proposal.message)}</p>` : ""}
+    ${proposal.status === "accepted" ? renderContactBox(contact) : ""}
+    <div class="proposal-actions">${actions.join("")}</div>
+  `;
+
+  return card;
+}
+
+function renderContactBox(contact) {
+  if (!contact?.whatsapp) {
+    return `
+      <div class="contact-box">
+        <strong>Contato liberado</strong>
+        <span>O contato ainda não foi encontrado. Confira se a outra pessoa completou o perfil.</span>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="contact-box">
+      <strong>Contato liberado</strong>
+      <span>WhatsApp: ${escapeHtml(contact.whatsapp)}</span>
+    </div>
+  `;
+}
+
+async function handleAuth(action) {
+  const email = elements.authEmail.value.trim();
+  const password = elements.authPassword.value;
+
+  if (!email || !password) {
+    showNotice("Informe email e senha.", "error");
+    return;
+  }
+
+  const response = action === "signup"
+    ? await supabaseClient.auth.signUp({ email, password })
+    : await supabaseClient.auth.signInWithPassword({ email, password });
+
+  if (response.error) {
+    showNotice(response.error.message, "error");
+    return;
+  }
+
+  closeModals();
+  showNotice(action === "signup"
+    ? "Conta criada. Se o Supabase pedir confirmação, verifique seu email antes de entrar."
+    : "Entrada realizada com sucesso.");
+}
+
+async function logout() {
+  await supabaseClient.auth.signOut();
+  setView("home");
+}
+
+async function saveProfile(event) {
   event.preventDefault();
 
-  const id = productIdInput.value;
-  const imageUrl = await resolveImageUrl(id);
-  const product = {
-    name: nameInput.value.trim(),
-    description: descriptionInput.value.trim(),
-    price: Number(priceInput.value),
-    image_url: imageUrl
+  if (!requireLogin()) {
+    return;
+  }
+
+  const fullName = elements.profileName.value.trim();
+  const whatsapp = elements.profileWhatsapp.value.trim();
+
+  if (!fullName || !whatsapp) {
+    showNotice("Nome e WhatsApp são obrigatórios.", "error");
+    return;
+  }
+
+  const profileResponse = await supabaseClient
+    .from("profiles")
+    .upsert({ id: state.user.id, full_name: fullName }, { onConflict: "id" });
+
+  if (handleDbError(profileResponse.error, "salvar perfil")) {
+    return;
+  }
+
+  const contactResponse = await supabaseClient
+    .from("profile_contacts")
+    .upsert({ user_id: state.user.id, whatsapp }, { onConflict: "user_id" });
+
+  if (handleDbError(contactResponse.error, "salvar contato")) {
+    return;
+  }
+
+  showNotice("Perfil salvo.");
+  await refreshAll();
+}
+
+function openItemForm(itemId) {
+  if (!requireLogin()) {
+    return;
+  }
+
+  if (!requireCompleteProfile()) {
+    return;
+  }
+
+  const item = itemId ? state.myItems.find((candidate) => candidate.id === itemId) : null;
+  elements.itemForm.reset();
+  elements.itemId.value = item?.id ?? "";
+  elements.itemModalTitle.textContent = item ? "Editar objeto" : "Cadastrar objeto";
+  elements.imageRequirement.textContent = item
+    ? "Inclua novas imagens somente se quiser adicionar mais fotos. Máximo de 5 por objeto."
+    : "Inclua de 1 a 5 imagens.";
+
+  if (item) {
+    elements.itemTitle.value = item.title;
+    elements.itemCategory.value = item.category;
+    elements.itemCondition.value = item.condition;
+    elements.itemCity.value = item.city;
+    elements.itemNeighborhood.value = item.neighborhood;
+    elements.itemPreferences.value = item.trade_preferences;
+    elements.itemDescription.value = item.description;
+  }
+
+  renderExistingImagePreview(item?.id);
+  openModal(elements.itemModal);
+}
+
+async function saveItem(event) {
+  event.preventDefault();
+
+  if (!requireLogin()) {
+    return;
+  }
+
+  if (!requireCompleteProfile()) {
+    return;
+  }
+
+  const itemId = elements.itemId.value;
+  const files = Array.from(elements.itemImages.files ?? []);
+  const existingImages = itemId ? (state.imagesByItem.get(itemId) ?? []) : [];
+
+  if (!itemId && files.length === 0) {
+    showNotice("Inclua ao menos uma imagem do objeto.", "error");
+    return;
+  }
+
+  if (existingImages.length + files.length > 5) {
+    showNotice("Cada objeto pode ter no máximo 5 imagens.", "error");
+    return;
+  }
+
+  const payload = {
+    owner_id: state.user.id,
+    title: elements.itemTitle.value.trim(),
+    description: elements.itemDescription.value.trim(),
+    category: elements.itemCategory.value,
+    condition: elements.itemCondition.value,
+    city: elements.itemCity.value.trim(),
+    neighborhood: elements.itemNeighborhood.value.trim(),
+    trade_preferences: elements.itemPreferences.value.trim()
   };
 
-  if (!product.name || !product.description || Number.isNaN(product.price)) {
-    alert("Preencha nome, descrição e preço.");
+  if (Object.values(payload).some((value) => !value)) {
+    showNotice("Preencha todos os campos obrigatórios do objeto.", "error");
     return;
   }
 
-  if (supabaseClient) {
-    await saveSupabaseProduct(id, product);
-  } else {
-    await saveBrowserProduct(id, product);
-  }
+  const response = itemId
+    ? await supabaseClient.from("items").update(payload).eq("id", itemId).select("*").single()
+    : await supabaseClient.from("items").insert(payload).select("*").single();
 
-  resetForm();
-  await loadProducts();
-  renderProducts();
-}
-
-async function saveBrowserProduct(id, product) {
-  if (id) {
-    products = products.map((item) =>
-      item.id === id ? { ...item, ...product, updated_at: new Date().toISOString() } : item
-    );
-  } else {
-    products.unshift({
-      ...product,
-      id: crypto.randomUUID(),
-      created_at: new Date().toISOString()
-    });
-  }
-
-  await saveLocalProducts();
-}
-
-async function saveSupabaseProduct(id, product) {
-  const query = id
-    ? supabaseClient.from(config.productsTable).update(product).eq("id", id)
-    : supabaseClient.from(config.productsTable).insert(product);
-
-  const { error } = await query;
-
-  if (error) {
-    alert(`Erro ao salvar produto: ${error.message}`);
-  }
-}
-
-async function resolveImageUrl(id) {
-  if (!selectedImageData) {
-    const existing = products.find((product) => product.id === id);
-    return existing?.image_url || "";
-  }
-
-  if (!supabaseClient) {
-    return selectedImageData;
-  }
-
-  const file = imageInput.files?.[0];
-  const extension = file.name.split(".").pop() || "jpg";
-  const path = `${crypto.randomUUID()}.${extension}`;
-  const { error } = await supabaseClient.storage
-    .from(config.storageBucket)
-    .upload(path, file, { upsert: false });
-
-  if (error) {
-    alert(`Erro ao enviar imagem: ${error.message}`);
-    return "";
-  }
-
-  const { data } = supabaseClient.storage.from(config.storageBucket).getPublicUrl(path);
-  return data.publicUrl;
-}
-
-function handleImageChange() {
-  const file = imageInput.files?.[0];
-
-  if (!file) {
-    selectedImageData = "";
-    renderPreview("");
+  if (handleDbError(response.error, "salvar objeto")) {
     return;
   }
 
-  const reader = new FileReader();
-  reader.addEventListener("load", () => {
-    selectedImageData = String(reader.result);
-    renderPreview(selectedImageData);
-  });
-  reader.readAsDataURL(file);
-}
-
-function renderProducts() {
-  const term = searchInput.value.trim().toLowerCase();
-  const visibleProducts = products.filter((product) => {
-    const text = `${product.name} ${product.description}`.toLowerCase();
-    return text.includes(term);
-  });
-
-  grid.innerHTML = "";
-  emptyState.classList.toggle("is-visible", visibleProducts.length === 0);
-  totalProducts.textContent = `${products.length} ${products.length === 1 ? "produto" : "produtos"}`;
-
-  for (const product of visibleProducts) {
-    const card = template.content.firstElementChild.cloneNode(true);
-    const image = card.querySelector(".product-image");
-    const title = card.querySelector("h3");
-    const description = card.querySelector("p");
-    const price = card.querySelector("strong");
-
-    if (product.image_url) {
-      const img = document.createElement("img");
-      img.src = product.image_url;
-      img.alt = product.name;
-      image.appendChild(img);
-    } else {
-      image.textContent = "Sem imagem";
-    }
-
-    title.textContent = product.name;
-    description.textContent = product.description;
-    price.textContent = currency.format(product.price || 0);
-
-    card.querySelector(".edit-button").addEventListener("click", () => editProduct(product));
-    card.querySelector(".delete-button").addEventListener("click", () => deleteProduct(product));
-    grid.appendChild(card);
-  }
-}
-
-function editProduct(product) {
-  productIdInput.value = product.id;
-  nameInput.value = product.name;
-  descriptionInput.value = product.description;
-  priceInput.value = product.price;
-  selectedImageData = "";
-  imageInput.value = "";
-  submitButton.textContent = "Atualizar produto";
-  renderPreview(product.image_url);
-  nameInput.focus();
-}
-
-async function deleteProduct(product) {
-  const confirmed = confirm(`Apagar o produto "${product.name}"?`);
-
-  if (!confirmed) {
-    return;
-  }
-
-  if (supabaseClient) {
-    const { error } = await supabaseClient
-      .from(config.productsTable)
-      .delete()
-      .eq("id", product.id);
-
-    if (error) {
-      alert(`Erro ao apagar produto: ${error.message}`);
+  if (files.length) {
+    const uploadFailed = await uploadItemImages(response.data.id, files, existingImages.length);
+    if (uploadFailed) {
       return;
     }
-  } else {
-    products = products.filter((item) => item.id !== product.id);
-    await saveLocalProducts();
   }
 
-  await loadProducts();
-  renderProducts();
+  closeModals();
+  showNotice("Objeto salvo.");
+  await refreshAll();
+  setView("dashboard");
 }
 
-function resetForm() {
-  form.reset();
-  productIdInput.value = "";
-  selectedImageData = "";
-  submitButton.textContent = "Salvar produto";
-  renderPreview("");
+async function uploadItemImages(itemId, files, startIndex) {
+  for (const [index, file] of files.entries()) {
+    const extension = file.name.split(".").pop() || "jpg";
+    const path = `${state.user.id}/${itemId}/${crypto.randomUUID()}.${extension}`;
+    const uploadResponse = await supabaseClient.storage
+      .from(config.storageBucket)
+      .upload(path, file, { upsert: false });
+
+    if (handleDbError(uploadResponse.error, "enviar imagem")) {
+      return true;
+    }
+
+    const { data } = supabaseClient.storage.from(config.storageBucket).getPublicUrl(path);
+    const imageResponse = await supabaseClient.from("item_images").insert({
+      item_id: itemId,
+      storage_path: path,
+      public_url: data.publicUrl,
+      sort_order: startIndex + index
+    });
+
+    if (handleDbError(imageResponse.error, "registrar imagem")) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
-function renderPreview(imageUrl) {
-  preview.innerHTML = "";
+function previewSelectedImages() {
+  const files = Array.from(elements.itemImages.files ?? []);
+  elements.itemImagePreview.innerHTML = "";
 
-  if (!imageUrl) {
-    const placeholder = document.createElement("span");
-    placeholder.textContent = "Sem imagem selecionada";
-    preview.appendChild(placeholder);
+  for (const file of files.slice(0, 5)) {
+    const img = document.createElement("img");
+    img.alt = file.name;
+    img.src = URL.createObjectURL(file);
+    elements.itemImagePreview.appendChild(img);
+  }
+}
+
+function renderExistingImagePreview(itemId) {
+  elements.itemImagePreview.innerHTML = "";
+
+  if (!itemId) {
     return;
   }
 
-  const img = document.createElement("img");
-  img.src = imageUrl;
-  img.alt = "Prévia da imagem";
-  preview.appendChild(img);
+  for (const image of state.imagesByItem.get(itemId) ?? []) {
+    const img = document.createElement("img");
+    img.alt = "Imagem cadastrada";
+    img.src = image.public_url;
+    elements.itemImagePreview.appendChild(img);
+  }
+}
+
+async function toggleItemStatus(itemId) {
+  const item = state.myItems.find((candidate) => candidate.id === itemId);
+  if (!item) {
+    return;
+  }
+
+  const nextStatus = item.status === "inactive" ? "available" : "inactive";
+  const { error } = await supabaseClient.from("items").update({ status: nextStatus }).eq("id", itemId);
+
+  if (handleDbError(error, "alterar status do objeto")) {
+    return;
+  }
+
+  showNotice(nextStatus === "available" ? "Objeto reativado." : "Objeto inativado.");
+  await refreshAll();
+}
+
+function openItemDetail(itemId) {
+  const item = state.publicItems.find((candidate) => candidate.id === itemId);
+  if (!item) {
+    return;
+  }
+
+  state.selectedDetailItem = item;
+  const images = state.imagesByItem.get(item.id) ?? [];
+  const gallery = images.length
+    ? images.map((image) => `<img src="${escapeAttr(image.public_url)}" alt="${escapeAttr(item.title)}">`).join("")
+    : `<div class="empty-state slim">Sem imagem</div>`;
+
+  const isOwner = state.user?.id === item.owner_id;
+
+  elements.itemDetail.innerHTML = `
+    <div class="detail-layout">
+      <div class="detail-gallery">${gallery}</div>
+      <div class="detail-info">
+        <p class="eyebrow">Objeto para troca</p>
+        <h2>${escapeHtml(item.title)}</h2>
+        <div class="pill-row">
+          <span class="pill">${escapeHtml(item.category)}</span>
+          <span class="pill">${escapeHtml(item.condition)}</span>
+        </div>
+        <p class="location">${escapeHtml(item.city)} - ${escapeHtml(item.neighborhood)}</p>
+        <p>${escapeHtml(item.description)}</p>
+        <p><strong>Preferências de troca:</strong> ${escapeHtml(item.trade_preferences)}</p>
+        <p class="muted">O contato só é liberado quando a proposta é aceita. Combine local e horário diretamente com a outra pessoa.</p>
+        <div class="detail-actions">
+          <button type="button" data-action="open-proposal" data-item-id="${item.id}" ${isOwner ? "disabled" : ""}>
+            ${isOwner ? "Este objeto é seu" : "Propor troca"}
+          </button>
+          <button class="secondary" type="button" data-action="report-item" data-item-id="${item.id}" data-user-id="${item.owner_id}">Denunciar anúncio</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  openModal(elements.detailModal);
+}
+
+async function openProposalModal(itemId) {
+  if (!requireLogin()) {
+    return;
+  }
+
+  if (!requireCompleteProfile()) {
+    return;
+  }
+
+  const requested = state.publicItems.find((item) => item.id === itemId);
+  if (!requested || requested.owner_id === state.user.id) {
+    return;
+  }
+
+  const availableMyItems = state.myItems.filter((item) => item.status === "available");
+  elements.proposalForm.reset();
+  elements.proposalRequestedItemId.value = itemId;
+  elements.proposalIntro.textContent = `Você está propondo uma troca pelo objeto "${requested.title}".`;
+  elements.offeredItemSelect.innerHTML = "";
+
+  for (const item of availableMyItems) {
+    const option = document.createElement("option");
+    option.value = item.id;
+    option.textContent = `${item.title} - ${item.city}/${item.neighborhood}`;
+    elements.offeredItemSelect.appendChild(option);
+  }
+
+  elements.noOfferItems.hidden = availableMyItems.length > 0;
+  elements.proposalForm.querySelector("button[type='submit']").disabled = availableMyItems.length === 0;
+  closeModals();
+  openModal(elements.proposalModal);
+}
+
+async function sendProposal(event) {
+  event.preventDefault();
+
+  if (!requireLogin()) {
+    return;
+  }
+
+  const requested = state.publicItems.find((item) => item.id === elements.proposalRequestedItemId.value);
+  const offered = state.myItems.find((item) => item.id === elements.offeredItemSelect.value);
+
+  if (!requested || !offered) {
+    showNotice("Selecione um objeto válido para propor a troca.", "error");
+    return;
+  }
+
+  const cashDifference = Number(elements.cashDifference.value || 0);
+  const cashDirection = elements.cashDirection.value;
+
+  if (cashDifference > 0 && cashDirection === "none") {
+    showNotice("Informe quem pagaria a diferença em dinheiro.", "error");
+    return;
+  }
+
+  const { error } = await supabaseClient.from("exchange_proposals").insert({
+    requested_item_id: requested.id,
+    offered_item_id: offered.id,
+    requester_id: state.user.id,
+    owner_id: requested.owner_id,
+    cash_difference: cashDifference,
+    cash_direction: cashDifference > 0 ? cashDirection : "none",
+    message: elements.proposalMessage.value.trim()
+  });
+
+  if (handleDbError(error, "enviar proposta")) {
+    return;
+  }
+
+  closeModals();
+  showNotice("Proposta enviada.");
+  await refreshAll();
+  setView("dashboard");
+}
+
+async function runProposalRpc(functionName, proposalId) {
+  const confirmationMessages = {
+    accept_exchange_proposal: "Aceitar esta proposta e marcar os dois objetos como trocados?",
+    reject_exchange_proposal: "Recusar esta proposta?",
+    cancel_exchange_proposal: "Cancelar esta proposta enviada?",
+    mark_exchange_failed: "Marcar que esta troca não aconteceu e reabrir os objetos?"
+  };
+
+  if (!confirm(confirmationMessages[functionName])) {
+    return;
+  }
+
+  const { error } = await supabaseClient.rpc(functionName, { p_proposal_id: proposalId });
+
+  if (handleDbError(error, "atualizar proposta")) {
+    return;
+  }
+
+  showNotice("Proposta atualizada.");
+  await refreshAll();
+}
+
+async function reportTarget(targetType, itemId, userId) {
+  if (!requireLogin()) {
+    return;
+  }
+
+  if (!requireCompleteProfile()) {
+    return;
+  }
+
+  const reason = prompt("Descreva rapidamente o motivo da denúncia:");
+  if (!reason?.trim()) {
+    return;
+  }
+
+  const { error } = await supabaseClient.from("reports").insert({
+    reporter_id: state.user.id,
+    target_type: targetType,
+    target_item_id: itemId || null,
+    target_user_id: userId || null,
+    reason: reason.trim()
+  });
+
+  if (handleDbError(error, "registrar denúncia")) {
+    return;
+  }
+
+  showNotice("Denúncia registrada para revisão.");
+}
+
+function requireLogin() {
+  if (state.user) {
+    return true;
+  }
+
+  openModal(elements.authModal);
+  showNotice("Entre ou crie uma conta para continuar.");
+  return false;
+}
+
+function requireCompleteProfile() {
+  const complete = Boolean(state.profile?.full_name && state.contact?.whatsapp);
+
+  if (complete) {
+    return true;
+  }
+
+  closeModals();
+  setView("dashboard");
+  showNotice("Complete seu perfil com nome e WhatsApp antes de continuar.", "error");
+  return false;
+}
+
+function openModal(modal) {
+  modal.hidden = false;
+}
+
+function closeModals() {
+  document.querySelectorAll(".modal").forEach((modal) => {
+    modal.hidden = true;
+  });
+}
+
+function showNotice(message, type = "info") {
+  elements.notice.textContent = message;
+  elements.notice.className = `notice${type === "error" ? " error" : ""}`;
+  elements.notice.hidden = false;
+}
+
+function clearNotice() {
+  elements.notice.hidden = true;
+  elements.notice.textContent = "";
+}
+
+function handleDbError(error, action) {
+  if (!error) {
+    return false;
+  }
+
+  const message = error.message || String(error);
+  const schemaMissing = message.includes("relation") || message.includes("schema cache");
+
+  if (schemaMissing) {
+    showNotice(
+      `O banco do trocacomtroca ainda precisa ser atualizado. Execute o novo supabase.sql no Supabase para ${action}.`,
+      "error"
+    );
+  } else {
+    showNotice(`Erro ao ${action}: ${message}`, "error");
+  }
+
+  return true;
+}
+
+function unique(values) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function normalize(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function truncate(value, size) {
+  const text = String(value ?? "");
+  return text.length > size ? `${text.slice(0, size - 1)}...` : text;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value);
 }

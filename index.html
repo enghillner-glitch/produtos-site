@@ -3,21 +3,291 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Produtos</title>
+    <title>trocacomtroca</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="home-shell">
-      <section class="home-hero" aria-label="Página inicial">
-        <div>
-          <p class="eyebrow">Sistema de produtos</p>
-          <h1>Produtos</h1>
-          <p class="home-copy">
-            Gerencie produtos com nome, descrição, preço e imagem.
-          </p>
+    <header class="site-header">
+      <a class="brand" href="#home" data-view-link="home">
+        <span class="brand-mark">tc</span>
+        <span>trocacomtroca</span>
+      </a>
+      <nav class="nav-actions" aria-label="Navegação principal">
+        <button class="ghost-button" type="button" data-view-link="home">Vitrine</button>
+        <button class="ghost-button" type="button" data-view-link="dashboard">
+          Meu painel
+          <span class="badge" id="pendingBadge" hidden>0</span>
+        </button>
+        <div id="authControls"></div>
+      </nav>
+    </header>
+
+    <main>
+      <div class="notice" id="notice" hidden></div>
+
+      <section class="view home-view" id="homeView">
+        <div class="hero-band">
+          <div class="hero-copy">
+            <p class="eyebrow">Troque objetos perto de você</p>
+            <h1>Encontre uma troca justa, simples e combinada entre pessoas.</h1>
+            <p>
+              Cadastre objetos, descubra opções por cidade e bairro, proponha uma troca com
+              algo da sua galeria e libere contato somente quando houver aceite.
+            </p>
+            <div class="hero-actions">
+              <button type="button" data-action="open-item-form">Cadastrar objeto</button>
+              <button class="secondary" type="button" data-view-link="dashboard">Ver meu painel</button>
+            </div>
+          </div>
+          <aside class="safety-card">
+            <strong>Troca segura</strong>
+            <span>Combine em local público.</span>
+            <span>Confira o objeto antes de concluir.</span>
+            <span>Não antecipe dinheiro.</span>
+          </aside>
         </div>
-        <a class="primary-link" href="./cadastro.html">Acessar cadastro</a>
+
+        <section class="filters" aria-label="Filtros da vitrine">
+          <label>
+            Buscar
+            <input id="searchInput" type="search" placeholder="Nome, descrição ou preferência" autocomplete="off" />
+          </label>
+          <label>
+            Cidade
+            <input id="cityFilter" type="text" placeholder="Ex: São Paulo" autocomplete="off" />
+          </label>
+          <label>
+            Bairro
+            <input id="neighborhoodFilter" type="text" placeholder="Ex: Centro" autocomplete="off" />
+          </label>
+          <label>
+            Categoria
+            <select id="categoryFilter">
+              <option value="">Todas</option>
+            </select>
+          </label>
+          <label>
+            Condição
+            <select id="conditionFilter">
+              <option value="">Todas</option>
+            </select>
+          </label>
+        </section>
+
+        <section class="section-heading">
+          <div>
+            <p class="eyebrow">Objetos disponíveis</p>
+            <h2>Vitrine de trocas</h2>
+          </div>
+          <span id="resultsCount">Carregando...</span>
+        </section>
+
+        <div class="item-grid" id="itemGrid"></div>
+        <div class="empty-state" id="homeEmpty" hidden>
+          Nenhum objeto encontrado. Ajuste os filtros ou cadastre o primeiro objeto.
+        </div>
+      </section>
+
+      <section class="view dashboard-view" id="dashboardView" hidden>
+        <section class="dashboard-header">
+          <div>
+            <p class="eyebrow">Área do usuário</p>
+            <h1>Meu painel</h1>
+            <p>Gerencie objetos, acompanhe propostas e veja contatos liberados.</p>
+          </div>
+          <button type="button" data-action="open-item-form">Cadastrar objeto</button>
+        </section>
+
+        <div class="signed-out-panel" id="signedOutPanel" hidden>
+          <h2>Entre para usar o painel</h2>
+          <p>Você precisa criar uma conta ou entrar para cadastrar objetos e propor trocas.</p>
+          <button type="button" data-action="open-auth">Entrar ou cadastrar</button>
+        </div>
+
+        <div id="signedInPanel" hidden>
+          <section class="panel-grid">
+            <form class="profile-panel" id="profileForm">
+              <div class="panel-title">
+                <h2>Perfil</h2>
+                <span id="profileStatus">Pendente</span>
+              </div>
+              <label>
+                Nome
+                <input id="profileName" type="text" maxlength="120" required />
+              </label>
+              <label>
+                WhatsApp
+                <input id="profileWhatsapp" type="tel" maxlength="40" required placeholder="DDD + número" />
+              </label>
+              <button type="submit">Salvar perfil</button>
+            </form>
+
+            <section class="safety-panel">
+              <h2>Antes de trocar</h2>
+              <p>O trocacomtroca libera contato apenas após aceite. Depois disso, combine local e horário diretamente com a outra pessoa.</p>
+            </section>
+          </section>
+
+          <section class="dashboard-section">
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">Minha galeria</p>
+                <h2>Meus objetos</h2>
+              </div>
+              <button class="secondary" type="button" data-action="open-item-form">Novo objeto</button>
+            </div>
+            <div class="user-item-grid" id="myItemsGrid"></div>
+            <div class="empty-state" id="myItemsEmpty" hidden>
+              Você ainda não cadastrou objetos para troca.
+            </div>
+          </section>
+
+          <section class="dashboard-section">
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">Negociação</p>
+                <h2>Propostas recebidas</h2>
+              </div>
+            </div>
+            <div class="proposal-list" id="receivedProposals"></div>
+            <div class="empty-state slim" id="receivedEmpty" hidden>
+              Nenhuma proposta recebida.
+            </div>
+          </section>
+
+          <section class="dashboard-section">
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">Acompanhamento</p>
+                <h2>Propostas enviadas</h2>
+              </div>
+            </div>
+            <div class="proposal-list" id="sentProposals"></div>
+            <div class="empty-state slim" id="sentEmpty" hidden>
+              Nenhuma proposta enviada.
+            </div>
+          </section>
+        </div>
       </section>
     </main>
+
+    <div class="modal" id="authModal" hidden>
+      <div class="modal-card small">
+        <button class="close-button" type="button" data-action="close-modal">Fechar</button>
+        <h2>Entrar no trocacomtroca</h2>
+        <p class="muted">Use email e senha para cadastrar objetos e propor trocas.</p>
+        <form id="authForm">
+          <label>
+            Email
+            <input id="authEmail" type="email" required autocomplete="email" />
+          </label>
+          <label>
+            Senha
+            <input id="authPassword" type="password" required minlength="6" autocomplete="current-password" />
+          </label>
+          <div class="split-actions">
+            <button type="button" data-auth-action="login">Entrar</button>
+            <button class="secondary" type="button" data-auth-action="signup">Criar conta</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal" id="itemModal" hidden>
+      <div class="modal-card">
+        <button class="close-button" type="button" data-action="close-modal">Fechar</button>
+        <h2 id="itemModalTitle">Cadastrar objeto</h2>
+        <form id="itemForm" class="form-grid">
+          <input id="itemId" type="hidden" />
+          <label>
+            Título
+            <input id="itemTitle" type="text" maxlength="120" required />
+          </label>
+          <label>
+            Categoria
+            <select id="itemCategory" required></select>
+          </label>
+          <label>
+            Condição
+            <select id="itemCondition" required></select>
+          </label>
+          <label>
+            Cidade
+            <input id="itemCity" type="text" maxlength="90" required />
+          </label>
+          <label>
+            Bairro
+            <input id="itemNeighborhood" type="text" maxlength="90" required />
+          </label>
+          <label class="wide">
+            Preferências de troca
+            <input id="itemPreferences" type="text" maxlength="220" required placeholder="Ex: procuro bicicleta, ferramenta ou livros" />
+          </label>
+          <label class="wide">
+            Descrição
+            <textarea id="itemDescription" rows="5" maxlength="1200" required></textarea>
+          </label>
+          <label class="wide">
+            Imagens
+            <input id="itemImages" type="file" accept="image/*" multiple />
+            <span class="field-hint" id="imageRequirement">Inclua de 1 a 5 imagens.</span>
+          </label>
+          <div class="image-preview-list" id="itemImagePreview"></div>
+          <div class="split-actions wide">
+            <button type="submit">Salvar objeto</button>
+            <button class="secondary" type="button" data-action="close-modal">Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal" id="detailModal" hidden>
+      <div class="modal-card detail-card">
+        <button class="close-button" type="button" data-action="close-modal">Fechar</button>
+        <div id="itemDetail"></div>
+      </div>
+    </div>
+
+    <div class="modal" id="proposalModal" hidden>
+      <div class="modal-card">
+        <button class="close-button" type="button" data-action="close-modal">Fechar</button>
+        <h2>Propor troca</h2>
+        <p class="muted" id="proposalIntro"></p>
+        <form id="proposalForm">
+          <input id="proposalRequestedItemId" type="hidden" />
+          <label>
+            Escolha um objeto da sua galeria
+            <select id="offeredItemSelect" required></select>
+          </label>
+          <div class="empty-state slim" id="noOfferItems" hidden>
+            Você precisa cadastrar ao menos um objeto disponível antes de propor uma troca.
+          </div>
+          <label>
+            Diferença em dinheiro opcional
+            <input id="cashDifference" type="number" min="0" step="0.01" placeholder="0,00" />
+          </label>
+          <label>
+            Quem pagaria a diferença
+            <select id="cashDirection">
+              <option value="none">Não há diferença</option>
+              <option value="requester_pays">Eu pagaria</option>
+              <option value="owner_pays">A outra pessoa pagaria</option>
+            </select>
+          </label>
+          <label>
+            Mensagem opcional
+            <textarea id="proposalMessage" rows="4" maxlength="800"></textarea>
+          </label>
+          <div class="split-actions">
+            <button type="submit">Enviar proposta</button>
+            <button class="secondary" type="button" data-action="close-modal">Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="./config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./app.js"></script>
   </body>
 </html>

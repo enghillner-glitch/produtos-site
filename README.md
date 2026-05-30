@@ -1,33 +1,35 @@
-# Cadastro de Produtos
+# trocacomtroca
 
-Site simples para cadastrar, listar, editar, apagar produtos e inserir imagem.
+Site estático para viabilizar trocas de objetos entre pessoas.
 
-## Teste local
+## Stack
 
-Abra `index.html` no navegador. Sem Supabase configurado, os dados ficam salvos no próprio navegador.
+- HTML, CSS e JavaScript puro
+- Supabase Auth, Database e Storage
+- GitHub
+- Vercel
 
-## Conectar no Supabase
+## Configuração do Supabase
 
 1. Abra o projeto no Supabase.
 2. Vá em **SQL Editor**.
-3. Cole e execute o conteúdo de `supabase.sql`.
-4. Vá em **Project Settings > API**.
-5. Copie:
-   - Project URL
-   - anon public key
-6. Abra `config.js` e preencha:
+3. Execute o conteúdo de `supabase.sql`.
+4. Confira se `config.js` está com:
 
 ```js
 window.APP_CONFIG = {
-  supabaseUrl: "SUA_PROJECT_URL",
-  supabaseAnonKey: "SUA_ANON_PUBLIC_KEY",
-  productsTable: "products",
-  storageBucket: "product-images"
+  supabaseUrl: "https://lzuaqhmjzwchkesxnocz.supabase.co",
+  supabaseAnonKey: "SUA_PUBLISHABLE_KEY",
+  storageBucket: "item-images"
 };
 ```
 
-Depois disso, os produtos e imagens passam a ser salvos no Supabase.
+## Fluxo principal
 
-## Publicar
-
-Pode publicar a pasta inteira em Vercel, Cloudflare Pages, Netlify ou GitHub Pages.
+- Visitantes veem objetos disponíveis por cidade e bairro.
+- Usuários criam conta com email e senha.
+- Usuários completam perfil com nome e WhatsApp.
+- Usuários cadastram objetos com categoria, condição, cidade, bairro, preferências e imagens.
+- Uma proposta exige selecionar um objeto próprio disponível.
+- Ao aceitar uma proposta, os dois objetos viram trocados e o WhatsApp é liberado entre os envolvidos.
+- Se a troca não acontecer, os participantes podem reabrir os objetos.
