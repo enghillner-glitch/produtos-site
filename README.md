@@ -1,35 +1,48 @@
-# trocacomtroca
+# repassecomrepasse
 
-Site estático para viabilizar trocas de objetos entre pessoas.
+Base em transformacao a partir do antigo `trocacomtroca` para o produto **repassecomrepasse**.
 
-## Stack
+O repassecomrepasse sera uma plataforma de aproximacao entre usuarios com interesses convergentes na negociacao de imoveis. A plataforma nao realiza venda direta, analise documental, aprovacao de credito, transferencia de propriedade ou tratativas com agentes financiadores.
 
-- HTML, CSS e JavaScript puro
-- Supabase Auth, Database e Storage
-- GitHub
-- Vercel
+## Estado atual
 
-## Configuração do Supabase
+- Preparacao documental e de seguranca iniciada.
 
-1. Abra o projeto no Supabase.
-2. Vá em **SQL Editor**.
-3. Execute o conteúdo de `supabase.sql`.
-4. Confira se `config.js` está com:
+- DOCX revisado criado como linha mestra viva, mantendo o arquivo original preservado.
 
-```js
-window.APP_CONFIG = {
-  supabaseUrl: "https://lzuaqhmjzwchkesxnocz.supabase.co",
-  supabaseAnonKey: "SUA_PUBLISHABLE_KEY",
-  storageBucket: "item-images"
-};
-```
+- Backup minimo criado antes da substituicao funcional.
 
-## Fluxo principal
+- Nenhuma logica funcional do site foi alterada nesta etapa.
 
-- Visitantes veem objetos disponíveis por cidade e bairro.
-- Usuários criam conta com email e senha.
-- Usuários completam perfil com nome e WhatsApp.
-- Usuários cadastram objetos com categoria, condição, cidade, bairro, preferências e imagens.
-- Uma proposta exige selecionar um objeto próprio disponível.
-- Ao aceitar uma proposta, os dois objetos viram trocados e o WhatsApp é liberado entre os envolvidos.
-- Se a troca não acontecer, os participantes podem reabrir os objetos.
+## Arquivos de orientacao
+
+- `AGENTS.md` - instrucoes permanentes para o Codex.
+
+- `PLANO_IMPLEMENTACAO_REPASSECOMREPASSE.md` - plano operacional em Markdown.
+
+- `PROGRESSO_IMPLEMENTACAO.md` - controle F000-F176.
+
+- `DECISOES_ARQUITETURA.md` - decisoes fechadas.
+
+- `RELATORIO_AUDITORIA_INICIAL.md` - inventario inicial.
+
+- `CHECKLIST_HOMOLOGACAO.md` - validacao final.
+
+## Backup minimo
+
+Backup desta preparacao:
+
+`C:\Users\jpsecundario\Documents\Codex\2026-05-29\qual-o-caminho-mais-f-cil\work\backups\backup-minimo-20260531-134628`
+
+Commit base preservado:
+
+`df5d4caaf9ad905b639d8eed2a50e47f2627f267`
+
+## Execucao local atual
+
+Como o projeto ainda e estatico, pode ser servido por qualquer servidor local simples ou aberto conforme a configuracao usada no ambiente Codex.
+
+## Proximos passos
+
+Seguir a sequencia do DOCX mestre, iniciando pela fundacao do repassecomrepasse e pela substituicao controlada do schema/telas do produto anterior.
+
