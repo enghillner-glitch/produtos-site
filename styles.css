@@ -95,6 +95,21 @@ main {
   padding: 28px 0 52px;
 }
 
+.site-footer {
+  align-items: flex-start;
+  background: #18221f;
+  color: #f5f7f2;
+  display: grid;
+  gap: 8px;
+  line-height: 1.55;
+  padding: 22px max(16px, calc((100vw - 1220px) / 2));
+}
+
+.site-footer span {
+  color: #d9e3dc;
+  max-width: 980px;
+}
+
 h1,
 h2,
 h3,

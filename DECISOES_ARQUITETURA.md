@@ -28,3 +28,12 @@
 
 - DOCX mestre: `C:\Users\jpsecundario\Desktop\Plano_Mestre_Repassecomrepasse_CODEX_REVISADO_CODEX.docx`.
 
+
+## 2026-05-31 - Fundacao inicial do produto
+
+| Decisao | Registro |
+|---|---|
+| Dados sensiveis fora de profiles | CPF/CNPJ ficam em `profile_private_data`, nao em `profiles`, porque `profiles` tem leitura publica para dados basicos. |
+| Auditoria reutilizavel | Criada base `audit_events` para registrar acoes relevantes sem expor dados privados. |
+| Nomes tecnicos legados | Tabelas `items` e `exchange_proposals` permanecem temporariamente para evitar quebra ampla antes da migracao funcional completa. A interface passa a usar linguagem de imoveis/repasses. |
+| Aplicacao incremental | F010-F013 foram aplicadas como fundacao; F014 permanece em andamento ate formularios e regras obrigatorias de CPF/CNPJ serem implementados. |

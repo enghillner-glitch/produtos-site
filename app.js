@@ -4,22 +4,30 @@ const supabaseClient = hasSupabaseConfig
   ? window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey)
   : null;
 
+const PRODUCT = {
+  name: "repassecomrepasse",
+  subjectSingular: "imóvel",
+  subjectPlural: "imóveis",
+  institutionalNotice:
+    "O repassecomrepasse é uma plataforma de aproximação entre interessados em negociações imobiliárias. A análise documental e os encaminhamentos junto a bancos, construtoras, credores e agentes financiadores são realizados por intermédio da imobiliária responsável."
+};
+
 const categories = [
-  "Eletrônicos",
+  "Apartamento",
   "Casa",
-  "Roupas",
-  "Livros",
-  "Esporte",
-  "Ferramentas",
-  "Brinquedos",
-  "Outros"
+  "Terreno",
+  "Sala comercial",
+  "Ponto comercial",
+  "Chácara",
+  "Imóvel financiado",
+  "Outro"
 ];
 
-const conditions = ["Novo", "Muito bom", "Bom", "Usado", "Precisa reparo"];
+const conditions = ["Novo", "Pronto para morar", "Em construção", "Financiado", "Quitado", "Precisa reforma"];
 
 const statusLabels = {
   available: "Disponível",
-  traded: "Trocado",
+  traded: "Em acordo",
   inactive: "Inativo"
 };
 
@@ -28,13 +36,13 @@ const proposalStatusLabels = {
   accepted: "Aceita",
   rejected: "Recusada",
   cancelled: "Cancelada",
-  failed: "Não aconteceu"
+  failed: "Não concluída"
 };
 
 const cashDirectionLabels = {
   none: "Sem diferença em dinheiro",
   requester_pays: "Interessado pagaria a diferença",
-  owner_pays: "Dono do objeto pagaria a diferença"
+  owner_pays: "Anunciante pagaria a diferença"
 };
 
 const state = {
@@ -193,7 +201,7 @@ async function loadPublicItems() {
     .eq("status", "available")
     .order("created_at", { ascending: false });
 
-  if (handleDbError(error, "carregar objetos disponíveis")) {
+  if (handleDbError(error, "carregar imóveis disponíveis")) {
     state.publicItems = [];
     return;
   }
@@ -245,7 +253,7 @@ async function loadMyItems() {
     .eq("owner_id", state.user.id)
     .order("created_at", { ascending: false });
 
-  if (handleDbError(error, "carregar seus objetos")) {
+  if (handleDbError(error, "carregar seus imóveis")) {
     state.myItems = [];
     return;
   }
@@ -290,7 +298,7 @@ async function loadProposalItems(itemIds) {
 
   const { data, error } = await supabaseClient.from("items").select("*").in("id", itemIds);
 
-  if (handleDbError(error, "carregar objetos das propostas")) {
+  if (handleDbError(error, "carregar imóveis das propostas")) {
     state.proposalsItemsById = new Map();
     return;
   }
@@ -434,7 +442,7 @@ function renderHome() {
   const filtered = filterPublicItems();
   elements.itemGrid.innerHTML = "";
   elements.homeEmpty.hidden = filtered.length > 0;
-  elements.resultsCount.textContent = `${filtered.length} objeto${filtered.length === 1 ? "" : "s"}`;
+  elements.resultsCount.textContent = `${filtered.length} imóvel${filtered.length === 1 ? "" : "s"}`;
 
   for (const item of filtered) {
     elements.itemGrid.appendChild(renderItemCard(item, { context: "public" }));
@@ -574,7 +582,7 @@ function renderProposalCard(proposal, mode) {
     actions.push(`<button class="secondary" type="button" data-action="cancel-proposal" data-proposal-id="${proposal.id}">Cancelar</button>`);
   }
   if (proposal.status === "accepted") {
-    actions.push(`<button class="secondary" type="button" data-action="fail-proposal" data-proposal-id="${proposal.id}">Troca não aconteceu</button>`);
+    actions.push(`<button class="secondary" type="button" data-action="fail-proposal" data-proposal-id="${proposal.id}">Proposta não aconteceu</button>`);
   }
   actions.push(`<button class="secondary" type="button" data-action="report-user" data-user-id="${counterpartId}">Denunciar usuário</button>`);
 
@@ -583,16 +591,16 @@ function renderProposalCard(proposal, mode) {
       <h3>${mode === "received" ? "Proposta recebida" : "Proposta enviada"}</h3>
       <span class="pill status">${proposalStatusLabels[proposal.status] ?? proposal.status}</span>
     </div>
-    <p class="muted">Pessoa: ${escapeHtml(profile?.full_name ?? "Usuário do trocacomtroca")}</p>
+    <p class="muted">Pessoa: ${escapeHtml(profile?.full_name ?? "Usuário do repassecomrepasse")}</p>
     <div class="proposal-summary">
       <div class="proposal-item">
-        <strong>Objeto desejado</strong>
-        <p>${escapeHtml(requested?.title ?? "Objeto indisponível")}</p>
+        <strong>Imóvel desejado</strong>
+        <p>${escapeHtml(requested?.title ?? "Imóvel indisponível")}</p>
       </div>
       <div class="proposal-arrow">por</div>
       <div class="proposal-item">
-        <strong>Objeto oferecido</strong>
-        <p>${escapeHtml(offered?.title ?? "Objeto indisponível")}</p>
+        <strong>Imóvel oferecido</strong>
+        <p>${escapeHtml(offered?.title ?? "Imóvel indisponível")}</p>
       </div>
     </div>
     <p><strong>Diferença:</strong> ${escapeHtml(cashText)}</p>
@@ -698,9 +706,9 @@ function openItemForm(itemId) {
   const item = itemId ? state.myItems.find((candidate) => candidate.id === itemId) : null;
   elements.itemForm.reset();
   elements.itemId.value = item?.id ?? "";
-  elements.itemModalTitle.textContent = item ? "Editar objeto" : "Cadastrar objeto";
+  elements.itemModalTitle.textContent = item ? "Editar imóvel" : "Cadastrar imóvel";
   elements.imageRequirement.textContent = item
-    ? "Inclua novas imagens somente se quiser adicionar mais fotos. Máximo de 5 por objeto."
+    ? "Inclua novas imagens somente se quiser adicionar mais fotos. Máximo de 5 por imóvel."
     : "Inclua de 1 a 5 imagens.";
 
   if (item) {
@@ -733,12 +741,12 @@ async function saveItem(event) {
   const existingImages = itemId ? (state.imagesByItem.get(itemId) ?? []) : [];
 
   if (!itemId && files.length === 0) {
-    showNotice("Inclua ao menos uma imagem do objeto.", "error");
+    showNotice("Inclua ao menos uma imagem do imóvel.", "error");
     return;
   }
 
   if (existingImages.length + files.length > 5) {
-    showNotice("Cada objeto pode ter no máximo 5 imagens.", "error");
+    showNotice("Cada imóvel pode ter no máximo 5 imagens.", "error");
     return;
   }
 
@@ -754,7 +762,7 @@ async function saveItem(event) {
   };
 
   if (Object.values(payload).some((value) => !value)) {
-    showNotice("Preencha todos os campos obrigatórios do objeto.", "error");
+    showNotice("Preencha todos os campos obrigatórios do imóvel.", "error");
     return;
   }
 
@@ -762,7 +770,7 @@ async function saveItem(event) {
     ? await supabaseClient.from("items").update(payload).eq("id", itemId).select("*").single()
     : await supabaseClient.from("items").insert(payload).select("*").single();
 
-  if (handleDbError(response.error, "salvar objeto")) {
+  if (handleDbError(response.error, "salvar imóvel")) {
     return;
   }
 
@@ -774,7 +782,7 @@ async function saveItem(event) {
   }
 
   closeModals();
-  showNotice("Objeto salvo.");
+  showNotice("Imóvel salvo.");
   await refreshAll();
   setView("dashboard");
 }
@@ -843,11 +851,11 @@ async function toggleItemStatus(itemId) {
   const nextStatus = item.status === "inactive" ? "available" : "inactive";
   const { error } = await supabaseClient.from("items").update({ status: nextStatus }).eq("id", itemId);
 
-  if (handleDbError(error, "alterar status do objeto")) {
+  if (handleDbError(error, "alterar status do imóvel")) {
     return;
   }
 
-  showNotice(nextStatus === "available" ? "Objeto reativado." : "Objeto inativado.");
+  showNotice(nextStatus === "available" ? "Imóvel reativado." : "Imóvel inativado.");
   await refreshAll();
 }
 
@@ -869,7 +877,7 @@ function openItemDetail(itemId) {
     <div class="detail-layout">
       <div class="detail-gallery">${gallery}</div>
       <div class="detail-info">
-        <p class="eyebrow">Objeto para troca</p>
+        <p class="eyebrow">Imóvel em análise</p>
         <h2>${escapeHtml(item.title)}</h2>
         <div class="pill-row">
           <span class="pill">${escapeHtml(item.category)}</span>
@@ -877,11 +885,11 @@ function openItemDetail(itemId) {
         </div>
         <p class="location">${escapeHtml(item.city)} - ${escapeHtml(item.neighborhood)}</p>
         <p>${escapeHtml(item.description)}</p>
-        <p><strong>Preferências de troca:</strong> ${escapeHtml(item.trade_preferences)}</p>
+        <p><strong>Preferências de proposta:</strong> ${escapeHtml(item.trade_preferences)}</p>
         <p class="muted">O contato só é liberado quando a proposta é aceita. Combine local e horário diretamente com a outra pessoa.</p>
         <div class="detail-actions">
           <button type="button" data-action="open-proposal" data-item-id="${item.id}" ${isOwner ? "disabled" : ""}>
-            ${isOwner ? "Este objeto é seu" : "Propor troca"}
+            ${isOwner ? "Este imóvel é seu" : "Enviar proposta"}
           </button>
           <button class="secondary" type="button" data-action="report-item" data-item-id="${item.id}" data-user-id="${item.owner_id}">Denunciar anúncio</button>
         </div>
@@ -909,7 +917,7 @@ async function openProposalModal(itemId) {
   const availableMyItems = state.myItems.filter((item) => item.status === "available");
   elements.proposalForm.reset();
   elements.proposalRequestedItemId.value = itemId;
-  elements.proposalIntro.textContent = `Você está propondo uma troca pelo objeto "${requested.title}".`;
+  elements.proposalIntro.textContent = `Você está enviando uma proposta pelo imóvel "${requested.title}".`;
   elements.offeredItemSelect.innerHTML = "";
 
   for (const item of availableMyItems) {
@@ -936,7 +944,7 @@ async function sendProposal(event) {
   const offered = state.myItems.find((item) => item.id === elements.offeredItemSelect.value);
 
   if (!requested || !offered) {
-    showNotice("Selecione um objeto válido para propor a troca.", "error");
+    showNotice("Selecione um imóvel válido para enviar a proposta.", "error");
     return;
   }
 
@@ -970,10 +978,10 @@ async function sendProposal(event) {
 
 async function runProposalRpc(functionName, proposalId) {
   const confirmationMessages = {
-    accept_exchange_proposal: "Aceitar esta proposta e marcar os dois objetos como trocados?",
+    accept_exchange_proposal: "Aceitar esta proposta e marcar os dois imóveis como em acordo?",
     reject_exchange_proposal: "Recusar esta proposta?",
     cancel_exchange_proposal: "Cancelar esta proposta enviada?",
-    mark_exchange_failed: "Marcar que esta troca não aconteceu e reabrir os objetos?"
+    mark_exchange_failed: "Marcar que esta proposta não aconteceu e reabrir os imóveis?"
   };
 
   if (!confirm(confirmationMessages[functionName])) {
@@ -1073,7 +1081,7 @@ function handleDbError(error, action) {
 
   if (schemaMissing) {
     showNotice(
-      `O banco do trocacomtroca ainda precisa ser atualizado. Execute o novo supabase.sql no Supabase para ${action}.`,
+      `O banco do repassecomrepasse ainda precisa ser atualizado. Execute o novo supabase.sql no Supabase para ${action}.`,
       "error"
     );
   } else {

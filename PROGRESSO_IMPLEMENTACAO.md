@@ -4,16 +4,16 @@ Atualizado em: 2026-05-31
 
 | ID | Funcionalidade | Fase | Situacao | Data | Testes | Observacoes |
 |---|---|---|---|---|---|---|
-| F000 | Criar copia temporaria de seguranca | FASE 0 - Protecao e auditoria | primeiro bloco de execucao |  |  | Preparacao documental e de seguranca. |
-| F001 | Executar projeto atual sem alteracoes | FASE 0 - Protecao e auditoria | primeiro bloco de execucao |  |  | Preparacao documental e de seguranca. |
-| F002 | Auditar arquitetura atual | FASE 0 - Protecao e auditoria | primeiro bloco de execucao |  |  | Preparacao documental e de seguranca. |
-| F003 | Criar AGENTS.md | FASE 0 - Protecao e auditoria | primeiro bloco de execucao |  |  | Preparacao documental e de seguranca. |
-| F004 | Criar PROGRESSO_IMPLEMENTACAO.md | FASE 0 - Protecao e auditoria | primeiro bloco de execucao |  |  | Preparacao documental e de seguranca. |
-| F010 | Aplicar identidade repassecomrepasse | FASE 1 - Fundacao | nao iniciada |  |  |  |
-| F011 | Inserir aviso institucional no rodape | FASE 1 - Fundacao | nao iniciada |  |  |  |
-| F012 | Centralizar configuracoes | FASE 1 - Fundacao | nao iniciada |  |  |  |
-| F013 | Criar auditoria reutilizavel | FASE 1 - Fundacao | nao iniciada |  |  |  |
-| F014 | Criar perfis e permissoes | FASE 1 - Fundacao | nao iniciada |  |  |  |
+| F000 | Criar copia temporaria de seguranca | FASE 0 - Protecao e auditoria | concluida | 2026-05-31 |  | Backup minimo criado fora do repositorio. |
+| F001 | Executar projeto atual sem alteracoes | FASE 0 - Protecao e auditoria | concluida | 2026-05-31 |  | Projeto atual preservado e publicado durante a transicao. |
+| F002 | Auditar arquitetura atual | FASE 0 - Protecao e auditoria | concluida | 2026-05-31 |  | Auditoria inicial registrada em RELATORIO_AUDITORIA_INICIAL.md. |
+| F003 | Criar AGENTS.md | FASE 0 - Protecao e auditoria | concluida | 2026-05-31 |  | AGENTS.md criado. |
+| F004 | Criar PROGRESSO_IMPLEMENTACAO.md | FASE 0 - Protecao e auditoria | concluida | 2026-05-31 |  | PROGRESSO_IMPLEMENTACAO.md criado com F000-F176. |
+| F010 | Aplicar identidade repassecomrepasse | FASE 1 - Fundacao | concluida | 2026-05-31 |  | Identidade textual inicial aplicada em HTML e JS. |
+| F011 | Inserir aviso institucional no rodape | FASE 1 - Fundacao | concluida | 2026-05-31 |  | Aviso institucional inserido na experiencia do painel e configurado no JS. |
+| F012 | Centralizar configuracoes | FASE 1 - Fundacao | concluida | 2026-05-31 |  | Constantes centrais do produto adicionadas ao app.js. |
+| F013 | Criar auditoria reutilizavel | FASE 1 - Fundacao | concluida | 2026-05-31 |  | Tabela audit_events adicionada ao supabase.sql. |
+| F014 | Criar perfis e permissoes | FASE 1 - Fundacao | em andamento | 2026-05-31 |  | Schema recebeu papeis e dados sensiveis separados; UI de CPF/CNPJ fica para proxima etapa. |
 | F020 | Criar catalogo de estados | FASE 2 - Endereco e localizacao | nao iniciada |  |  |  |
 | F021 | Criar catalogo dos municipios da Paraiba | FASE 2 - Endereco e localizacao | nao iniciada |  |  |  |
 | F022 | Criar combos Estado e Municipio | FASE 2 - Endereco e localizacao | nao iniciada |  |  |  |

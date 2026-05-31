@@ -3,6 +3,19 @@ create extension if not exists "pgcrypto";
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text not null,
+  user_type text not null default 'individual' check (user_type in ('individual', 'company', 'real_estate_admin')),
+  role text not null default 'user' check (role in ('user', 'real_estate_admin', 'admin')),
+  city text,
+  state text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.profile_private_data (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  document_type text not null check (document_type in ('cpf', 'cnpj')),
+  document_hash text not null,
+  document_encrypted text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -80,13 +93,96 @@ create table if not exists public.reports (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.audit_events (
+  id uuid primary key default gen_random_uuid(),
+  actor_id uuid references public.profiles(id) on delete set null,
+  action text not null,
+  entity_type text not null,
+  entity_id uuid,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.real_estate_agencies (
+  id uuid primary key default gen_random_uuid(),
+  legal_name text not null,
+  trade_name text not null,
+  cnpj_hash text,
+  creci text,
+  phone text,
+  whatsapp text,
+  email text,
+  leads_email text,
+  responsible_name text,
+  status text not null default 'active' check (status in ('active', 'inactive')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.profiles
+  add column if not exists user_type text not null default 'individual',
+  add column if not exists role text not null default 'user',
+  add column if not exists city text,
+  add column if not exists state text;
+
+alter table public.profiles drop constraint if exists profiles_user_type_check;
+alter table public.profiles
+  add constraint profiles_user_type_check
+  check (user_type in ('individual', 'company', 'real_estate_admin'));
+
+alter table public.profiles drop constraint if exists profiles_role_check;
+alter table public.profiles
+  add constraint profiles_role_check
+  check (role in ('user', 'real_estate_admin', 'admin'));
+
+alter table public.items drop constraint if exists items_category_check;
+alter table public.items
+  add constraint items_category_check
+  check (category in (
+    'Apartamento',
+    'Casa',
+    'Terreno',
+    'Sala comercial',
+    'Ponto comercial',
+    'Chácara',
+    'Imóvel financiado',
+    'Outro',
+    'Eletrônicos',
+    'Roupas',
+    'Livros',
+    'Esporte',
+    'Ferramentas',
+    'Brinquedos',
+    'Outros'
+  ));
+
+alter table public.items drop constraint if exists items_condition_check;
+alter table public.items
+  add constraint items_condition_check
+  check (condition in (
+    'Novo',
+    'Pronto para morar',
+    'Em construção',
+    'Financiado',
+    'Quitado',
+    'Precisa reforma',
+    'Muito bom',
+    'Bom',
+    'Usado',
+    'Precisa reparo'
+  ));
+
 create index if not exists items_status_city_idx on public.items(status, city, neighborhood);
+create index if not exists profile_private_document_hash_idx on public.profile_private_data(document_hash);
 create index if not exists items_owner_idx on public.items(owner_id);
 create index if not exists item_images_item_idx on public.item_images(item_id);
 create index if not exists exchange_requester_idx on public.exchange_proposals(requester_id);
 create index if not exists exchange_owner_idx on public.exchange_proposals(owner_id);
 create index if not exists exchange_requested_item_idx on public.exchange_proposals(requested_item_id);
 create index if not exists exchange_offered_item_idx on public.exchange_proposals(offered_item_id);
+create index if not exists audit_events_actor_idx on public.audit_events(actor_id, created_at desc);
+create index if not exists audit_events_entity_idx on public.audit_events(entity_type, entity_id);
+create index if not exists real_estate_agencies_status_idx on public.real_estate_agencies(status);
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -108,6 +204,11 @@ create trigger profile_contacts_set_updated_at
 before update on public.profile_contacts
 for each row execute function public.set_updated_at();
 
+drop trigger if exists profile_private_data_set_updated_at on public.profile_private_data;
+create trigger profile_private_data_set_updated_at
+before update on public.profile_private_data
+for each row execute function public.set_updated_at();
+
 drop trigger if exists items_set_updated_at on public.items;
 create trigger items_set_updated_at
 before update on public.items
@@ -118,12 +219,20 @@ create trigger exchange_proposals_set_updated_at
 before update on public.exchange_proposals
 for each row execute function public.set_updated_at();
 
+drop trigger if exists real_estate_agencies_set_updated_at on public.real_estate_agencies;
+create trigger real_estate_agencies_set_updated_at
+before update on public.real_estate_agencies
+for each row execute function public.set_updated_at();
+
 alter table public.profiles enable row level security;
+alter table public.profile_private_data enable row level security;
 alter table public.profile_contacts enable row level security;
 alter table public.items enable row level security;
 alter table public.item_images enable row level security;
 alter table public.exchange_proposals enable row level security;
 alter table public.reports enable row level security;
+alter table public.audit_events enable row level security;
+alter table public.real_estate_agencies enable row level security;
 
 drop policy if exists "profiles public read" on public.profiles;
 create policy "profiles public read"
@@ -143,6 +252,25 @@ create policy "profiles own update"
   for update
   using (id = auth.uid())
   with check (id = auth.uid());
+
+drop policy if exists "profile private own read" on public.profile_private_data;
+create policy "profile private own read"
+  on public.profile_private_data
+  for select
+  using (user_id = auth.uid());
+
+drop policy if exists "profile private own insert" on public.profile_private_data;
+create policy "profile private own insert"
+  on public.profile_private_data
+  for insert
+  with check (user_id = auth.uid());
+
+drop policy if exists "profile private own update" on public.profile_private_data;
+create policy "profile private own update"
+  on public.profile_private_data
+  for update
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
 
 drop policy if exists "contacts allowed read" on public.profile_contacts;
 create policy "contacts allowed read"
@@ -297,6 +425,24 @@ create policy "reports own read"
   for select
   using (reporter_id = auth.uid());
 
+drop policy if exists "audit own read" on public.audit_events;
+create policy "audit own read"
+  on public.audit_events
+  for select
+  using (actor_id = auth.uid());
+
+drop policy if exists "audit authenticated insert" on public.audit_events;
+create policy "audit authenticated insert"
+  on public.audit_events
+  for insert
+  with check (actor_id = auth.uid());
+
+drop policy if exists "real estate agencies public active read" on public.real_estate_agencies;
+create policy "real estate agencies public active read"
+  on public.real_estate_agencies
+  for select
+  using (status = 'active');
+
 insert into storage.buckets (id, name, public)
 values ('item-images', 'item-images', true)
 on conflict (id) do update set public = true;
@@ -347,7 +493,7 @@ begin
   end if;
 
   if v_proposal.owner_id <> auth.uid() then
-    raise exception 'Apenas o dono do objeto pode aceitar a proposta.';
+    raise exception 'Apenas o anunciante do imóvel pode aceitar a proposta.';
   end if;
 
   if v_proposal.status <> 'pending' then
@@ -431,11 +577,11 @@ begin
   end if;
 
   if auth.uid() not in (v_proposal.requester_id, v_proposal.owner_id) then
-    raise exception 'Apenas participantes podem reabrir a troca.';
+    raise exception 'Apenas participantes podem reabrir a negociação.';
   end if;
 
   if v_proposal.status <> 'accepted' then
-    raise exception 'Apenas trocas aceitas podem ser marcadas como não realizadas.';
+    raise exception 'Apenas propostas aceitas podem ser marcadas como não realizadas.';
   end if;
 
   update public.exchange_proposals
