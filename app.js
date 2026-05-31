@@ -482,6 +482,8 @@ function handleDocumentClick(event) {
     openModal(elements.authModal);
   } else if (action === "logout") {
     logout();
+  } else if (action === "deactivate-account") {
+    deactivateAccount();
   } else if (action === "close-modal") {
     closeModals();
   } else if (action === "open-item-form") {
@@ -586,8 +588,10 @@ function renderDashboard() {
   populateMunicipalitySelect(elements.profileCity, elements.profileState.value || "PB", false);
   elements.profileCity.value = state.profile?.city ?? "";
   const profileComplete = isProfileComplete();
-  elements.profileStatus.textContent = profileComplete ? "Completo" : "Pendente";
+  const accountInactive = state.profile?.account_status === "inactive";
+  elements.profileStatus.textContent = accountInactive ? "Inativo" : profileComplete ? "Completo" : "Pendente";
   elements.profileStatus.classList.toggle("complete", profileComplete);
+  elements.profileStatus.classList.toggle("inactive", accountInactive);
 
   renderMyItems();
   renderProposals();
@@ -766,6 +770,26 @@ async function handleAuth(action) {
   const email = elements.authEmail.value.trim();
   const password = elements.authPassword.value;
 
+  if (action === "reset-password") {
+    if (!email) {
+      showNotice("Informe seu email para receber o link de recuperação.", "error");
+      return;
+    }
+
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}${window.location.pathname}#dashboard`
+    });
+
+    if (error) {
+      showNotice(error.message, "error");
+      return;
+    }
+
+    closeModals();
+    showNotice("Enviamos um link de recuperação para o email informado.");
+    return;
+  }
+
   if (!email || !password) {
     showNotice("Informe email e senha.", "error");
     return;
@@ -828,6 +852,7 @@ async function saveProfile(event) {
       full_name: fullName,
       user_type: userType,
       role: state.profile?.role ?? "user",
+      account_status: "active",
       state: profileState,
       city
     }, { onConflict: "id" });
@@ -862,6 +887,42 @@ async function saveProfile(event) {
 
   showNotice("Perfil salvo.");
   await refreshAll();
+}
+
+async function deactivateAccount() {
+  if (!requireLogin()) {
+    return;
+  }
+
+  const confirmed = confirm(
+    "Desativar sua conta? Seus imóveis ficarão inativos e você precisará salvar o perfil novamente para reativar."
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  const profileResponse = await supabaseClient
+    .from("profiles")
+    .update({ account_status: "inactive" })
+    .eq("id", state.user.id);
+
+  if (handleDbError(profileResponse.error, "desativar conta")) {
+    return;
+  }
+
+  const itemsResponse = await supabaseClient
+    .from("items")
+    .update({ status: "inactive" })
+    .eq("owner_id", state.user.id)
+    .neq("status", "traded");
+
+  if (handleDbError(itemsResponse.error, "inativar imóveis da conta")) {
+    return;
+  }
+
+  await logout();
+  showNotice("Conta desativada. Para reativar, entre novamente e salve seu perfil.");
 }
 
 function openItemForm(itemId) {
@@ -1228,6 +1289,7 @@ async function reportTarget(targetType, itemId, userId) {
 
 function isProfileComplete() {
   return Boolean(
+    state.profile?.account_status !== "inactive" &&
     state.profile?.full_name &&
     state.profile?.user_type &&
     state.profile?.state &&

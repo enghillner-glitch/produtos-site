@@ -71,3 +71,5 @@
 | Documento fora da vitrine | CPF/CNPJ nao entra em `profiles` nem aparece publicamente; a interface so mostra aviso de documento ja cadastrado para o proprio usuario. |
 | Protecao inicial do documento | O MVP grava hash SHA-256 tipado (`cpf:`/`cnpj:`) e versao mascarada em `profile_private_data`, protegida por RLS. Criptografia forte com segredo de servidor fica reservada para a etapa backend/edge function. |
 | Unicidade operacional | O schema passa a incluir indice unico por `document_type` e `document_hash` para reduzir cadastros duplicados sem expor o numero completo. |
+| Recuperacao de senha | A recuperacao usa o fluxo nativo do Supabase Auth por email, sem senha temporaria no app. |
+| Desativacao logica | Conta desativada recebe `profiles.account_status = inactive`; imoveis nao trocados do usuario ficam inativos para sair da vitrine. |

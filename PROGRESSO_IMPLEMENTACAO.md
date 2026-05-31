@@ -24,9 +24,9 @@ Atualizado em: 2026-05-31
 | F041 | Cadastrar pessoa juridica | FASE 4 - Usuarios e autenticacao | concluida | 2026-05-31 | node --check app.js | Perfil aceita Pessoa juridica com CNPJ restrito. |
 | F042 | Confirmar e-mail | FASE 4 - Usuarios e autenticacao | parcial | 2026-05-31 | node --check app.js | Fluxo usa Supabase Auth e avisa o usuario para confirmar e-mail quando configurado no projeto. |
 | F043 | Implementar login e logout | FASE 4 - Usuarios e autenticacao | concluida | 2026-05-31 | node --check app.js | Login, criacao de conta e logout ja integrados ao Supabase Auth no SPA. |
-| F044 | Recuperar senha | FASE 4 - Usuarios e autenticacao | nao iniciada |  |  |  |
+| F044 | Recuperar senha | FASE 4 - Usuarios e autenticacao | concluida | 2026-05-31 | node --check app.js; validacao Supabase | Botao Esqueci minha senha envia email de recuperacao via Supabase Auth. |
 | F045 | Criar perfil do usuario | FASE 4 - Usuarios e autenticacao | concluida | 2026-05-31 | node --check app.js | Perfil inclui nome/razao social, tipo, CPF/CNPJ restrito, WhatsApp, estado e cidade. |
-| F046 | Desativar conta com exclusao logica | FASE 4 - Usuarios e autenticacao | nao iniciada |  |  |  |
+| F046 | Desativar conta com exclusao logica | FASE 4 - Usuarios e autenticacao | concluida | 2026-05-31 | node --check app.js; validacao Supabase | Perfil recebe account_status; desativacao inativa a conta e os imoveis nao trocados. |
 | F050 | Criar catalogos de imoveis | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |
 | F051 | Criar entidade imovel | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |
 | F052 | Criar formulario dinamico de imovel | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |

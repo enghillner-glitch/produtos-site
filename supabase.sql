@@ -5,6 +5,7 @@ create table if not exists public.profiles (
   full_name text not null,
   user_type text not null default 'individual' check (user_type in ('individual', 'company', 'real_estate_admin')),
   role text not null default 'user' check (role in ('user', 'real_estate_admin', 'admin')),
+  account_status text not null default 'active' check (account_status in ('active', 'inactive')),
   city text,
   state text,
   created_at timestamptz not null default now(),
@@ -134,6 +135,7 @@ create table if not exists public.real_estate_agencies (
 alter table public.profiles
   add column if not exists user_type text not null default 'individual',
   add column if not exists role text not null default 'user',
+  add column if not exists account_status text not null default 'active',
   add column if not exists city text,
   add column if not exists state text;
 
@@ -154,6 +156,11 @@ alter table public.profiles drop constraint if exists profiles_role_check;
 alter table public.profiles
   add constraint profiles_role_check
   check (role in ('user', 'real_estate_admin', 'admin'));
+
+alter table public.profiles drop constraint if exists profiles_account_status_check;
+alter table public.profiles
+  add constraint profiles_account_status_check
+  check (account_status in ('active', 'inactive'));
 
 alter table public.items drop constraint if exists items_category_check;
 alter table public.items

@@ -89,6 +89,19 @@ button.danger:hover {
   background: #972837;
 }
 
+button.text-button {
+  background: transparent;
+  color: var(--brand-dark);
+  justify-self: start;
+  padding: 4px 0;
+}
+
+button.text-button:hover {
+  background: transparent;
+  color: var(--ink);
+  text-decoration: underline;
+}
+
 main {
   width: min(1220px, calc(100% - 32px));
   margin: 0 auto;
@@ -569,6 +582,11 @@ textarea:focus {
 .panel-title span.complete {
   background: #e3f7e8;
   color: #14653a;
+}
+
+.panel-title span.inactive {
+  background: #fde8e8;
+  color: #9b1c1c;
 }
 
 .safety-panel {
