@@ -14,10 +14,10 @@ Atualizado em: 2026-05-31
 | F012 | Centralizar configuracoes | FASE 1 - Fundacao | concluida | 2026-05-31 |  | Constantes centrais do produto adicionadas ao app.js. |
 | F013 | Criar auditoria reutilizavel | FASE 1 - Fundacao | concluida | 2026-05-31 |  | Tabela audit_events adicionada ao supabase.sql. |
 | F014 | Criar perfis e permissoes | FASE 1 - Fundacao | concluida | 2026-05-31 |  | Schema remoto recebeu papeis, dados privados e politicas base; UI de CPF/CNPJ segue em etapa propria. |
-| F020 | Criar catalogo de estados | FASE 2 - Endereco e localizacao | nao iniciada |  |  |  |
-| F021 | Criar catalogo dos municipios da Paraiba | FASE 2 - Endereco e localizacao | nao iniciada |  |  |  |
-| F022 | Criar combos Estado e Municipio | FASE 2 - Endereco e localizacao | nao iniciada |  |  |  |
-| F023 | Separar endereco publico e restrito | FASE 2 - Endereco e localizacao | nao iniciada |  |  |  |
+| F020 | Criar catalogo de estados | FASE 2 - Endereco e localizacao | concluida | 2026-05-31 |  | Catalogo de estados iniciado com PB na interface e no schema. |
+| F021 | Criar catalogo dos municipios da Paraiba | FASE 2 - Endereco e localizacao | concluida | 2026-05-31 |  | Catalogo de 223 municipios da Paraiba gerado a partir da API do IBGE em location-data.js. |
+| F022 | Criar combos Estado e Municipio | FASE 2 - Endereco e localizacao | concluida | 2026-05-31 |  | Combos Estado/Municipio aplicados na vitrine e cadastro de imovel. |
+| F023 | Separar endereco publico e restrito | FASE 2 - Endereco e localizacao | concluida | 2026-05-31 |  | Endereco publico permanece cidade/bairro; endereco completo vai para item_private_locations com RLS de dono. |
 | F030 | Criar entidade da imobiliaria | FASE 3 - Imobiliaria | nao iniciada |  |  |  |
 | F031 | Criar pagina institucional da imobiliaria | FASE 3 - Imobiliaria | nao iniciada |  |  |  |
 | F040 | Cadastrar pessoa fisica | FASE 4 - Usuarios e autenticacao | nao iniciada |  |  |  |

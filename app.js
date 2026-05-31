@@ -12,6 +12,11 @@ const PRODUCT = {
     "O repassecomrepasse é uma plataforma de aproximação entre interessados em negociações imobiliárias. A análise documental e os encaminhamentos junto a bancos, construtoras, credores e agentes financiadores são realizados por intermédio da imobiliária responsável."
 };
 
+const LOCATION = window.LOCATION_DATA ?? {
+  states: [{ code: "PB", name: "Paraíba" }],
+  municipalitiesByState: { PB: [] }
+};
+
 const categories = [
   "Apartamento",
   "Casa",
@@ -72,6 +77,7 @@ const elements = {
   authControls: $("authControls"),
   pendingBadge: $("pendingBadge"),
   searchInput: $("searchInput"),
+  stateFilter: $("stateFilter"),
   cityFilter: $("cityFilter"),
   neighborhoodFilter: $("neighborhoodFilter"),
   categoryFilter: $("categoryFilter"),
@@ -101,8 +107,12 @@ const elements = {
   itemTitle: $("itemTitle"),
   itemCategory: $("itemCategory"),
   itemCondition: $("itemCondition"),
+  itemState: $("itemState"),
   itemCity: $("itemCity"),
   itemNeighborhood: $("itemNeighborhood"),
+  itemStreet: $("itemStreet"),
+  itemNumber: $("itemNumber"),
+  itemAddressNotes: $("itemAddressNotes"),
   itemPreferences: $("itemPreferences"),
   itemDescription: $("itemDescription"),
   itemImages: $("itemImages"),
@@ -147,10 +157,35 @@ async function init() {
 }
 
 function populateSelects() {
+  addStateOptions(elements.stateFilter, true);
+  addStateOptions(elements.itemState, false);
+  populateMunicipalitySelect(elements.cityFilter, "PB", true);
+  populateMunicipalitySelect(elements.itemCity, "PB", false);
   addOptions(elements.categoryFilter, categories);
   addOptions(elements.conditionFilter, conditions);
   addOptions(elements.itemCategory, categories);
   addOptions(elements.itemCondition, conditions);
+}
+
+function addStateOptions(select, includeAll) {
+  select.innerHTML = includeAll ? '<option value="">Todos</option>' : "";
+  for (const state of LOCATION.states) {
+    const node = document.createElement("option");
+    node.value = state.code;
+    node.textContent = state.name;
+    select.appendChild(node);
+  }
+  select.value = includeAll ? "" : "PB";
+}
+
+function populateMunicipalitySelect(select, stateCode, includeAll) {
+  select.innerHTML = includeAll ? '<option value="">Todos</option>' : '<option value="">Selecione</option>';
+  for (const city of LOCATION.municipalitiesByState[stateCode] ?? []) {
+    const node = document.createElement("option");
+    node.value = city;
+    node.textContent = city;
+    select.appendChild(node);
+  }
 }
 
 function addOptions(select, options) {
@@ -168,6 +203,7 @@ function bindEvents() {
 
   for (const input of [
     elements.searchInput,
+    elements.stateFilter,
     elements.cityFilter,
     elements.neighborhoodFilter,
     elements.categoryFilter,
@@ -175,6 +211,15 @@ function bindEvents() {
   ]) {
     input.addEventListener("input", renderHome);
   }
+
+  elements.stateFilter.addEventListener("change", () => {
+    populateMunicipalitySelect(elements.cityFilter, elements.stateFilter.value || "PB", true);
+    renderHome();
+  });
+
+  elements.itemState.addEventListener("change", () => {
+    populateMunicipalitySelect(elements.itemCity, elements.itemState.value || "PB", false);
+  });
 
   elements.profileForm.addEventListener("submit", saveProfile);
   elements.itemForm.addEventListener("submit", saveItem);
@@ -451,6 +496,7 @@ function renderHome() {
 
 function filterPublicItems() {
   const search = normalize(elements.searchInput.value);
+  const selectedState = elements.stateFilter.value;
   const city = normalize(elements.cityFilter.value);
   const neighborhood = normalize(elements.neighborhoodFilter.value);
   const category = elements.categoryFilter.value;
@@ -462,7 +508,8 @@ function filterPublicItems() {
     );
     return (
       (!search || searchable.includes(search)) &&
-      (!city || normalize(item.city).includes(city)) &&
+      (!selectedState || (item.state ?? "PB") === selectedState) &&
+      (!city || normalize(item.city) === city) &&
       (!neighborhood || normalize(item.neighborhood).includes(neighborhood)) &&
       (!category || item.category === category) &&
       (!condition || item.condition === condition)
@@ -707,6 +754,8 @@ function openItemForm(itemId) {
   elements.itemForm.reset();
   elements.itemId.value = item?.id ?? "";
   elements.itemModalTitle.textContent = item ? "Editar imóvel" : "Cadastrar imóvel";
+  elements.itemState.value = item?.state ?? "PB";
+  populateMunicipalitySelect(elements.itemCity, elements.itemState.value, false);
   elements.imageRequirement.textContent = item
     ? "Inclua novas imagens somente se quiser adicionar mais fotos. Máximo de 5 por imóvel."
     : "Inclua de 1 a 5 imagens.";
@@ -756,12 +805,19 @@ async function saveItem(event) {
     description: elements.itemDescription.value.trim(),
     category: elements.itemCategory.value,
     condition: elements.itemCondition.value,
+    state: elements.itemState.value,
     city: elements.itemCity.value.trim(),
     neighborhood: elements.itemNeighborhood.value.trim(),
     trade_preferences: elements.itemPreferences.value.trim()
   };
 
-  if (Object.values(payload).some((value) => !value)) {
+  const privateLocation = {
+    street: elements.itemStreet.value.trim(),
+    number: elements.itemNumber.value.trim(),
+    notes: elements.itemAddressNotes.value.trim()
+  };
+
+  if (Object.values(payload).some((value) => !value) || !privateLocation.street || !privateLocation.number) {
     showNotice("Preencha todos os campos obrigatórios do imóvel.", "error");
     return;
   }
@@ -771,6 +827,11 @@ async function saveItem(event) {
     : await supabaseClient.from("items").insert(payload).select("*").single();
 
   if (handleDbError(response.error, "salvar imóvel")) {
+    return;
+  }
+
+  const privateLocationFailed = await savePrivateLocation(response.data.id, privateLocation);
+  if (privateLocationFailed) {
     return;
   }
 
@@ -785,6 +846,21 @@ async function saveItem(event) {
   showNotice("Imóvel salvo.");
   await refreshAll();
   setView("dashboard");
+}
+
+async function savePrivateLocation(itemId, privateLocation) {
+  const { error } = await supabaseClient.from("item_private_locations").upsert(
+    {
+      item_id: itemId,
+      owner_id: state.user.id,
+      street: privateLocation.street,
+      number: privateLocation.number,
+      notes: privateLocation.notes || null
+    },
+    { onConflict: "item_id" }
+  );
+
+  return handleDbError(error, "salvar endereço restrito");
 }
 
 async function uploadItemImages(itemId, files, startIndex) {

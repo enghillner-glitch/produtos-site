@@ -46,3 +46,12 @@
 | Validacao remota | Consulta confirmou `profile_private_data`, `audit_events`, `real_estate_agencies`, coluna `profiles.user_type` e politica `profile private own read`. |
 | Publicacao liberada | Com a base remota validada, o commit local da fundacao pode ser enviado para GitHub/Vercel. |
 
+## 2026-05-31 - Endereco e localizacao
+
+| Decisao | Registro |
+|---|---|
+| Estado inicial PB | A primeira versao fica restrita a Paraiba, com `items.state` limitado a `PB`. |
+| Municipios oficiais | `location-data.js` foi gerado com 223 municipios da Paraiba a partir da API do IBGE. |
+| Endereco publico | Vitrine e detalhe exibem municipio e bairro, sem logradouro ou numero. |
+| Endereco restrito | Rua, numero e complemento ficam em `item_private_locations`, com leitura e escrita restritas ao dono. |
+

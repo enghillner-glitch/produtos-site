@@ -33,22 +33,24 @@ create table if not exists public.items (
   title text not null,
   description text not null,
   category text not null check (category in (
-    'Eletrônicos',
+    'Apartamento',
     'Casa',
-    'Roupas',
-    'Livros',
-    'Esporte',
-    'Ferramentas',
-    'Brinquedos',
-    'Outros'
+    'Terreno',
+    'Sala comercial',
+    'Ponto comercial',
+    'Chácara',
+    'Imóvel financiado',
+    'Outro'
   )),
   condition text not null check (condition in (
     'Novo',
-    'Muito bom',
-    'Bom',
-    'Usado',
-    'Precisa reparo'
+    'Pronto para morar',
+    'Em construção',
+    'Financiado',
+    'Quitado',
+    'Precisa reforma'
   )),
+  state text not null default 'PB',
   city text not null,
   neighborhood text not null,
   trade_preferences text not null,
@@ -64,6 +66,16 @@ create table if not exists public.item_images (
   public_url text not null,
   sort_order integer not null default 0,
   created_at timestamptz not null default now()
+);
+
+create table if not exists public.item_private_locations (
+  item_id uuid primary key references public.items(id) on delete cascade,
+  owner_id uuid not null references public.profiles(id) on delete cascade,
+  street text not null,
+  number text not null,
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.exchange_proposals (
@@ -125,6 +137,14 @@ alter table public.profiles
   add column if not exists city text,
   add column if not exists state text;
 
+alter table public.items
+  add column if not exists state text not null default 'PB';
+
+alter table public.items drop constraint if exists items_state_check;
+alter table public.items
+  add constraint items_state_check
+  check (state in ('PB'));
+
 alter table public.profiles drop constraint if exists profiles_user_type_check;
 alter table public.profiles
   add constraint profiles_user_type_check
@@ -176,6 +196,7 @@ create index if not exists items_status_city_idx on public.items(status, city, n
 create index if not exists profile_private_document_hash_idx on public.profile_private_data(document_hash);
 create index if not exists items_owner_idx on public.items(owner_id);
 create index if not exists item_images_item_idx on public.item_images(item_id);
+create index if not exists item_private_locations_owner_idx on public.item_private_locations(owner_id);
 create index if not exists exchange_requester_idx on public.exchange_proposals(requester_id);
 create index if not exists exchange_owner_idx on public.exchange_proposals(owner_id);
 create index if not exists exchange_requested_item_idx on public.exchange_proposals(requested_item_id);
@@ -209,6 +230,11 @@ create trigger profile_private_data_set_updated_at
 before update on public.profile_private_data
 for each row execute function public.set_updated_at();
 
+drop trigger if exists item_private_locations_set_updated_at on public.item_private_locations;
+create trigger item_private_locations_set_updated_at
+before update on public.item_private_locations
+for each row execute function public.set_updated_at();
+
 drop trigger if exists items_set_updated_at on public.items;
 create trigger items_set_updated_at
 before update on public.items
@@ -229,6 +255,7 @@ alter table public.profile_private_data enable row level security;
 alter table public.profile_contacts enable row level security;
 alter table public.items enable row level security;
 alter table public.item_images enable row level security;
+alter table public.item_private_locations enable row level security;
 alter table public.exchange_proposals enable row level security;
 alter table public.reports enable row level security;
 alter table public.audit_events enable row level security;
@@ -383,6 +410,25 @@ create policy "item images own delete"
         and i.owner_id = auth.uid()
     )
   );
+
+drop policy if exists "item private locations own read" on public.item_private_locations;
+create policy "item private locations own read"
+  on public.item_private_locations
+  for select
+  using (owner_id = auth.uid());
+
+drop policy if exists "item private locations own insert" on public.item_private_locations;
+create policy "item private locations own insert"
+  on public.item_private_locations
+  for insert
+  with check (owner_id = auth.uid());
+
+drop policy if exists "item private locations own update" on public.item_private_locations;
+create policy "item private locations own update"
+  on public.item_private_locations
+  for update
+  using (owner_id = auth.uid())
+  with check (owner_id = auth.uid());
 
 drop policy if exists "proposals participant read" on public.exchange_proposals;
 create policy "proposals participant read"

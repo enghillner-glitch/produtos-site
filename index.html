@@ -53,8 +53,14 @@
             <input id="searchInput" type="search" placeholder="Título, descrição ou interesse" autocomplete="off" />
           </label>
           <label>
-            Cidade
-            <input id="cityFilter" type="text" placeholder="Ex: São Paulo" autocomplete="off" />
+            Estado
+            <select id="stateFilter"></select>
+          </label>
+          <label>
+            Município
+            <select id="cityFilter">
+              <option value="">Todos</option>
+            </select>
           </label>
           <label>
             Bairro
@@ -212,12 +218,29 @@
             <select id="itemCondition" required></select>
           </label>
           <label>
-            Cidade
-            <input id="itemCity" type="text" maxlength="90" required />
+            Estado
+            <select id="itemState" required></select>
+          </label>
+          <label>
+            Município
+            <select id="itemCity" required></select>
           </label>
           <label>
             Bairro
             <input id="itemNeighborhood" type="text" maxlength="90" required />
+          </label>
+          <label>
+            Rua / logradouro
+            <input id="itemStreet" type="text" maxlength="160" required autocomplete="address-line1" />
+          </label>
+          <label>
+            Número
+            <input id="itemNumber" type="text" maxlength="30" required />
+          </label>
+          <label class="wide">
+            Complemento ou referência
+            <input id="itemAddressNotes" type="text" maxlength="220" placeholder="Ex: bloco, apto, ponto de referência" />
+            <span class="field-hint">Endereço completo fica restrito e não aparece na vitrine pública.</span>
           </label>
           <label class="wide">
             Interesse de negociação
@@ -296,6 +319,7 @@
     </footer>
 
     <script src="./config.js"></script>
+    <script src="./location-data.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./app.js"></script>
   </body>
