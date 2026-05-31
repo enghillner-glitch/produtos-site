@@ -246,17 +246,20 @@
         <h2>Entrar no repassecomrepasse</h2>
         <p class="muted">Use email e senha para cadastrar imóveis e enviar propostas.</p>
         <form id="authForm">
+          <div id="loginFields">
+            <label>
+              Email
+              <input id="authEmail" type="email" required autocomplete="email" />
+            </label>
+          </div>
           <label>
-            Email
-            <input id="authEmail" type="email" required autocomplete="email" />
-          </label>
-          <label>
-            Senha
+            <span id="authPasswordLabel">Senha</span>
             <input id="authPassword" type="password" required minlength="6" autocomplete="current-password" />
           </label>
           <div class="split-actions">
             <button type="button" data-auth-action="login">Entrar</button>
             <button class="secondary" type="button" data-auth-action="signup">Criar conta</button>
+            <button type="button" data-auth-action="update-password" hidden>Salvar nova senha</button>
           </div>
           <button class="text-button" type="button" data-auth-action="reset-password">Esqueci minha senha</button>
         </form>
@@ -280,6 +283,22 @@
           <label>
             Situação
             <select id="itemCondition" required></select>
+          </label>
+          <label>
+            Valor do repasse pretendido
+            <input id="itemTransferAmount" type="number" min="0" step="0.01" inputmode="decimal" value="0" required />
+          </label>
+          <label>
+            Saldo devedor aproximado
+            <input id="itemOutstandingBalance" type="number" min="0" step="0.01" inputmode="decimal" value="0" required />
+          </label>
+          <label>
+            Parcela mensal aproximada
+            <input id="itemMonthlyPayment" type="number" min="0" step="0.01" inputmode="decimal" value="0" required />
+          </label>
+          <label>
+            Parcelas restantes
+            <input id="itemInstallmentsRemaining" type="number" min="0" step="1" inputmode="numeric" value="0" required />
           </label>
           <label>
             Estado
@@ -314,9 +333,13 @@
             Descrição
             <textarea id="itemDescription" rows="5" maxlength="1200" required></textarea>
           </label>
+          <label class="wide checkbox-label">
+            <input id="itemLegitimacy" type="checkbox" required />
+            Confirmo que tenho legitimidade para cadastrar este imóvel e iniciar tratativas de repasse.
+          </label>
           <label class="wide">
             Imagens
-            <input id="itemImages" type="file" accept="image/*" multiple />
+            <input id="itemImages" type="file" accept="image/jpeg,image/png,image/webp" multiple />
             <span class="field-hint" id="imageRequirement">Inclua de 1 a 5 imagens do imóvel.</span>
           </label>
           <div class="image-preview-list" id="itemImagePreview"></div>

@@ -55,6 +55,11 @@ create table if not exists public.items (
   city text not null,
   neighborhood text not null,
   trade_preferences text not null,
+  transfer_amount numeric(12, 2) not null default 0,
+  outstanding_balance numeric(12, 2) not null default 0,
+  monthly_payment numeric(12, 2) not null default 0,
+  installments_remaining integer not null default 0,
+  legitimacy_confirmed boolean not null default false,
   status text not null default 'available' check (status in ('available', 'traded', 'inactive')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -141,11 +146,31 @@ alter table public.profiles
 
 alter table public.items
   add column if not exists state text not null default 'PB';
+alter table public.items
+  add column if not exists transfer_amount numeric(12, 2) not null default 0;
+alter table public.items
+  add column if not exists outstanding_balance numeric(12, 2) not null default 0;
+alter table public.items
+  add column if not exists monthly_payment numeric(12, 2) not null default 0;
+alter table public.items
+  add column if not exists installments_remaining integer not null default 0;
+alter table public.items
+  add column if not exists legitimacy_confirmed boolean not null default false;
 
 alter table public.items drop constraint if exists items_state_check;
 alter table public.items
   add constraint items_state_check
   check (state in ('PB'));
+
+alter table public.items drop constraint if exists items_financial_values_check;
+alter table public.items
+  add constraint items_financial_values_check
+  check (
+    transfer_amount >= 0
+    and outstanding_balance >= 0
+    and monthly_payment >= 0
+    and installments_remaining >= 0
+  );
 
 alter table public.profiles drop constraint if exists profiles_user_type_check;
 alter table public.profiles
@@ -373,14 +398,30 @@ drop policy if exists "items own insert" on public.items;
 create policy "items own insert"
   on public.items
   for insert
-  with check (owner_id = auth.uid());
+  with check (
+    owner_id = auth.uid()
+    and exists (
+      select 1
+      from public.profiles p
+      where p.id = auth.uid()
+        and p.account_status = 'active'
+    )
+  );
 
 drop policy if exists "items own update" on public.items;
 create policy "items own update"
   on public.items
   for update
   using (owner_id = auth.uid())
-  with check (owner_id = auth.uid());
+  with check (
+    owner_id = auth.uid()
+    and exists (
+      select 1
+      from public.profiles p
+      where p.id = auth.uid()
+        and p.account_status = 'active'
+    )
+  );
 
 drop policy if exists "items own delete" on public.items;
 create policy "items own delete"
@@ -467,6 +508,18 @@ create policy "proposals valid insert"
   for insert
   with check (
     requester_id = auth.uid()
+    and exists (
+      select 1
+      from public.profiles requester
+      where requester.id = auth.uid()
+        and requester.account_status = 'active'
+    )
+    and exists (
+      select 1
+      from public.profiles owner_profile
+      where owner_profile.id = owner_id
+        and owner_profile.account_status = 'active'
+    )
     and exists (
       select 1
       from public.items offered
@@ -571,6 +624,23 @@ begin
     raise exception 'A proposta não está pendente.';
   end if;
 
+  if (
+    select count(*)
+    from public.profiles p
+    where p.id in (v_proposal.requester_id, v_proposal.owner_id)
+      and p.account_status = 'active'
+  ) <> 2 then
+    raise exception 'A proposta possui participante inativo.';
+  end if;
+
+  if (
+    select count(*)
+    from public.items i
+    where i.id in (v_proposal.requested_item_id, v_proposal.offered_item_id)
+      and i.status = 'available'
+  ) <> 2 then
+    raise exception 'Os imoveis da proposta precisam estar disponiveis.';
+  end if;
   update public.exchange_proposals
   set status = 'accepted'
   where id = p_proposal_id;

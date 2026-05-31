@@ -63,6 +63,7 @@ const state = {
   proposalsItemsById: new Map(),
   profilesById: new Map(),
   contactsByUserId: new Map(),
+  privateLocationsByItem: new Map(),
   selectedDetailItem: null
 };
 
@@ -108,8 +109,10 @@ const elements = {
   receivedEmpty: $("receivedEmpty"),
   sentEmpty: $("sentEmpty"),
   authModal: $("authModal"),
+  loginFields: $("loginFields"),
   authEmail: $("authEmail"),
   authPassword: $("authPassword"),
+  authPasswordLabel: $("authPasswordLabel"),
   itemModal: $("itemModal"),
   itemModalTitle: $("itemModalTitle"),
   itemForm: $("itemForm"),
@@ -117,6 +120,10 @@ const elements = {
   itemTitle: $("itemTitle"),
   itemCategory: $("itemCategory"),
   itemCondition: $("itemCondition"),
+  itemTransferAmount: $("itemTransferAmount"),
+  itemOutstandingBalance: $("itemOutstandingBalance"),
+  itemMonthlyPayment: $("itemMonthlyPayment"),
+  itemInstallmentsRemaining: $("itemInstallmentsRemaining"),
   itemState: $("itemState"),
   itemCity: $("itemCity"),
   itemNeighborhood: $("itemNeighborhood"),
@@ -125,6 +132,7 @@ const elements = {
   itemAddressNotes: $("itemAddressNotes"),
   itemPreferences: $("itemPreferences"),
   itemDescription: $("itemDescription"),
+  itemLegitimacy: $("itemLegitimacy"),
   itemImages: $("itemImages"),
   imageRequirement: $("imageRequirement"),
   itemImagePreview: $("itemImagePreview"),
@@ -157,8 +165,11 @@ async function init() {
   const { data } = await supabaseClient.auth.getSession();
   state.user = data.session?.user ?? null;
 
-  supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+  supabaseClient.auth.onAuthStateChange(async (event, session) => {
     state.user = session?.user ?? null;
+    if (event === "PASSWORD_RECOVERY") {
+      openPasswordRecoveryMode();
+    }
     await refreshAll();
   });
 
@@ -300,6 +311,7 @@ async function loadUserData() {
   state.proposalsItemsById = new Map();
   state.profilesById = new Map();
   state.contactsByUserId = new Map();
+  state.privateLocationsByItem = new Map();
 
   if (!state.user) {
     return;
@@ -350,7 +362,27 @@ async function loadMyItems() {
   }
 
   state.myItems = data ?? [];
-  await loadImagesForItems(state.myItems.map((item) => item.id));
+  const itemIds = state.myItems.map((item) => item.id);
+  await Promise.all([loadImagesForItems(itemIds), loadPrivateLocations(itemIds)]);
+}
+
+async function loadPrivateLocations(itemIds) {
+  state.privateLocationsByItem = new Map();
+
+  if (!itemIds.length) {
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("item_private_locations")
+    .select("*")
+    .in("item_id", itemIds);
+
+  if (handleDbError(error, "carregar endereços restritos")) {
+    return;
+  }
+
+  state.privateLocationsByItem = new Map((data ?? []).map((location) => [location.item_id, location]));
 }
 
 async function loadProposals() {
@@ -479,12 +511,14 @@ function handleDocumentClick(event) {
   const { action } = actionTarget.dataset;
 
   if (action === "open-auth") {
+    setAuthMode("login");
     openModal(elements.authModal);
   } else if (action === "logout") {
     logout();
   } else if (action === "deactivate-account") {
     deactivateAccount();
   } else if (action === "close-modal") {
+    setAuthMode("login");
     closeModals();
   } else if (action === "open-item-form") {
     openItemForm();
@@ -686,8 +720,9 @@ function renderItemCard(item, options) {
         <span class="pill">${escapeHtml(item.category)}</span>
         <span class="pill">${escapeHtml(item.condition)}</span>
       </div>
-      <p class="location">${escapeHtml(item.city)} - ${escapeHtml(item.neighborhood)}</p>
-      <p>${escapeHtml(truncate(item.description, 110))}</p>
+        <p class="location">${escapeHtml(item.city)} - ${escapeHtml(item.neighborhood)}</p>
+        <p><strong>Repasse pretendido:</strong> ${formatter.format(Number(item.transfer_amount ?? 0))}</p>
+        <p>${escapeHtml(truncate(item.description, 110))}</p>
       <p><strong>Busca:</strong> ${escapeHtml(truncate(item.trade_preferences, 90))}</p>
     </div>
     <div class="card-actions">${actionButtons}</div>
@@ -770,6 +805,25 @@ async function handleAuth(action) {
   const email = elements.authEmail.value.trim();
   const password = elements.authPassword.value;
 
+  if (action === "update-password") {
+    if (!password || password.length < 6) {
+      showNotice("Informe uma nova senha com pelo menos 6 caracteres.", "error");
+      return;
+    }
+
+    const { error } = await supabaseClient.auth.updateUser({ password });
+
+    if (error) {
+      showNotice(error.message, "error");
+      return;
+    }
+
+    setAuthMode("login");
+    closeModals();
+    showNotice("Senha atualizada com sucesso.");
+    return;
+  }
+
   if (action === "reset-password") {
     if (!email) {
       showNotice("Informe seu email para receber o link de recuperação.", "error");
@@ -812,7 +866,33 @@ async function handleAuth(action) {
 
 async function logout() {
   await supabaseClient.auth.signOut();
+  setAuthMode("login");
   setView("home");
+}
+
+function openPasswordRecoveryMode() {
+  setAuthMode("recovery");
+  openModal(elements.authModal);
+  showNotice("Informe sua nova senha para concluir a recuperação.");
+}
+
+function setAuthMode(mode) {
+  const recovery = mode === "recovery";
+  elements.loginFields.hidden = recovery;
+  elements.authEmail.required = !recovery;
+  elements.authPassword.value = "";
+  elements.authPassword.autocomplete = recovery ? "new-password" : "current-password";
+  elements.authPasswordLabel.textContent = recovery ? "Nova senha" : "Senha";
+
+  document.querySelectorAll("[data-auth-action='login'], [data-auth-action='signup'], [data-auth-action='reset-password']")
+    .forEach((button) => {
+      button.hidden = recovery;
+    });
+
+  const updateButton = document.querySelector("[data-auth-action='update-password']");
+  if (updateButton) {
+    updateButton.hidden = !recovery;
+  }
 }
 
 async function saveProfile(event) {
@@ -902,15 +982,6 @@ async function deactivateAccount() {
     return;
   }
 
-  const profileResponse = await supabaseClient
-    .from("profiles")
-    .update({ account_status: "inactive" })
-    .eq("id", state.user.id);
-
-  if (handleDbError(profileResponse.error, "desativar conta")) {
-    return;
-  }
-
   const itemsResponse = await supabaseClient
     .from("items")
     .update({ status: "inactive" })
@@ -918,6 +989,15 @@ async function deactivateAccount() {
     .neq("status", "traded");
 
   if (handleDbError(itemsResponse.error, "inativar imóveis da conta")) {
+    return;
+  }
+
+  const profileResponse = await supabaseClient
+    .from("profiles")
+    .update({ account_status: "inactive" })
+    .eq("id", state.user.id);
+
+  if (handleDbError(profileResponse.error, "desativar conta")) {
     return;
   }
 
@@ -945,13 +1025,22 @@ function openItemForm(itemId) {
     : "Inclua de 1 a 5 imagens.";
 
   if (item) {
+    const privateLocation = state.privateLocationsByItem.get(item.id);
     elements.itemTitle.value = item.title;
     elements.itemCategory.value = item.category;
     elements.itemCondition.value = item.condition;
+    elements.itemTransferAmount.value = item.transfer_amount ?? 0;
+    elements.itemOutstandingBalance.value = item.outstanding_balance ?? 0;
+    elements.itemMonthlyPayment.value = item.monthly_payment ?? 0;
+    elements.itemInstallmentsRemaining.value = item.installments_remaining ?? 0;
     elements.itemCity.value = item.city;
     elements.itemNeighborhood.value = item.neighborhood;
+    elements.itemStreet.value = privateLocation?.street ?? "";
+    elements.itemNumber.value = privateLocation?.number ?? "";
+    elements.itemAddressNotes.value = privateLocation?.notes ?? "";
     elements.itemPreferences.value = item.trade_preferences;
     elements.itemDescription.value = item.description;
+    elements.itemLegitimacy.checked = Boolean(item.legitimacy_confirmed);
   }
 
   renderExistingImagePreview(item?.id);
@@ -972,6 +1061,12 @@ async function saveItem(event) {
   const itemId = elements.itemId.value;
   const files = Array.from(elements.itemImages.files ?? []);
   const existingImages = itemId ? (state.imagesByItem.get(itemId) ?? []) : [];
+  const invalidFile = files.find((file) => !["image/jpeg", "image/png", "image/webp"].includes(file.type));
+
+  if (invalidFile) {
+    showNotice("Envie imagens somente em JPG, PNG ou WebP.", "error");
+    return;
+  }
 
   if (!itemId && files.length === 0) {
     showNotice("Inclua ao menos uma imagem do imóvel.", "error");
@@ -989,6 +1084,11 @@ async function saveItem(event) {
     description: elements.itemDescription.value.trim(),
     category: elements.itemCategory.value,
     condition: elements.itemCondition.value,
+    transfer_amount: readMoneyInput(elements.itemTransferAmount),
+    outstanding_balance: readMoneyInput(elements.itemOutstandingBalance),
+    monthly_payment: readMoneyInput(elements.itemMonthlyPayment),
+    installments_remaining: Number(elements.itemInstallmentsRemaining.value || 0),
+    legitimacy_confirmed: elements.itemLegitimacy.checked,
     state: elements.itemState.value,
     city: elements.itemCity.value.trim(),
     neighborhood: elements.itemNeighborhood.value.trim(),
@@ -1001,8 +1101,23 @@ async function saveItem(event) {
     notes: elements.itemAddressNotes.value.trim()
   };
 
-  if (Object.values(payload).some((value) => !value) || !privateLocation.street || !privateLocation.number) {
+  if (Object.entries(payload).some(([key, value]) => key !== "legitimacy_confirmed" && value === "") || !privateLocation.street || !privateLocation.number) {
     showNotice("Preencha todos os campos obrigatórios do imóvel.", "error");
+    return;
+  }
+
+  if (
+    payload.transfer_amount < 0 ||
+    payload.outstanding_balance < 0 ||
+    payload.monthly_payment < 0 ||
+    payload.installments_remaining < 0
+  ) {
+    showNotice("Os dados financeiros não podem ter valores negativos.", "error");
+    return;
+  }
+
+  if (!payload.legitimacy_confirmed) {
+    showNotice("Confirme sua legitimidade para cadastrar o imóvel.", "error");
     return;
   }
 
@@ -1145,6 +1260,12 @@ function openItemDetail(itemId) {
         </div>
         <p class="location">${escapeHtml(item.city)} - ${escapeHtml(item.neighborhood)}</p>
         <p>${escapeHtml(item.description)}</p>
+        <div class="financial-summary">
+          <span><strong>Repasse pretendido</strong>${formatter.format(Number(item.transfer_amount ?? 0))}</span>
+          <span><strong>Saldo devedor aprox.</strong>${formatter.format(Number(item.outstanding_balance ?? 0))}</span>
+          <span><strong>Parcela mensal aprox.</strong>${formatter.format(Number(item.monthly_payment ?? 0))}</span>
+          <span><strong>Parcelas restantes</strong>${Number(item.installments_remaining ?? 0)}</span>
+        </div>
         <p><strong>Preferências de proposta:</strong> ${escapeHtml(item.trade_preferences)}</p>
         <p class="muted">O contato só é liberado quando a proposta é aceita. Combine local e horário diretamente com a outra pessoa.</p>
         <div class="detail-actions">
@@ -1200,6 +1321,10 @@ async function sendProposal(event) {
     return;
   }
 
+  if (!requireCompleteProfile()) {
+    return;
+  }
+
   const requested = state.publicItems.find((item) => item.id === elements.proposalRequestedItemId.value);
   const offered = state.myItems.find((item) => item.id === elements.offeredItemSelect.value);
 
@@ -1210,6 +1335,11 @@ async function sendProposal(event) {
 
   const cashDifference = Number(elements.cashDifference.value || 0);
   const cashDirection = elements.cashDirection.value;
+
+  if (cashDifference < 0) {
+    showNotice("A diferença em dinheiro não pode ser negativa.", "error");
+    return;
+  }
 
   if (cashDifference > 0 && cashDirection === "none") {
     showNotice("Informe quem pagaria a diferença em dinheiro.", "error");
@@ -1328,6 +1458,10 @@ function maskDocument(documentType, digits) {
   }
 
   return `***.***.***-${digits.slice(9, 11)}`;
+}
+
+function readMoneyInput(input) {
+  return Number(input.value || 0);
 }
 
 async function sha256Hex(value) {

@@ -73,3 +73,13 @@
 | Unicidade operacional | O schema passa a incluir indice unico por `document_type` e `document_hash` para reduzir cadastros duplicados sem expor o numero completo. |
 | Recuperacao de senha | A recuperacao usa o fluxo nativo do Supabase Auth por email, sem senha temporaria no app. |
 | Desativacao logica | Conta desativada recebe `profiles.account_status = inactive`; imoveis nao trocados do usuario ficam inativos para sair da vitrine. |
+
+## 2026-05-31 - Revisao de fluxo e cadastro de imoveis
+
+| Decisao | Registro |
+|---|---|
+| Recuperacao completa | O link de recuperacao agora abre modo de nova senha dentro do app, concluindo o fluxo com `auth.updateUser`. |
+| Conta ativa no banco | Politicas de `items` e `exchange_proposals` passam a exigir `account_status = active`, reduzindo bypass direto via API. |
+| Edicao sem perda de endereco | Endereco restrito do proprio usuario e carregado no formulario de edicao para evitar obrigar redigitacao. |
+| Dados financeiros sem venda direta | O cadastro registra repasse pretendido, saldo devedor, parcela e parcelas restantes como informacoes de analise, nao como checkout ou venda direta. |
+| Legitimidade obrigatoria | O anunciante precisa confirmar legitimidade para iniciar tratativas antes de salvar o imovel. |

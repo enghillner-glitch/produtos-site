@@ -27,14 +27,14 @@ Atualizado em: 2026-05-31
 | F044 | Recuperar senha | FASE 4 - Usuarios e autenticacao | concluida | 2026-05-31 | node --check app.js; validacao Supabase | Botao Esqueci minha senha envia email de recuperacao via Supabase Auth. |
 | F045 | Criar perfil do usuario | FASE 4 - Usuarios e autenticacao | concluida | 2026-05-31 | node --check app.js | Perfil inclui nome/razao social, tipo, CPF/CNPJ restrito, WhatsApp, estado e cidade. |
 | F046 | Desativar conta com exclusao logica | FASE 4 - Usuarios e autenticacao | concluida | 2026-05-31 | node --check app.js; validacao Supabase | Perfil recebe account_status; desativacao inativa a conta e os imoveis nao trocados. |
-| F050 | Criar catalogos de imoveis | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |
-| F051 | Criar entidade imovel | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |
-| F052 | Criar formulario dinamico de imovel | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |
-| F053 | Cadastrar dados financeiros de repasse | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |
-| F054 | Cadastrar imovel quitado | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |
-| F055 | Registrar declaracao de legitimidade | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |
-| F056 | Enviar e tratar fotos | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |
-| F057 | Controlar estados do anuncio | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |
+| F050 | Criar catalogos de imoveis | FASE 5 - Cadastro de imoveis | concluida | 2026-05-31 | node --check app.js | Catalogos iniciais de tipo e situacao de imovel centralizados no app e refletidos no schema. |
+| F051 | Criar entidade imovel | FASE 5 - Cadastro de imoveis | concluida | 2026-05-31 | node --check app.js; Supabase SQL | Entidade items ampliada com endereco publico, endereco restrito, dados financeiros e declaracao. |
+| F052 | Criar formulario dinamico de imovel | FASE 5 - Cadastro de imoveis | concluida | 2026-05-31 | Browser local; node --check app.js | Formulario recebeu combos, endereco restrito, dados financeiros e validacoes. |
+| F053 | Cadastrar dados financeiros de repasse | FASE 5 - Cadastro de imoveis | concluida | 2026-05-31 | Supabase SQL; node --check app.js | Campos de repasse pretendido, saldo devedor, parcela e parcelas restantes adicionados. |
+| F054 | Cadastrar imovel quitado | FASE 5 - Cadastro de imoveis | concluida | 2026-05-31 | node --check app.js | Situacao Quitado esta disponivel no catalogo e no schema. |
+| F055 | Registrar declaracao de legitimidade | FASE 5 - Cadastro de imoveis | concluida | 2026-05-31 | node --check app.js; Supabase SQL | Cadastro exige confirmacao de legitimidade e grava legitimacy_confirmed. |
+| F056 | Enviar e tratar fotos | FASE 5 - Cadastro de imoveis | parcial | 2026-05-31 | Browser local; node --check app.js | Upload existente preservado; limite de 5 imagens e tipos JPG/PNG/WebP validados. Falta compressao/redimensionamento. |
+| F057 | Controlar estados do anuncio | FASE 5 - Cadastro de imoveis | concluida | 2026-05-31 | node --check app.js | Estados available, traded e inactive ja controlam vitrine, painel e propostas aceitas. |
 | F058 | Enviar anuncio para moderacao | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |
 | F059 | Criar fila de moderacao | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |
 | F060 | Bloquear contatos em textos e imagens | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |
