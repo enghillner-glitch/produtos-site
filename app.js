@@ -54,6 +54,7 @@ const state = {
   user: null,
   profile: null,
   contact: null,
+  agency: null,
   publicItems: [],
   myItems: [],
   proposals: [],
@@ -74,6 +75,8 @@ const elements = {
   notice: $("notice"),
   homeView: $("homeView"),
   dashboardView: $("dashboardView"),
+  agencyView: $("agencyView"),
+  agencyCard: $("agencyCard"),
   authControls: $("authControls"),
   pendingBadge: $("pendingBadge"),
   searchInput: $("searchInput"),
@@ -234,9 +237,28 @@ function bindEvents() {
 async function refreshAll() {
   clearNotice();
   renderAuthControls();
-  await Promise.all([loadPublicItems(), loadUserData()]);
+  await Promise.all([loadPublicItems(), loadActiveAgency(), loadUserData()]);
   renderHome();
   renderDashboard();
+  renderAgency();
+}
+
+async function loadActiveAgency() {
+  state.agency = null;
+
+  const { data, error } = await supabaseClient
+    .from("real_estate_agencies")
+    .select("*")
+    .eq("status", "active")
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    state.agency = null;
+    return;
+  }
+
+  state.agency = data ?? null;
 }
 
 async function loadPublicItems() {
@@ -407,14 +429,15 @@ async function loadImagesForItems(itemIds) {
 }
 
 function routeFromHash() {
-  const view = window.location.hash === "#dashboard" ? "dashboard" : "home";
+  const view = window.location.hash === "#dashboard" ? "dashboard" : window.location.hash === "#agency" ? "agency" : "home";
   setView(view);
 }
 
 function setView(view) {
   elements.homeView.hidden = view !== "home";
   elements.dashboardView.hidden = view !== "dashboard";
-  window.location.hash = view === "dashboard" ? "dashboard" : "home";
+  elements.agencyView.hidden = view !== "agency";
+  window.location.hash = view === "dashboard" ? "dashboard" : view === "agency" ? "agency" : "home";
 }
 
 function handleDocumentClick(event) {
@@ -534,6 +557,34 @@ function renderDashboard() {
 
   renderMyItems();
   renderProposals();
+}
+
+function renderAgency() {
+  const agency = state.agency ?? {
+    trade_name: "Imobiliária parceira inicial",
+    legal_name: "Cadastro institucional em preparação",
+    creci: "CRECI a informar",
+    whatsapp: "",
+    email: "",
+    responsible_name: "Responsável pela intermediação"
+  };
+
+  const contacts = [
+    agency.responsible_name ? `<span>Responsável: ${escapeHtml(agency.responsible_name)}</span>` : "",
+    agency.creci ? `<span>CRECI: ${escapeHtml(agency.creci)}</span>` : "",
+    agency.whatsapp ? `<span>WhatsApp: ${escapeHtml(agency.whatsapp)}</span>` : "",
+    agency.email ? `<span>Email: ${escapeHtml(agency.email)}</span>` : ""
+  ].filter(Boolean);
+
+  elements.agencyCard.innerHTML = `
+    <p class="eyebrow">Imobiliária ativa</p>
+    <h2>${escapeHtml(agency.trade_name)}</h2>
+    <p>${escapeHtml(agency.legal_name)}</p>
+    <div class="agency-contact-list">
+      ${contacts.length ? contacts.join("") : "<span>Dados de contato institucional serão cadastrados na próxima etapa administrativa.</span>"}
+    </div>
+    <p class="muted">Os contatos pessoais dos usuários continuam protegidos. A imobiliária atua como canal de análise e encaminhamento.</p>
+  `;
 }
 
 function renderMyItems() {

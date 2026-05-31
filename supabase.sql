@@ -205,6 +205,23 @@ create index if not exists audit_events_actor_idx on public.audit_events(actor_i
 create index if not exists audit_events_entity_idx on public.audit_events(entity_type, entity_id);
 create index if not exists real_estate_agencies_status_idx on public.real_estate_agencies(status);
 
+insert into public.real_estate_agencies (
+  legal_name,
+  trade_name,
+  creci,
+  responsible_name,
+  status
+)
+select
+  'Imobiliária parceira inicial',
+  'Imobiliária parceira inicial',
+  'A informar',
+  'Responsável pela intermediação',
+  'active'
+where not exists (
+  select 1 from public.real_estate_agencies where status = 'active'
+);
+
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql

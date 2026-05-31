@@ -12,7 +12,7 @@ O repassecomrepasse sera uma plataforma de aproximacao entre usuarios com intere
 
 - Backup minimo criado antes da substituicao funcional.
 
-- Nenhuma logica funcional do site foi alterada nesta etapa.
+- Fundacao, localizacao da Paraiba e pagina institucional da imobiliaria inicial ja foram iniciadas.
 
 ## Arquivos de orientacao
 
@@ -45,4 +45,3 @@ Como o projeto ainda e estatico, pode ser servido por qualquer servidor local si
 ## Proximos passos
 
 Seguir a sequencia do DOCX mestre, iniciando pela fundacao do repassecomrepasse e pela substituicao controlada do schema/telas do produto anterior.
-

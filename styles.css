@@ -247,6 +247,8 @@ textarea:focus {
 .filters,
 .profile-panel,
 .safety-panel,
+.agency-card,
+.institutional-text,
 .dashboard-section,
 .signed-out-panel {
   background: rgba(255, 255, 255, 0.94);
@@ -285,6 +287,83 @@ textarea:focus {
 
 .safety-card strong {
   font-size: 22px;
+}
+
+.agency-hero {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  margin-bottom: 22px;
+}
+
+.agency-hero > div:first-child {
+  display: grid;
+  gap: 16px;
+  padding: 30px 0;
+}
+
+.agency-hero p {
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.55;
+  max-width: 820px;
+}
+
+.agency-card {
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+}
+
+.agency-contact-list {
+  display: grid;
+  gap: 8px;
+}
+
+.agency-contact-list span {
+  background: var(--soft);
+  border-radius: 7px;
+  padding: 9px 10px;
+}
+
+.process-band {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, 1fr);
+  margin-bottom: 22px;
+}
+
+.process-band > div {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+}
+
+.process-band span {
+  align-items: center;
+  background: var(--brand);
+  border-radius: 999px;
+  color: #ffffff;
+  display: inline-flex;
+  font-weight: 900;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.process-band p,
+.institutional-text p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.institutional-text {
+  display: grid;
+  gap: 12px;
+  padding: 24px;
 }
 
 .safety-card span,
@@ -664,6 +743,8 @@ textarea:focus {
   }
 
   .hero-band,
+  .agency-hero,
+  .process-band,
   .filters,
   .panel-grid,
   .detail-layout,

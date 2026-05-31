@@ -18,8 +18,8 @@ Atualizado em: 2026-05-31
 | F021 | Criar catalogo dos municipios da Paraiba | FASE 2 - Endereco e localizacao | concluida | 2026-05-31 |  | Catalogo de 223 municipios da Paraiba gerado a partir da API do IBGE em location-data.js. |
 | F022 | Criar combos Estado e Municipio | FASE 2 - Endereco e localizacao | concluida | 2026-05-31 |  | Combos Estado/Municipio aplicados na vitrine e cadastro de imovel. |
 | F023 | Separar endereco publico e restrito | FASE 2 - Endereco e localizacao | concluida | 2026-05-31 |  | Endereco publico permanece cidade/bairro; endereco completo vai para item_private_locations com RLS de dono. |
-| F030 | Criar entidade da imobiliaria | FASE 3 - Imobiliaria | nao iniciada |  |  |  |
-| F031 | Criar pagina institucional da imobiliaria | FASE 3 - Imobiliaria | nao iniciada |  |  |  |
+| F030 | Criar entidade da imobiliaria | FASE 3 - Imobiliaria | concluida | 2026-05-31 |  | Entidade real_estate_agencies ja existe no schema; seed inicial ativo adicionado. |
+| F031 | Criar pagina institucional da imobiliaria | FASE 3 - Imobiliaria | concluida | 2026-05-31 |  | Pagina/visao institucional da imobiliaria criada no SPA com leitura da imobiliaria ativa. |
 | F040 | Cadastrar pessoa fisica | FASE 4 - Usuarios e autenticacao | nao iniciada |  |  |  |
 | F041 | Cadastrar pessoa juridica | FASE 4 - Usuarios e autenticacao | nao iniciada |  |  |  |
 | F042 | Confirmar e-mail | FASE 4 - Usuarios e autenticacao | nao iniciada |  |  |  |

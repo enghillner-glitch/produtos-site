@@ -55,3 +55,11 @@
 | Endereco publico | Vitrine e detalhe exibem municipio e bairro, sem logradouro ou numero. |
 | Endereco restrito | Rua, numero e complemento ficam em `item_private_locations`, com leitura e escrita restritas ao dono. |
 
+## 2026-05-31 - Imobiliaria inicial
+
+| Decisao | Registro |
+|---|---|
+| Uma imobiliaria ativa | A interface passa a ler uma imobiliaria ativa em `real_estate_agencies`, com fallback institucional seguro. |
+| Seed institucional | O SQL inclui um registro inicial sem dados sensiveis reais, para manter a pagina institucional consistente ate cadastro administrativo. |
+| Pagina institucional | Criada a visao `#agency`, explicando papel da imobiliaria e limites da plataforma. |
+
