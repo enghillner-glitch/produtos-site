@@ -13,7 +13,7 @@ Atualizado em: 2026-05-31
 | F011 | Inserir aviso institucional no rodape | FASE 1 - Fundacao | concluida | 2026-05-31 |  | Aviso institucional inserido na experiencia do painel e configurado no JS. |
 | F012 | Centralizar configuracoes | FASE 1 - Fundacao | concluida | 2026-05-31 |  | Constantes centrais do produto adicionadas ao app.js. |
 | F013 | Criar auditoria reutilizavel | FASE 1 - Fundacao | concluida | 2026-05-31 |  | Tabela audit_events adicionada ao supabase.sql. |
-| F014 | Criar perfis e permissoes | FASE 1 - Fundacao | em andamento | 2026-05-31 |  | Schema recebeu papeis e dados sensiveis separados; UI de CPF/CNPJ fica para proxima etapa. |
+| F014 | Criar perfis e permissoes | FASE 1 - Fundacao | concluida | 2026-05-31 |  | Schema remoto recebeu papeis, dados privados e politicas base; UI de CPF/CNPJ segue em etapa propria. |
 | F020 | Criar catalogo de estados | FASE 2 - Endereco e localizacao | nao iniciada |  |  |  |
 | F021 | Criar catalogo dos municipios da Paraiba | FASE 2 - Endereco e localizacao | nao iniciada |  |  |  |
 | F022 | Criar combos Estado e Municipio | FASE 2 - Endereco e localizacao | nao iniciada |  |  |  |

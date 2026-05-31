@@ -37,3 +37,12 @@
 | Auditoria reutilizavel | Criada base `audit_events` para registrar acoes relevantes sem expor dados privados. |
 | Nomes tecnicos legados | Tabelas `items` e `exchange_proposals` permanecem temporariamente para evitar quebra ampla antes da migracao funcional completa. A interface passa a usar linguagem de imoveis/repasses. |
 | Aplicacao incremental | F010-F013 foram aplicadas como fundacao; F014 permanece em andamento ate formularios e regras obrigatorias de CPF/CNPJ serem implementados. |
+
+## 2026-05-31 - Migra??o Supabase aplicada
+
+| Decisao | Registro |
+|---|---|
+| Aplicacao em blocos | O SQL completo foi aplicado em blocos menores no Supabase para evitar falha operacional do editor com alerta de RLS. |
+| Validacao remota | Consulta confirmou `profile_private_data`, `audit_events`, `real_estate_agencies`, coluna `profiles.user_type` e politica `profile private own read`. |
+| Publicacao liberada | Com a base remota validada, o commit local da fundacao pode ser enviado para GitHub/Vercel. |
+
