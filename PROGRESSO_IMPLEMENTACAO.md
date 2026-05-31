@@ -20,12 +20,12 @@ Atualizado em: 2026-05-31
 | F023 | Separar endereco publico e restrito | FASE 2 - Endereco e localizacao | concluida | 2026-05-31 |  | Endereco publico permanece cidade/bairro; endereco completo vai para item_private_locations com RLS de dono. |
 | F030 | Criar entidade da imobiliaria | FASE 3 - Imobiliaria | concluida | 2026-05-31 |  | Entidade real_estate_agencies ja existe no schema; seed inicial ativo adicionado. |
 | F031 | Criar pagina institucional da imobiliaria | FASE 3 - Imobiliaria | concluida | 2026-05-31 |  | Pagina/visao institucional da imobiliaria criada no SPA com leitura da imobiliaria ativa. |
-| F040 | Cadastrar pessoa fisica | FASE 4 - Usuarios e autenticacao | nao iniciada |  |  |  |
-| F041 | Cadastrar pessoa juridica | FASE 4 - Usuarios e autenticacao | nao iniciada |  |  |  |
-| F042 | Confirmar e-mail | FASE 4 - Usuarios e autenticacao | nao iniciada |  |  |  |
-| F043 | Implementar login e logout | FASE 4 - Usuarios e autenticacao | nao iniciada |  |  |  |
+| F040 | Cadastrar pessoa fisica | FASE 4 - Usuarios e autenticacao | concluida | 2026-05-31 | node --check app.js | Perfil exige tipo Pessoa fisica e CPF restrito antes de cadastrar imoveis ou propor repasse. |
+| F041 | Cadastrar pessoa juridica | FASE 4 - Usuarios e autenticacao | concluida | 2026-05-31 | node --check app.js | Perfil aceita Pessoa juridica com CNPJ restrito. |
+| F042 | Confirmar e-mail | FASE 4 - Usuarios e autenticacao | parcial | 2026-05-31 | node --check app.js | Fluxo usa Supabase Auth e avisa o usuario para confirmar e-mail quando configurado no projeto. |
+| F043 | Implementar login e logout | FASE 4 - Usuarios e autenticacao | concluida | 2026-05-31 | node --check app.js | Login, criacao de conta e logout ja integrados ao Supabase Auth no SPA. |
 | F044 | Recuperar senha | FASE 4 - Usuarios e autenticacao | nao iniciada |  |  |  |
-| F045 | Criar perfil do usuario | FASE 4 - Usuarios e autenticacao | nao iniciada |  |  |  |
+| F045 | Criar perfil do usuario | FASE 4 - Usuarios e autenticacao | concluida | 2026-05-31 | node --check app.js | Perfil inclui nome/razao social, tipo, CPF/CNPJ restrito, WhatsApp, estado e cidade. |
 | F046 | Desativar conta com exclusao logica | FASE 4 - Usuarios e autenticacao | nao iniciada |  |  |  |
 | F050 | Criar catalogos de imoveis | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |
 | F051 | Criar entidade imovel | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |

@@ -63,3 +63,11 @@
 | Seed institucional | O SQL inclui um registro inicial sem dados sensiveis reais, para manter a pagina institucional consistente ate cadastro administrativo. |
 | Pagina institucional | Criada a visao `#agency`, explicando papel da imobiliaria e limites da plataforma. |
 
+## 2026-05-31 - Usuarios e dados restritos
+
+| Decisao | Registro |
+|---|---|
+| CPF/CNPJ obrigatorio no perfil | O perfil completo passa a exigir tipo de pessoa, CPF ou CNPJ, WhatsApp, estado e cidade antes de cadastrar imoveis ou propor repasses. |
+| Documento fora da vitrine | CPF/CNPJ nao entra em `profiles` nem aparece publicamente; a interface so mostra aviso de documento ja cadastrado para o proprio usuario. |
+| Protecao inicial do documento | O MVP grava hash SHA-256 tipado (`cpf:`/`cnpj:`) e versao mascarada em `profile_private_data`, protegida por RLS. Criptografia forte com segredo de servidor fica reservada para a etapa backend/edge function. |
+| Unicidade operacional | O schema passa a incluir indice unico por `document_type` e `document_hash` para reduzir cadastros duplicados sem expor o numero completo. |

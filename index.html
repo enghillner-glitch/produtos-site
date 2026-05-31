@@ -119,12 +119,32 @@
                 <span id="profileStatus">Pendente</span>
               </div>
               <label>
-                Nome
+                Nome / Razão social
                 <input id="profileName" type="text" maxlength="120" required />
+              </label>
+              <label>
+                Tipo de pessoa
+                <select id="profileUserType" required>
+                  <option value="individual">Pessoa física</option>
+                  <option value="company">Pessoa jurídica</option>
+                </select>
+              </label>
+              <label>
+                <span id="profileDocumentLabel">CPF</span>
+                <input id="profileDocument" type="text" inputmode="numeric" maxlength="18" autocomplete="off" required />
+                <small id="profileDocumentHint">Documento obrigatório. O número completo não aparece publicamente.</small>
               </label>
               <label>
                 WhatsApp
                 <input id="profileWhatsapp" type="tel" maxlength="40" required placeholder="DDD + número" />
+              </label>
+              <label>
+                Estado
+                <select id="profileState" required></select>
+              </label>
+              <label>
+                Cidade
+                <select id="profileCity" required></select>
               </label>
               <button type="submit">Salvar perfil</button>
             </form>

@@ -194,6 +194,7 @@ alter table public.items
 
 create index if not exists items_status_city_idx on public.items(status, city, neighborhood);
 create index if not exists profile_private_document_hash_idx on public.profile_private_data(document_hash);
+create unique index if not exists profile_private_document_unique_idx on public.profile_private_data(document_type, document_hash);
 create index if not exists items_owner_idx on public.items(owner_id);
 create index if not exists item_images_item_idx on public.item_images(item_id);
 create index if not exists item_private_locations_owner_idx on public.item_private_locations(owner_id);

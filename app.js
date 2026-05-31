@@ -54,6 +54,7 @@ const state = {
   user: null,
   profile: null,
   contact: null,
+  privateData: null,
   agency: null,
   publicItems: [],
   myItems: [],
@@ -92,7 +93,13 @@ const elements = {
   signedInPanel: $("signedInPanel"),
   profileForm: $("profileForm"),
   profileName: $("profileName"),
+  profileUserType: $("profileUserType"),
+  profileDocument: $("profileDocument"),
+  profileDocumentLabel: $("profileDocumentLabel"),
+  profileDocumentHint: $("profileDocumentHint"),
   profileWhatsapp: $("profileWhatsapp"),
+  profileState: $("profileState"),
+  profileCity: $("profileCity"),
   profileStatus: $("profileStatus"),
   myItemsGrid: $("myItemsGrid"),
   myItemsEmpty: $("myItemsEmpty"),
@@ -162,8 +169,10 @@ async function init() {
 function populateSelects() {
   addStateOptions(elements.stateFilter, true);
   addStateOptions(elements.itemState, false);
+  addStateOptions(elements.profileState, false);
   populateMunicipalitySelect(elements.cityFilter, "PB", true);
   populateMunicipalitySelect(elements.itemCity, "PB", false);
+  populateMunicipalitySelect(elements.profileCity, "PB", false);
   addOptions(elements.categoryFilter, categories);
   addOptions(elements.conditionFilter, conditions);
   addOptions(elements.itemCategory, categories);
@@ -224,6 +233,11 @@ function bindEvents() {
     populateMunicipalitySelect(elements.itemCity, elements.itemState.value || "PB", false);
   });
 
+  elements.profileState.addEventListener("change", () => {
+    populateMunicipalitySelect(elements.profileCity, elements.profileState.value || "PB", false);
+  });
+  elements.profileUserType.addEventListener("change", updateProfileDocumentUi);
+
   elements.profileForm.addEventListener("submit", saveProfile);
   elements.itemForm.addEventListener("submit", saveItem);
   elements.itemImages.addEventListener("change", previewSelectedImages);
@@ -280,6 +294,7 @@ async function loadPublicItems() {
 async function loadUserData() {
   state.profile = null;
   state.contact = null;
+  state.privateData = null;
   state.myItems = [];
   state.proposals = [];
   state.proposalsItemsById = new Map();
@@ -311,6 +326,15 @@ async function loadProfile() {
 
   handleDbError(contactResponse.error, "carregar contato");
   state.contact = contactResponse.data ?? null;
+
+  const privateResponse = await supabaseClient
+    .from("profile_private_data")
+    .select("*")
+    .eq("user_id", state.user.id)
+    .maybeSingle();
+
+  handleDbError(privateResponse.error, "carregar dados restritos do perfil");
+  state.privateData = privateResponse.data ?? null;
 }
 
 async function loadMyItems() {
@@ -550,8 +574,18 @@ function renderDashboard() {
   }
 
   elements.profileName.value = state.profile?.full_name ?? "";
+  elements.profileUserType.value = state.profile?.user_type ?? "individual";
+  updateProfileDocumentUi();
+  elements.profileDocument.value = "";
+  elements.profileDocument.required = !state.privateData?.document_hash;
+  elements.profileDocument.placeholder = state.privateData?.document_hash
+    ? "Documento já cadastrado; preencha para atualizar"
+    : "";
   elements.profileWhatsapp.value = state.contact?.whatsapp ?? "";
-  const profileComplete = Boolean(state.profile?.full_name && state.contact?.whatsapp);
+  elements.profileState.value = state.profile?.state ?? "PB";
+  populateMunicipalitySelect(elements.profileCity, elements.profileState.value || "PB", false);
+  elements.profileCity.value = state.profile?.city ?? "";
+  const profileComplete = isProfileComplete();
   elements.profileStatus.textContent = profileComplete ? "Completo" : "Pendente";
   elements.profileStatus.classList.toggle("complete", profileComplete);
 
@@ -765,16 +799,38 @@ async function saveProfile(event) {
   }
 
   const fullName = elements.profileName.value.trim();
+  const userType = elements.profileUserType.value;
+  const documentType = getDocumentTypeForUserType(userType);
+  const documentDigits = digitsOnly(elements.profileDocument.value);
   const whatsapp = elements.profileWhatsapp.value.trim();
+  const profileState = elements.profileState.value || "PB";
+  const city = elements.profileCity.value;
 
-  if (!fullName || !whatsapp) {
-    showNotice("Nome e WhatsApp são obrigatórios.", "error");
+  if (!fullName || !userType || !whatsapp || !profileState || !city) {
+    showNotice("Nome, tipo de pessoa, WhatsApp, estado e cidade são obrigatórios.", "error");
+    return;
+  }
+
+  if (!isValidDocument(documentType, documentDigits) && !state.privateData?.document_hash) {
+    showNotice(`Informe um ${documentType === "cpf" ? "CPF" : "CNPJ"} válido para concluir o perfil.`, "error");
+    return;
+  }
+
+  if (documentDigits && !isValidDocument(documentType, documentDigits)) {
+    showNotice(`Confira o ${documentType === "cpf" ? "CPF" : "CNPJ"} informado.`, "error");
     return;
   }
 
   const profileResponse = await supabaseClient
     .from("profiles")
-    .upsert({ id: state.user.id, full_name: fullName }, { onConflict: "id" });
+    .upsert({
+      id: state.user.id,
+      full_name: fullName,
+      user_type: userType,
+      role: state.profile?.role ?? "user",
+      state: profileState,
+      city
+    }, { onConflict: "id" });
 
   if (handleDbError(profileResponse.error, "salvar perfil")) {
     return;
@@ -786,6 +842,22 @@ async function saveProfile(event) {
 
   if (handleDbError(contactResponse.error, "salvar contato")) {
     return;
+  }
+
+  if (documentDigits) {
+    const documentHash = await sha256Hex(`${documentType}:${documentDigits}`);
+    const privateResponse = await supabaseClient
+      .from("profile_private_data")
+      .upsert({
+        user_id: state.user.id,
+        document_type: documentType,
+        document_hash: documentHash,
+        document_encrypted: maskDocument(documentType, documentDigits)
+      }, { onConflict: "user_id" });
+
+    if (handleDbError(privateResponse.error, "salvar CPF/CNPJ restrito")) {
+      return;
+    }
   }
 
   showNotice("Perfil salvo.");
@@ -1154,6 +1226,56 @@ async function reportTarget(targetType, itemId, userId) {
   showNotice("Denúncia registrada para revisão.");
 }
 
+function isProfileComplete() {
+  return Boolean(
+    state.profile?.full_name &&
+    state.profile?.user_type &&
+    state.profile?.state &&
+    state.profile?.city &&
+    state.contact?.whatsapp &&
+    state.privateData?.document_hash
+  );
+}
+
+function updateProfileDocumentUi() {
+  const documentType = getDocumentTypeForUserType(elements.profileUserType.value);
+  const label = documentType === "cpf" ? "CPF" : "CNPJ";
+  elements.profileDocumentLabel.textContent = label;
+  elements.profileDocument.maxLength = documentType === "cpf" ? 14 : 18;
+  elements.profileDocument.placeholder = documentType === "cpf" ? "000.000.000-00" : "00.000.000/0000-00";
+  elements.profileDocumentHint.textContent =
+    `${label} obrigatório. O número completo não aparece publicamente e fica restrito ao próprio usuário.`;
+}
+
+function getDocumentTypeForUserType(userType) {
+  return userType === "company" ? "cnpj" : "cpf";
+}
+
+function digitsOnly(value) {
+  return String(value ?? "").replace(/\D/g, "");
+}
+
+function isValidDocument(documentType, digits) {
+  const expectedLength = documentType === "cnpj" ? 14 : 11;
+  return digits.length === expectedLength && !/^(\d)\1+$/.test(digits);
+}
+
+function maskDocument(documentType, digits) {
+  if (documentType === "cnpj") {
+    return `**.***.***/${digits.slice(8, 12)}-${digits.slice(12, 14)}`;
+  }
+
+  return `***.***.***-${digits.slice(9, 11)}`;
+}
+
+async function sha256Hex(value) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 function requireLogin() {
   if (state.user) {
     return true;
@@ -1165,7 +1287,7 @@ function requireLogin() {
 }
 
 function requireCompleteProfile() {
-  const complete = Boolean(state.profile?.full_name && state.contact?.whatsapp);
+  const complete = isProfileComplete();
 
   if (complete) {
     return true;
@@ -1173,7 +1295,7 @@ function requireCompleteProfile() {
 
   closeModals();
   setView("dashboard");
-  showNotice("Complete seu perfil com nome e WhatsApp antes de continuar.", "error");
+  showNotice("Complete seu perfil com nome, WhatsApp, CPF/CNPJ, estado e cidade antes de continuar.", "error");
   return false;
 }
 
