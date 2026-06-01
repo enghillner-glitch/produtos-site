@@ -54,21 +54,23 @@ O verificador `scripts/check-deployment-config.mjs` foi criado para a etapa pos-
 
 As variaveis obrigatorias `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` e `CRON_SECRET` foram cadastradas na Vercel em 2026-06-01. A chave server-side foi revisada para usar a API key legacy `service_role`, nao o segredo JWT bruto. A rota `/api/maintenance` foi testada com `CRON_SECRET` e retornou `200`, executando `run_scheduled_maintenance`.
 
-## Pendencias externas para homologacao autenticada completa
+Em 2026-06-01, o provedor opcional de email tambem foi configurado na Vercel com `RESEND_API_KEY` e `EMAIL_FROM`, sem registrar os valores neste repositorio. Apos redeploy, `scripts/check-deployment-config.mjs` confirmou novamente a configuracao publica, o schema avancado, a protecao da rota de manutencao e o bloqueio de RPC anonima. O remetente operacional usado nesta etapa e o remetente de teste do Resend; para envio amplo e definitivo, deve-se validar um dominio proprio no Resend e trocar `EMAIL_FROM`.
+
+## Pendencias externas para ativacao operacional completa
 
 - `supabase.sql` aplicado no projeto Supabase de producao em 2026-06-01.
-- Executar `node scripts/check-deployment-config.mjs` depois da migracao para confirmar schema, RPCs e guardas server-side.
+- `node scripts/check-deployment-config.mjs` executado depois da migracao para confirmar schema, RPCs e guardas server-side.
 - Variaveis server-side obrigatorias cadastradas na Vercel:
   - `CRON_SECRET`;
   - `SUPABASE_URL`;
   - `SUPABASE_SERVICE_ROLE_KEY`;
 - Novo deploy confirmado com `/api/maintenance` retornando `401` sem token.
-- Chamada autenticada de `/api/maintenance` confirmou `ok: true`, com email automatico desativado por ausencia do provedor opcional.
-- Variaveis opcionais ainda dependem de decisao operacional:
-  - `TURNSTILE_SECRET_KEY`, se Turnstile for ativado;
-  - `RESEND_API_KEY` e `EMAIL_FROM`, se emails automaticos forem ativados.
+- Chamada autenticada de `/api/maintenance` confirmou `ok: true`; depois disso, o provedor opcional Resend foi configurado na Vercel para envio da fila interna.
+- `RESEND_API_KEY` e `EMAIL_FROM` foram cadastrados na Vercel em 2026-06-01.
+- Validar um dominio proprio no Resend e atualizar `EMAIL_FROM` quando o envio definitivo exigir remetente do dominio do projeto.
+- `TURNSTILE_SECRET_KEY` ainda depende de acesso operacional ao Cloudflare.
 - Preencher `turnstileSiteKey` em `config.js`, se Turnstile for ativado.
 
 ## Observacao
 
-Com a migracao Supabase aplicada e as variaveis obrigatorias cadastradas na Vercel, a producao ja possui o schema avancado e a configuracao server-side necessaria para manutencao agendada. O envio automatico de email permanece opcional e inativo ate configurar `RESEND_API_KEY` e `EMAIL_FROM`.
+Com a migracao Supabase aplicada e as variaveis obrigatorias cadastradas na Vercel, a producao ja possui o schema avancado e a configuracao server-side necessaria para manutencao agendada. O envio automatico de email ja possui provedor configurado, mas deve usar dominio proprio validado no Resend antes de ser tratado como remetente definitivo do projeto.

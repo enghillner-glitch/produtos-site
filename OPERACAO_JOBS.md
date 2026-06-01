@@ -46,6 +46,8 @@ O envio automatico usa a API HTTP do Resend. Configure apenas na Vercel:
 - `EMAIL_FROM`: remetente validado no Resend, por exemplo `repassecomrepasse <avisos@seudominio.com>`.
 - `EMAIL_BATCH_LIMIT`: quantidade maxima por execucao, padrao `10`, maximo `50`.
 
+Durante a fase de teste pode ser usado o remetente padrao do Resend. Para operacao definitiva, valide um dominio proprio no Resend e atualize `EMAIL_FROM` na Vercel para um remetente desse dominio. Nao grave a chave do Resend nem o segredo do cron no codigo ou em arquivos Markdown.
+
 Se essas variaveis nao existirem, a manutencao continua expirando propostas/anuncios e informa `email_delivery.enabled = false`.
 
 ## Teste manual
