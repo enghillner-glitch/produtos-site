@@ -129,6 +129,7 @@ const state = {
     widgets: {},
     tokens: {}
   },
+  imageOcrPromise: null,
   schemaFeatures: {
     moderation: true,
     advancedProposals: true,
@@ -1964,6 +1965,10 @@ async function saveItem(event) {
     return;
   }
 
+  if (!(await scanImagesForContact(files))) {
+    return;
+  }
+
   if (!itemId && files.length === 0) {
     showNotice("Inclua ao menos uma imagem do imóvel.", "error");
     return;
@@ -2131,6 +2136,55 @@ async function prepareImageForUpload(file) {
       extension: file.name.split(".").pop() || "jpg"
     };
   }
+}
+
+async function scanImagesForContact(files) {
+  if (!files.length || !config.imageOcrEnabled) {
+    return true;
+  }
+
+  try {
+    await loadImageOcrIfConfigured();
+    if (!window.Tesseract?.recognize) {
+      showNotice("OCR de imagem não está disponível neste navegador.", "error");
+      return false;
+    }
+
+    for (const file of files) {
+      const result = await window.Tesseract.recognize(file, "por+eng");
+      const text = result?.data?.text ?? "";
+      if (hasContactLikeContent(text)) {
+        showNotice("Remova telefone, email ou link visível nas imagens antes de enviar.", "error");
+        return false;
+      }
+    }
+
+    return true;
+  } catch (_error) {
+    showNotice("Não foi possível concluir a leitura OCR das imagens. Tente novamente.", "error");
+    return false;
+  }
+}
+
+function loadImageOcrIfConfigured() {
+  if (!config.imageOcrEnabled || window.Tesseract) {
+    return state.imageOcrPromise;
+  }
+
+  if (state.imageOcrPromise) {
+    return state.imageOcrPromise;
+  }
+
+  state.imageOcrPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = config.tesseractScriptUrl || "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+    script.async = true;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+
+  return state.imageOcrPromise;
 }
 
 function previewSelectedImages() {

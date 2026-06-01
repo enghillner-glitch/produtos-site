@@ -8,6 +8,7 @@ const files = {
   vercel: await readFile("vercel.json", "utf8"),
   maintenance: await readFile("api/maintenance.js", "utf8"),
   turnstile: await readFile("api/verify-turnstile.js", "utf8"),
+  imageSecurity: await readFile("SEGURANCA_IMAGENS.md", "utf8"),
   unitMaintenance: await readFile("tests/unit-maintenance.mjs", "utf8"),
   unitTurnstile: await readFile("tests/unit-turnstile.mjs", "utf8"),
   e2ePublic: await readFile("tests/e2e-public-flow.mjs", "utf8"),
@@ -60,6 +61,8 @@ assert(files.js.includes("supabaseClient.auth.resend"), "app.js deve usar reenvi
 assert(files.js.includes("passesAntiSpamCheck"), "app.js deve aplicar protecao antispam local");
 assert(files.js.includes("markAntiSpamSubmission"), "app.js deve registrar cooldown local");
 assert(files.js.includes("verifyTurnstileIfConfigured"), "app.js deve verificar Turnstile quando configurado");
+assert(files.js.includes("scanImagesForContact"), "app.js deve analisar imagens por OCR");
+assert(files.js.includes("Tesseract.recognize"), "app.js deve usar OCR para imagens");
 assert(files.vercel.includes("/api/maintenance"), "vercel.json deve agendar a manutencao");
 assert(files.maintenance.includes("run_scheduled_maintenance"), "api/maintenance.js deve chamar a RPC de manutencao");
 assert(files.maintenance.includes("CRON_SECRET"), "api/maintenance.js deve exigir CRON_SECRET");
@@ -71,6 +74,7 @@ assert(files.unitMaintenance.includes("unit-maintenance ok"), "tests/unit-mainte
 assert(files.unitTurnstile.includes("unit-turnstile ok"), "tests/unit-turnstile.mjs deve existir");
 assert(files.e2ePublic.includes("e2e-public-flow ok"), "tests/e2e-public-flow.mjs deve existir");
 assert(files.backupDryRun.includes("backup-restore-dry-run ok"), "tests/backup-restore-dry-run.mjs deve existir");
+assert(files.imageSecurity.includes("OCR no navegador"), "SEGURANCA_IMAGENS.md deve documentar OCR");
 
 const forbiddenPublicTerms = [
   "checkout",

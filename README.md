@@ -36,6 +36,8 @@ O repassecomrepasse sera uma plataforma de aproximacao entre usuarios com intere
 
 - `SEGURANCA_CAPTCHA.md` - ativacao opcional do Cloudflare Turnstile.
 
+- `SEGURANCA_IMAGENS.md` - verificacao de contato em imagens com OCR no navegador.
+
 ## Backup minimo
 
 Backup desta preparacao:
