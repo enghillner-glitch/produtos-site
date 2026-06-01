@@ -46,19 +46,20 @@ O DOCX mestre revisado foi renderizado em 40 paginas PNG e inspecionado visualme
 
 ## Diagnostico operacional adicional
 
-O verificador `scripts/check-deployment-config.mjs` foi criado para a etapa pos-migracao. Na execucao atual ele confirmou que o site publicado carrega `config.js` e que a configuracao publica do Supabase responde, mas tambem apontou que as tabelas avancadas `negotiation_leads`, `agreement_cancellations`, `final_agreement_terms`, `notifications`, `email_queue`, `consent_records` e `favorite_items` ainda nao estao disponiveis no Supabase de producao. Tambem indicou `missing_cron_secret` na Vercel.
+O verificador `scripts/check-deployment-config.mjs` foi criado para a etapa pos-migracao. Apos aplicar o `supabase.sql` em dois blocos no SQL Editor do Supabase, a execucao confirmou que as tabelas avancadas `negotiation_leads`, `agreement_cancellations`, `final_agreement_terms`, `notifications`, `email_queue`, `consent_records` e `favorite_items` estao disponiveis em producao. Tambem confirmou que a RPC anonima foi bloqueada com status `401`.
 
-Esse resultado e coerente com a pendencia externa de aplicar `supabase.sql` e configurar variaveis server-side antes da homologacao autenticada completa.
+As variaveis obrigatorias `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` e `CRON_SECRET` foram cadastradas na Vercel em 2026-06-01. O proximo deploy deve carregar essas variaveis nas funcoes server-side.
 
 ## Pendencias externas para homologacao autenticada completa
 
-- Aplicar `supabase.sql` no projeto Supabase de producao.
-- Se necessario, gerar blocos com `node scripts/split-supabase-sql.mjs` e seguir `SUPABASE_MIGRACAO.md`.
+- `supabase.sql` aplicado no projeto Supabase de producao em 2026-06-01.
 - Executar `node scripts/check-deployment-config.mjs` depois da migracao para confirmar schema, RPCs e guardas server-side.
-- Configurar variaveis server-side na Vercel:
+- Variaveis server-side obrigatorias cadastradas na Vercel:
   - `CRON_SECRET`;
   - `SUPABASE_URL`;
   - `SUPABASE_SERVICE_ROLE_KEY`;
+- Aguardar novo deploy e confirmar `/api/maintenance` retornando `401` sem token.
+- Variaveis opcionais ainda dependem de decisao operacional:
   - `TURNSTILE_SECRET_KEY`, se Turnstile for ativado;
   - `RESEND_API_KEY` e `EMAIL_FROM`, se emails automaticos forem ativados.
 - Preencher `turnstileSiteKey` em `config.js`, se Turnstile for ativado.
@@ -66,4 +67,4 @@ Esse resultado e coerente com a pendencia externa de aplicar `supabase.sql` e co
 
 ## Observacao
 
-Sem a migracao Supabase aplicada, a producao pode carregar a interface e testes publicos, mas os fluxos autenticados que dependem de tabelas/RPCs novas continuarao em modo de compatibilidade ou exibirao aviso de migracao pendente.
+Com a migracao Supabase aplicada e as variaveis obrigatorias cadastradas na Vercel, a producao ja possui o schema avancado e a configuracao server-side necessaria. A confirmacao final depende do novo deploy refletir as variaveis.

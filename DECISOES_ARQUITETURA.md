@@ -44,7 +44,7 @@
 |---|---|
 | Aplicacao em blocos | A fundacao inicial do SQL foi aplicada em blocos menores no Supabase para evitar falha operacional do editor com alerta de RLS. |
 | Validacao remota inicial | Consulta confirmou objetos de fundacao, como `profile_private_data`, `audit_events`, `real_estate_agencies`, coluna `profiles.user_type` e politica `profile private own read`. |
-| Migracao avancada pendente | O diagnostico de 2026-06-01 apontou que tabelas avancadas de leads, cancelamentos, acordo final, notificacoes, fila de email, consentimentos e favoritos ainda precisam receber o `supabase.sql` completo em producao. |
+| Migracao avancada concluida | Em 2026-06-01, o `supabase.sql` completo foi aplicado em dois blocos e o diagnostico confirmou tabelas avancadas de leads, cancelamentos, acordo final, notificacoes, fila de email, consentimentos e favoritos em producao. |
 
 ## 2026-05-31 - Endereco e localizacao
 
@@ -175,5 +175,5 @@
 
 | Decisao | Registro |
 |---|---|
-| RPCs sem acesso anonimo | `supabase.sql` revoga `execute` das funcoes do projeto para o papel publico e concede apenas as RPCs necessarias para `authenticated` ou `service_role`, sem afetar funcoes de extensoes. |
+| RPCs sem acesso anonimo | `supabase.sql` revoga `execute` das funcoes do projeto para `public`, `anon` e `authenticated`, depois concede apenas as RPCs necessarias para `authenticated` ou `service_role`, sem afetar funcoes de extensoes. |
 | Manutencao somente server-side | `run_scheduled_maintenance` fica executavel apenas por `service_role`, chamada pela rota protegida `/api/maintenance`. |
