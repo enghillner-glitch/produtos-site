@@ -56,7 +56,9 @@ Testes estaticos/smoke:
 
 ```powershell
 node --check app.js
+node --check api/maintenance.js
 node tests/static-checks.mjs
+node tests/unit-maintenance.mjs
 node tests/smoke-http.mjs
 ```
 

@@ -91,7 +91,7 @@ Atualizado em: 2026-05-31
 | F160 | Criar painel de configuracoes | FASE 14 - Administracao | concluida | 2026-06-01 | node --check app.js; tests/static-checks.mjs | Painel admin edita a imobiliaria ativa, contatos institucionais e email de leads, com politica Supabase restrita a administracao. |
 | F161 | Criar painel de auditoria | FASE 14 - Administracao | concluida | 2026-06-01 | node --check app.js | Admin visualiza eventos recentes de `audit_events`. |
 | F162 | Criar painel de denuncias | FASE 14 - Administracao | concluida | 2026-06-01 | node --check app.js | Admin visualiza denuncias e pode marcar como revisadas. |
-| F170 | Criar testes unitarios | FASE 15 - Testes e descontinuacao | parcial | 2026-06-01 | tests/static-checks.mjs | Testes estaticos cobrem marcadores de UI/schema; unidade granular fica pendente por arquitetura sem bundler. |
+| F170 | Criar testes unitarios | FASE 15 - Testes e descontinuacao | concluida | 2026-06-01 | tests/unit-maintenance.mjs | Testes unitarios cobrem autorizacao da rota de manutencao, fallback sem provedor de email e envio mockado da fila. |
 | F171 | Criar testes de integracao | FASE 15 - Testes e descontinuacao | concluida | 2026-06-01 | tests/static-checks.mjs | Teste cruza IDs da UI com objetos SQL essenciais. |
 | F172 | Criar testes ponta a ponta | FASE 15 - Testes e descontinuacao | parcial | 2026-06-01 | tests/smoke-http.mjs | Smoke HTTP valida carregamento da home local/producao; E2E autenticado fica pendente. |
 | F173 | Auditar privacidade | FASE 15 - Testes e descontinuacao | concluida | 2026-06-01 | RELATORIO_PRIVACIDADE.md | Relatorio de privacidade criado. |

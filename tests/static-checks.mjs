@@ -6,7 +6,8 @@ const files = {
   js: await readFile("app.js", "utf8"),
   sql: await readFile("supabase.sql", "utf8"),
   vercel: await readFile("vercel.json", "utf8"),
-  maintenance: await readFile("api/maintenance.js", "utf8")
+  maintenance: await readFile("api/maintenance.js", "utf8"),
+  unitMaintenance: await readFile("tests/unit-maintenance.mjs", "utf8")
 };
 
 const requiredDomIds = [
@@ -51,6 +52,7 @@ assert(files.maintenance.includes("run_scheduled_maintenance"), "api/maintenance
 assert(files.maintenance.includes("CRON_SECRET"), "api/maintenance.js deve exigir CRON_SECRET");
 assert(files.maintenance.includes("RESEND_API_KEY"), "api/maintenance.js deve suportar envio automatico de emails");
 assert(files.sql.includes("from auth.users"), "supabase.sql deve preencher destino da fila de emails");
+assert(files.unitMaintenance.includes("unit-maintenance ok"), "tests/unit-maintenance.mjs deve existir");
 
 const forbiddenPublicTerms = [
   "checkout",
