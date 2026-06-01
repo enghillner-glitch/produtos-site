@@ -30,6 +30,8 @@ O repassecomrepasse sera uma plataforma de aproximacao entre usuarios com intere
 
 - `RELATORIO_PRIVACIDADE.md` - auditoria de dados sensiveis.
 
+- `RELATORIO_HOMOLOGACAO_EXECUTADA.md` - testes automatizados executados e pendencias externas.
+
 - `BACKUP_RESTAURACAO.md` - procedimento de restauracao.
 
 - `OPERACAO_JOBS.md` - configuracao do cron diario de manutencao na Vercel.

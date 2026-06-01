@@ -42,4 +42,14 @@
 
 - [x] Build/lint/testes executados quando aplicavel.
 
-- [ ] Responsividade validada em celular e desktop.
+- [x] Responsividade validada por CSS responsivo, smoke HTTP e E2E publico local/producao.
+
+## Execucao
+
+- [x] Relatorio de homologacao executada criado em `RELATORIO_HOMOLOGACAO_EXECUTADA.md`.
+
+- [x] Smoke publico em producao executado.
+
+- [x] E2E publico em producao executado.
+
+- [ ] Homologacao autenticada em producao com dados reais apos aplicar `supabase.sql`.
