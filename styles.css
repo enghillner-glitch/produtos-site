@@ -520,6 +520,11 @@ textarea:focus {
   color: #4a555b;
 }
 
+.status.expired {
+  background: #fde8e8;
+  color: #8f1d1d;
+}
+
 .moderation.pending,
 .status.pending {
   background: #fff4cf;

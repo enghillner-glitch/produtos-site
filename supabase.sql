@@ -63,7 +63,9 @@ create table if not exists public.items (
   moderation_status text not null default 'pending' check (moderation_status in ('pending', 'approved', 'rejected')),
   moderation_note text,
   moderation_updated_at timestamptz,
-  status text not null default 'available' check (status in ('available', 'traded', 'inactive')),
+  status text not null default 'available' check (status in ('available', 'traded', 'inactive', 'expired')),
+  expires_at timestamptz not null default (now() + interval '30 days'),
+  renewed_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -266,11 +268,19 @@ alter table public.items
   add column if not exists moderation_note text;
 alter table public.items
   add column if not exists moderation_updated_at timestamptz;
+alter table public.items
+  add column if not exists expires_at timestamptz not null default (now() + interval '30 days');
+alter table public.items
+  add column if not exists renewed_at timestamptz;
 
 update public.items
 set moderation_status = 'approved',
     moderation_updated_at = coalesce(moderation_updated_at, now())
 where moderation_updated_at is null;
+
+update public.items
+set expires_at = coalesce(expires_at, created_at + interval '30 days')
+where expires_at is null;
 
 alter table public.items drop constraint if exists items_state_check;
 alter table public.items
@@ -291,6 +301,11 @@ alter table public.items drop constraint if exists items_moderation_status_check
 alter table public.items
   add constraint items_moderation_status_check
   check (moderation_status in ('pending', 'approved', 'rejected'));
+
+alter table public.items drop constraint if exists items_status_check;
+alter table public.items
+  add constraint items_status_check
+  check (status in ('available', 'traded', 'inactive', 'expired'));
 
 alter table public.exchange_proposals
   add column if not exists offered_item_2_id uuid references public.items(id) on delete cascade,
@@ -459,6 +474,7 @@ alter table public.items
   ));
 
 create index if not exists items_status_city_idx on public.items(status, city, neighborhood);
+create index if not exists items_expiration_idx on public.items(status, expires_at);
 create index if not exists items_moderation_status_idx on public.items(moderation_status, updated_at desc);
 create index if not exists profile_private_document_hash_idx on public.profile_private_data(document_hash);
 create unique index if not exists profile_private_document_unique_idx on public.profile_private_data(document_type, document_hash);
@@ -752,7 +768,7 @@ create policy "items visible read"
     or exists (
       select 1
       from public.exchange_proposals ep
-      where (ep.requested_item_id = items.id or ep.offered_item_id = items.id)
+          where (ep.requested_item_id = items.id or ep.offered_item_id = items.id or ep.offered_item_2_id = items.id)
         and (ep.requester_id = auth.uid() or ep.owner_id = auth.uid())
     )
   );
@@ -815,7 +831,7 @@ create policy "item images visible read"
           or exists (
             select 1
             from public.exchange_proposals ep
-            where (ep.requested_item_id = i.id or ep.offered_item_id = i.id)
+            where (ep.requested_item_id = i.id or ep.offered_item_id = i.id or ep.offered_item_2_id = i.id)
               and (ep.requester_id = auth.uid() or ep.owner_id = auth.uid())
           )
         )
@@ -1325,33 +1341,6 @@ begin
 end;
 $$;
 
-create or replace function public.run_scheduled_maintenance()
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_expired integer;
-  v_marked integer;
-begin
-  v_expired := public.expire_exchange_proposals();
-
-  update public.email_queue
-  set status = 'skipped',
-      processed_at = now()
-  where status = 'queued'
-    and to_email is null;
-
-  get diagnostics v_marked = row_count;
-
-  return jsonb_build_object(
-    'expired_proposals', v_expired,
-    'emails_without_destination_marked', v_marked
-  );
-end;
-$$;
-
 create or replace function public.expire_exchange_proposals()
 returns integer
 language plpgsql
@@ -1368,6 +1357,55 @@ begin
 
   get diagnostics v_count = row_count;
   return v_count;
+end;
+$$;
+
+create or replace function public.expire_items()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_count integer;
+begin
+  update public.items
+  set status = 'expired'
+  where status = 'available'
+    and expires_at <= now();
+
+  get diagnostics v_count = row_count;
+  return v_count;
+end;
+$$;
+
+create or replace function public.run_scheduled_maintenance()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_expired integer;
+  v_expired_items integer;
+  v_marked integer;
+begin
+  v_expired := public.expire_exchange_proposals();
+  v_expired_items := public.expire_items();
+
+  update public.email_queue
+  set status = 'skipped',
+      processed_at = now()
+  where status = 'queued'
+    and to_email is null;
+
+  get diagnostics v_marked = row_count;
+
+  return jsonb_build_object(
+    'expired_proposals', v_expired,
+    'expired_items', v_expired_items,
+    'emails_without_destination_marked', v_marked
+  );
 end;
 $$;
 

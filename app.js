@@ -34,7 +34,8 @@ const conditions = ["Novo", "Pronto para morar", "Em construção", "Financiado"
 const statusLabels = {
   available: "Disponível",
   traded: "Em acordo",
-  inactive: "Inativo"
+  inactive: "Inativo",
+  expired: "Expirado"
 };
 
 const moderationStatusLabels = {
@@ -417,7 +418,7 @@ async function loadPublicItems() {
     return;
   }
 
-  state.publicItems = data ?? [];
+  state.publicItems = (data ?? []).filter((item) => !isItemExpired(item));
   await loadImagesForItems(state.publicItems.map((item) => item.id));
 }
 async function loadUserData() {
@@ -939,6 +940,8 @@ function handleDocumentClick(event) {
     openItemForm(actionTarget.dataset.itemId);
   } else if (action === "toggle-item") {
     toggleItemStatus(actionTarget.dataset.itemId);
+  } else if (action === "renew-item") {
+    renewItem(actionTarget.dataset.itemId);
   } else if (action === "open-proposal") {
     openProposalModal(actionTarget.dataset.itemId);
   } else if (action === "accept-proposal") {
@@ -1363,6 +1366,7 @@ function renderItemCard(item, options) {
   const firstImage = images[0]?.public_url;
   const article = document.createElement("article");
   article.className = "item-card";
+  const displayStatus = getItemDisplayStatus(item);
 
   const actionButtons =
     options.context === "mine"
@@ -1371,6 +1375,7 @@ function renderItemCard(item, options) {
         <button class="secondary" type="button" data-action="toggle-item" data-item-id="${item.id}">
           ${item.status === "inactive" ? "Reativar" : "Inativar"}
         </button>
+        ${item.status === "traded" ? "" : `<button class="secondary" type="button" data-action="renew-item" data-item-id="${item.id}">Renovar</button>`}
       `
       : `
         <button type="button" data-action="view-item" data-item-id="${item.id}">Ver detalhes</button>
@@ -1387,7 +1392,7 @@ function renderItemCard(item, options) {
     <div class="item-body">
       <div class="item-title-row">
         <h3>${escapeHtml(item.title)}</h3>
-        <span class="pill status ${item.status}">${statusLabels[item.status] ?? item.status}</span>
+        <span class="pill status ${displayStatus}">${statusLabels[displayStatus] ?? displayStatus}</span>
       </div>
       ${options.context === "mine" && state.schemaFeatures.moderation ? `<span class="pill moderation ${item.moderation_status}">${moderationStatusLabels[item.moderation_status] ?? item.moderation_status ?? "Em revisão"}</span>` : ""}
       ${item.moderation_note ? `<p><strong>Moderação:</strong> ${escapeHtml(item.moderation_note)}</p>` : ""}
@@ -1397,6 +1402,7 @@ function renderItemCard(item, options) {
       </div>
         <p class="location">${escapeHtml(item.city)} - ${escapeHtml(item.neighborhood)}</p>
         <p><strong>Repasse pretendido:</strong> ${formatter.format(Number(item.transfer_amount ?? 0))}</p>
+        ${item.expires_at ? `<p class="muted">Validade: ${formatDateTime(item.expires_at)}</p>` : ""}
         <p>${escapeHtml(truncate(item.description, 110))}</p>
       <p><strong>Busca:</strong> ${escapeHtml(truncate(item.trade_preferences, 90))}</p>
     </div>
@@ -2026,6 +2032,10 @@ async function toggleItemStatus(itemId) {
 
   const nextStatus = item.status === "inactive" ? "available" : "inactive";
   const updatePayload = { status: nextStatus };
+  if (nextStatus === "available" && item.expires_at !== undefined) {
+    updatePayload.expires_at = daysFromNowIso(30);
+    updatePayload.renewed_at = new Date().toISOString();
+  }
   if (state.schemaFeatures.moderation && nextStatus === "available" && item.moderation_status !== "approved") {
     updatePayload.moderation_status = "pending";
     updatePayload.moderation_updated_at = new Date().toISOString();
@@ -2038,6 +2048,36 @@ async function toggleItemStatus(itemId) {
   }
 
   showNotice(nextStatus === "available" ? "Imóvel reativado." : "Imóvel inativado.");
+  await refreshAll();
+}
+
+async function renewItem(itemId) {
+  const item = state.myItems.find((candidate) => candidate.id === itemId);
+  if (!item) {
+    return;
+  }
+
+  const payload = {
+    status: item.status === "traded" ? "traded" : "available",
+    expires_at: daysFromNowIso(30),
+    renewed_at: new Date().toISOString()
+  };
+
+  const { error } = await supabaseClient
+    .from("items")
+    .update(payload)
+    .eq("id", itemId);
+
+  if (isMissingColumnError(error, "expires_at")) {
+    showNotice("Renovação com validade depende da nova migração Supabase.", "error");
+    return;
+  }
+
+  if (handleDbError(error, "renovar anúncio")) {
+    return;
+  }
+
+  showNotice("Anúncio renovado por mais 30 dias.");
   await refreshAll();
 }
 
@@ -2332,6 +2372,7 @@ function openItemDetail(itemId) {
           <span><strong>Parcela mensal aprox.</strong>${formatter.format(Number(item.monthly_payment ?? 0))}</span>
           <span><strong>Parcelas restantes</strong>${Number(item.installments_remaining ?? 0)}</span>
         </div>
+        ${item.expires_at ? `<p class="muted">Anúncio válido até ${formatDateTime(item.expires_at)}.</p>` : ""}
         <p><strong>Preferências de proposta:</strong> ${escapeHtml(item.trade_preferences)}</p>
         <p class="muted">O contato só é liberado quando a proposta é aceita. Combine local e horário diretamente com a outra pessoa.</p>
         <div class="detail-actions">
@@ -2366,7 +2407,7 @@ async function openProposalModal(itemId) {
   }
 
   const availableMyItems = state.myItems.filter(
-    (item) => item.status === "available" && (!state.schemaFeatures.moderation || item.moderation_status === "approved")
+    (item) => item.status === "available" && !isItemExpired(item) && (!state.schemaFeatures.moderation || item.moderation_status === "approved")
   );
   elements.proposalForm.reset();
   elements.proposalType.value = state.schemaFeatures.advancedProposals && !availableMyItems.length ? "cash" : "item";
@@ -2927,6 +2968,18 @@ function formatDateTime(value) {
     return "";
   }
   return dateFormatter.format(date);
+}
+
+function isItemExpired(item) {
+  if (!item?.expires_at || item.status !== "available") {
+    return false;
+  }
+
+  return new Date(item.expires_at).getTime() <= Date.now();
+}
+
+function getItemDisplayStatus(item) {
+  return isItemExpired(item) ? "expired" : item.status;
 }
 
 function daysFromNowIso(days) {
