@@ -102,3 +102,14 @@
 | Link compartilhavel | Anuncios usam hash `#item-<id>` para abrir detalhe quando o imovel estiver aprovado e carregado na vitrine. |
 | SEO sem dados privados | Metatags sao institucionais e nao incluem endereco completo, contato, documento ou dados privados. |
 | Carregamento incremental | A vitrine mostra 12 anuncios por vez para preservar desempenho conforme a base crescer. |
+
+## 2026-06-01 - Propostas e Acordo Inicial
+
+| Decisao | Registro |
+|---|---|
+| Proposta flexivel | Propostas podem ser somente em dinheiro, com um imovel ou com ate dois imoveis, sem transformar a plataforma em venda direta. |
+| Respondente explicito | Cada proposta grava `created_by` e `responder_id`, permitindo contrapropostas sem inverter a propriedade do anuncio. |
+| Contraproposta versionada | Contraproposta marca a versao anterior como `countered` e cria nova linha pendente com `version + 1`. |
+| Reserva leve | Contrapartidas ficam reservadas por `reserved_until` para evitar uso simultaneo em propostas pendentes do mesmo usuario. |
+| Expiracao incremental | Propostas vencidas sao expiradas por RPC chamada em carregamentos e acoes; job agendado fica para a fase de notificacoes/jobs. |
+| Snapshot de aceite | O aceite grava `accepted_snapshot` com os termos essenciais para auditoria e encaminhamento. |

@@ -392,12 +392,27 @@
         <form id="proposalForm">
           <input id="proposalRequestedItemId" type="hidden" />
           <label>
+            Tipo de proposta
+            <select id="proposalType">
+              <option value="item">Oferecer um imóvel</option>
+              <option value="mixed">Imóvel + diferença em dinheiro</option>
+              <option value="cash">Somente diferença em dinheiro</option>
+            </select>
+          </label>
+          <label>
             Escolha um imóvel da sua carteira
-            <select id="offeredItemSelect" required></select>
+            <select id="offeredItemSelect"></select>
+          </label>
+          <label id="offeredItem2Label">
+            Segundo imóvel da sua carteira, se fizer sentido
+            <select id="offeredItem2Select"></select>
           </label>
           <div class="empty-state slim" id="noOfferItems" hidden>
-            Você precisa cadastrar ao menos um imóvel disponível antes de enviar proposta.
+            Você pode enviar uma proposta somente em dinheiro ou cadastrar um imóvel para oferecer como contrapartida.
           </div>
+          <p class="muted" id="advancedProposalHint" hidden>
+            Recursos avançados de proposta dependem da nova migração Supabase.
+          </p>
           <label>
             Diferença em dinheiro opcional
             <input id="cashDifference" type="number" min="0" step="0.01" placeholder="0,00" />

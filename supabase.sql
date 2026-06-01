@@ -90,16 +90,30 @@ create table if not exists public.item_private_locations (
 create table if not exists public.exchange_proposals (
   id uuid primary key default gen_random_uuid(),
   requested_item_id uuid not null references public.items(id) on delete cascade,
-  offered_item_id uuid not null references public.items(id) on delete cascade,
+  offered_item_id uuid references public.items(id) on delete cascade,
+  offered_item_2_id uuid references public.items(id) on delete cascade,
+  proposal_type text not null default 'item' check (proposal_type in ('cash', 'item', 'mixed')),
   requester_id uuid not null references public.profiles(id) on delete cascade,
   owner_id uuid not null references public.profiles(id) on delete cascade,
+  created_by uuid not null references public.profiles(id) on delete cascade,
+  responder_id uuid not null references public.profiles(id) on delete cascade,
   cash_difference numeric(12, 2) not null default 0,
   cash_direction text not null default 'none' check (cash_direction in ('none', 'requester_pays', 'owner_pays')),
   message text,
-  status text not null default 'pending' check (status in ('pending', 'accepted', 'rejected', 'cancelled', 'failed')),
+  status text not null default 'pending' check (status in ('pending', 'accepted', 'rejected', 'cancelled', 'failed', 'expired', 'countered')),
+  parent_proposal_id uuid references public.exchange_proposals(id) on delete set null,
+  version integer not null default 1,
+  expires_at timestamptz not null default (now() + interval '7 days'),
+  reserved_until timestamptz not null default (now() + interval '2 days'),
+  accepted_at timestamptz,
+  accepted_snapshot jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint exchange_items_different check (requested_item_id <> offered_item_id),
+  constraint exchange_items_different check (
+    (offered_item_id is null or requested_item_id <> offered_item_id)
+    and (offered_item_2_id is null or requested_item_id <> offered_item_2_id)
+    and (offered_item_id is null or offered_item_2_id is null or offered_item_id <> offered_item_2_id)
+  ),
   constraint exchange_users_different check (requester_id <> owner_id)
 );
 
@@ -191,6 +205,89 @@ alter table public.items
   add constraint items_moderation_status_check
   check (moderation_status in ('pending', 'approved', 'rejected'));
 
+alter table public.exchange_proposals
+  add column if not exists offered_item_2_id uuid references public.items(id) on delete cascade,
+  add column if not exists proposal_type text not null default 'item',
+  add column if not exists created_by uuid references public.profiles(id) on delete cascade,
+  add column if not exists responder_id uuid references public.profiles(id) on delete cascade,
+  add column if not exists parent_proposal_id uuid references public.exchange_proposals(id) on delete set null,
+  add column if not exists version integer not null default 1,
+  add column if not exists expires_at timestamptz not null default (now() + interval '7 days'),
+  add column if not exists reserved_until timestamptz not null default (now() + interval '2 days'),
+  add column if not exists accepted_at timestamptz,
+  add column if not exists accepted_snapshot jsonb;
+
+alter table public.exchange_proposals
+  alter column offered_item_id drop not null;
+
+update public.exchange_proposals
+set created_by = coalesce(created_by, requester_id),
+    responder_id = coalesce(responder_id, owner_id),
+    proposal_type = coalesce(proposal_type, 'item'),
+    expires_at = coalesce(expires_at, created_at + interval '7 days'),
+    reserved_until = coalesce(reserved_until, created_at + interval '2 days')
+where created_by is null
+   or responder_id is null
+   or proposal_type is null
+   or expires_at is null
+   or reserved_until is null;
+
+alter table public.exchange_proposals
+  alter column created_by set not null,
+  alter column responder_id set not null;
+
+alter table public.exchange_proposals drop constraint if exists exchange_proposals_status_check;
+alter table public.exchange_proposals
+  add constraint exchange_proposals_status_check
+  check (status in ('pending', 'accepted', 'rejected', 'cancelled', 'failed', 'expired', 'countered'));
+
+alter table public.exchange_proposals drop constraint if exists exchange_proposals_proposal_type_check;
+alter table public.exchange_proposals
+  add constraint exchange_proposals_proposal_type_check
+  check (proposal_type in ('cash', 'item', 'mixed'));
+
+alter table public.exchange_proposals drop constraint if exists exchange_items_different;
+alter table public.exchange_proposals
+  add constraint exchange_items_different
+  check (
+    (offered_item_id is null or requested_item_id <> offered_item_id)
+    and (offered_item_2_id is null or requested_item_id <> offered_item_2_id)
+    and (offered_item_id is null or offered_item_2_id is null or offered_item_id <> offered_item_2_id)
+  );
+
+alter table public.exchange_proposals drop constraint if exists exchange_offer_type_check;
+alter table public.exchange_proposals
+  add constraint exchange_offer_type_check
+  check (
+    (
+      proposal_type = 'cash'
+      and offered_item_id is null
+      and offered_item_2_id is null
+      and cash_difference > 0
+      and cash_direction <> 'none'
+    )
+    or (
+      proposal_type = 'item'
+      and offered_item_id is not null
+    )
+    or (
+      proposal_type = 'mixed'
+      and offered_item_id is not null
+      and cash_difference > 0
+      and cash_direction <> 'none'
+    )
+  );
+
+alter table public.exchange_proposals drop constraint if exists exchange_responder_participant_check;
+alter table public.exchange_proposals
+  add constraint exchange_responder_participant_check
+  check (responder_id in (requester_id, owner_id));
+
+alter table public.exchange_proposals drop constraint if exists exchange_creator_participant_check;
+alter table public.exchange_proposals
+  add constraint exchange_creator_participant_check
+  check (created_by in (requester_id, owner_id));
+
 alter table public.profiles drop constraint if exists profiles_user_type_check;
 alter table public.profiles
   add constraint profiles_user_type_check
@@ -254,6 +351,9 @@ create index if not exists exchange_requester_idx on public.exchange_proposals(r
 create index if not exists exchange_owner_idx on public.exchange_proposals(owner_id);
 create index if not exists exchange_requested_item_idx on public.exchange_proposals(requested_item_id);
 create index if not exists exchange_offered_item_idx on public.exchange_proposals(offered_item_id);
+create index if not exists exchange_offered_item_2_idx on public.exchange_proposals(offered_item_2_id);
+create index if not exists exchange_responder_pending_idx on public.exchange_proposals(responder_id, status, expires_at);
+create index if not exists exchange_pending_reservation_idx on public.exchange_proposals(requester_id, status, reserved_until);
 create index if not exists audit_events_actor_idx on public.audit_events(actor_id, created_at desc);
 create index if not exists audit_events_entity_idx on public.audit_events(entity_type, entity_id);
 create index if not exists real_estate_agencies_status_idx on public.real_estate_agencies(status);
@@ -651,6 +751,16 @@ create policy "proposals valid insert"
   for insert
   with check (
     requester_id = auth.uid()
+    and created_by = auth.uid()
+    and responder_id = owner_id
+    and status = 'pending'
+    and parent_proposal_id is null
+    and version = 1
+    and cash_difference >= 0
+    and expires_at > now()
+    and expires_at <= now() + interval '30 days'
+    and reserved_until > now()
+    and reserved_until <= expires_at
     and exists (
       select 1
       from public.profiles requester
@@ -663,13 +773,35 @@ create policy "proposals valid insert"
       where owner_profile.id = owner_id
         and owner_profile.account_status = 'active'
     )
-    and exists (
+    and (
+      proposal_type = 'cash'
+      and offered_item_id is null
+      and offered_item_2_id is null
+      and cash_difference > 0
+      and cash_direction <> 'none'
+      or proposal_type in ('item', 'mixed')
+    )
+    and (
+      offered_item_id is null
+      or exists (
       select 1
       from public.items offered
       where offered.id = offered_item_id
         and offered.owner_id = auth.uid()
         and offered.status = 'available'
         and offered.moderation_status = 'approved'
+      )
+    )
+    and (
+      offered_item_2_id is null
+      or exists (
+        select 1
+        from public.items offered2
+        where offered2.id = offered_item_2_id
+          and offered2.owner_id = auth.uid()
+          and offered2.status = 'available'
+          and offered2.moderation_status = 'approved'
+      )
     )
     and exists (
       select 1
@@ -680,6 +812,31 @@ create policy "proposals valid insert"
         and requested.status = 'available'
         and requested.moderation_status = 'approved'
     )
+    and not exists (
+      select 1
+      from public.exchange_proposals active
+      where active.requester_id = auth.uid()
+        and active.requested_item_id = exchange_proposals.requested_item_id
+        and active.status = 'pending'
+        and active.expires_at > now()
+    )
+    and not exists (
+      select 1
+      from public.exchange_proposals active
+      where active.requester_id = auth.uid()
+        and active.status = 'pending'
+        and active.reserved_until > now()
+        and (
+          (exchange_proposals.offered_item_id is not null and exchange_proposals.offered_item_id in (active.offered_item_id, active.offered_item_2_id))
+          or (exchange_proposals.offered_item_2_id is not null and exchange_proposals.offered_item_2_id in (active.offered_item_id, active.offered_item_2_id))
+        )
+    )
+    and (
+      select count(*)
+      from public.exchange_proposals recent
+      where recent.requester_id = auth.uid()
+        and recent.created_at > now() - interval '24 hours'
+    ) < 10
   );
 
 drop policy if exists "reports own insert" on public.reports;
@@ -742,6 +899,25 @@ create policy "item images storage own delete"
     and name like auth.uid()::text || '/%'
   );
 
+create or replace function public.expire_exchange_proposals()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_count integer;
+begin
+  update public.exchange_proposals
+  set status = 'expired'
+  where status = 'pending'
+    and expires_at <= now();
+
+  get diagnostics v_count = row_count;
+  return v_count;
+end;
+$$;
+
 create or replace function public.accept_exchange_proposal(p_proposal_id uuid)
 returns void
 language plpgsql
@@ -750,7 +926,11 @@ set search_path = public
 as $$
 declare
   v_proposal public.exchange_proposals;
+  v_item_ids uuid[];
+  v_required_count integer;
 begin
+  perform public.expire_exchange_proposals();
+
   select *
   into v_proposal
   from public.exchange_proposals
@@ -761,12 +941,17 @@ begin
     raise exception 'Proposta não encontrada.';
   end if;
 
-  if v_proposal.owner_id <> auth.uid() then
-    raise exception 'Apenas o anunciante do imóvel pode aceitar a proposta.';
+  if v_proposal.responder_id <> auth.uid() then
+    raise exception 'Apenas quem recebeu a proposta pode aceitar.';
   end if;
 
   if v_proposal.status <> 'pending' then
     raise exception 'A proposta não está pendente.';
+  end if;
+
+  if v_proposal.expires_at <= now() then
+    update public.exchange_proposals set status = 'expired' where id = p_proposal_id;
+    raise exception 'A proposta expirou.';
   end if;
 
   if (
@@ -778,30 +963,55 @@ begin
     raise exception 'A proposta possui participante inativo.';
   end if;
 
+  v_item_ids := array_remove(array[
+    v_proposal.requested_item_id,
+    v_proposal.offered_item_id,
+    v_proposal.offered_item_2_id
+  ], null);
+  v_required_count := coalesce(array_length(v_item_ids, 1), 0);
+
   if (
     select count(*)
     from public.items i
-    where i.id in (v_proposal.requested_item_id, v_proposal.offered_item_id)
+    where i.id = any(v_item_ids)
       and i.status = 'available'
       and i.moderation_status = 'approved'
-  ) <> 2 then
-    raise exception 'Os imoveis da proposta precisam estar disponiveis.';
+  ) <> v_required_count then
+    raise exception 'Os imóveis da proposta precisam estar disponíveis.';
   end if;
+
   update public.exchange_proposals
-  set status = 'accepted'
+  set status = 'accepted',
+      accepted_at = now(),
+      accepted_snapshot = jsonb_build_object(
+        'proposal_id', id,
+        'requested_item_id', requested_item_id,
+        'offered_item_id', offered_item_id,
+        'offered_item_2_id', offered_item_2_id,
+        'proposal_type', proposal_type,
+        'requester_id', requester_id,
+        'owner_id', owner_id,
+        'cash_difference', cash_difference,
+        'cash_direction', cash_direction,
+        'message', message,
+        'version', version,
+        'accepted_by', auth.uid(),
+        'accepted_at', now()
+      )
   where id = p_proposal_id;
 
   update public.items
   set status = 'traded'
-  where id in (v_proposal.requested_item_id, v_proposal.offered_item_id);
+  where id = any(v_item_ids);
 
   update public.exchange_proposals
   set status = 'rejected'
   where id <> p_proposal_id
     and status = 'pending'
     and (
-      requested_item_id in (v_proposal.requested_item_id, v_proposal.offered_item_id)
-      or offered_item_id in (v_proposal.requested_item_id, v_proposal.offered_item_id)
+      requested_item_id = any(v_item_ids)
+      or offered_item_id = any(v_item_ids)
+      or offered_item_2_id = any(v_item_ids)
     );
 end;
 $$;
@@ -813,10 +1023,12 @@ security definer
 set search_path = public
 as $$
 begin
+  perform public.expire_exchange_proposals();
+
   update public.exchange_proposals
   set status = 'rejected'
   where id = p_proposal_id
-    and owner_id = auth.uid()
+    and responder_id = auth.uid()
     and status = 'pending';
 
   if not found then
@@ -832,15 +1044,120 @@ security definer
 set search_path = public
 as $$
 begin
+  perform public.expire_exchange_proposals();
+
   update public.exchange_proposals
   set status = 'cancelled'
   where id = p_proposal_id
-    and requester_id = auth.uid()
+    and created_by = auth.uid()
     and status = 'pending';
 
   if not found then
     raise exception 'Não foi possível cancelar a proposta.';
   end if;
+end;
+$$;
+
+create or replace function public.counter_exchange_proposal(
+  p_proposal_id uuid,
+  p_cash_difference numeric default 0,
+  p_cash_direction text default 'none',
+  p_message text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_proposal public.exchange_proposals;
+  v_new_id uuid;
+  v_next_responder uuid;
+begin
+  perform public.expire_exchange_proposals();
+
+  select *
+  into v_proposal
+  from public.exchange_proposals
+  where id = p_proposal_id
+  for update;
+
+  if not found then
+    raise exception 'Proposta não encontrada.';
+  end if;
+
+  if v_proposal.responder_id <> auth.uid() then
+    raise exception 'Apenas quem recebeu a proposta pode contrapropor.';
+  end if;
+
+  if v_proposal.status <> 'pending' then
+    raise exception 'A proposta não está pendente.';
+  end if;
+
+  if p_cash_difference < 0 then
+    raise exception 'A diferença financeira não pode ser negativa.';
+  end if;
+
+  if v_proposal.proposal_type = 'cash' and p_cash_difference <= 0 then
+    raise exception 'Contraproposta somente em dinheiro precisa ter valor maior que zero.';
+  end if;
+
+  if p_cash_difference > 0 and p_cash_direction not in ('requester_pays', 'owner_pays') then
+    raise exception 'Informe quem pagaria a diferença.';
+  end if;
+
+  if p_cash_difference = 0 then
+    p_cash_direction := 'none';
+  end if;
+
+  v_next_responder := case
+    when auth.uid() = v_proposal.requester_id then v_proposal.owner_id
+    else v_proposal.requester_id
+  end;
+
+  update public.exchange_proposals
+  set status = 'countered'
+  where id = p_proposal_id;
+
+  insert into public.exchange_proposals (
+    requested_item_id,
+    offered_item_id,
+    offered_item_2_id,
+    proposal_type,
+    requester_id,
+    owner_id,
+    created_by,
+    responder_id,
+    cash_difference,
+    cash_direction,
+    message,
+    status,
+    parent_proposal_id,
+    version,
+    expires_at,
+    reserved_until
+  )
+  values (
+    v_proposal.requested_item_id,
+    v_proposal.offered_item_id,
+    v_proposal.offered_item_2_id,
+    v_proposal.proposal_type,
+    v_proposal.requester_id,
+    v_proposal.owner_id,
+    auth.uid(),
+    v_next_responder,
+    p_cash_difference,
+    p_cash_direction,
+    nullif(trim(coalesce(p_message, '')), ''),
+    'pending',
+    v_proposal.id,
+    coalesce(v_proposal.version, 1) + 1,
+    now() + interval '7 days',
+    now() + interval '2 days'
+  )
+  returning id into v_new_id;
+
+  return v_new_id;
 end;
 $$;
 
@@ -852,6 +1169,7 @@ set search_path = public
 as $$
 declare
   v_proposal public.exchange_proposals;
+  v_item_ids uuid[];
 begin
   select *
   into v_proposal
@@ -871,12 +1189,18 @@ begin
     raise exception 'Apenas propostas aceitas podem ser marcadas como não realizadas.';
   end if;
 
+  v_item_ids := array_remove(array[
+    v_proposal.requested_item_id,
+    v_proposal.offered_item_id,
+    v_proposal.offered_item_2_id
+  ], null);
+
   update public.exchange_proposals
   set status = 'failed'
   where id = p_proposal_id;
 
   update public.items
   set status = 'available'
-  where id in (v_proposal.requested_item_id, v_proposal.offered_item_id);
+  where id = any(v_item_ids);
 end;
 $$;

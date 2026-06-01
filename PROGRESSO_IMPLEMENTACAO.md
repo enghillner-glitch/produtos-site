@@ -48,22 +48,22 @@ Atualizado em: 2026-05-31
 | F075 | Compartilhar anuncio | FASE 6 - Vitrine | concluida | 2026-06-01 | Browser local; node --check app.js | Compartilhamento usa Web Share quando disponivel ou copia link do anuncio. |
 | F076 | Denunciar anuncio | FASE 6 - Vitrine | concluida | 2026-06-01 | node --check app.js | Denuncia de anuncio ja integrada ao fluxo de detalhe e tabela reports. |
 | F077 | Criar SEO seguro | FASE 6 - Vitrine | concluida | 2026-06-01 | Browser local | Metatags description e Open Graph basicas adicionadas sem expor dados privados. |
-| F080 | Criar entidade proposta | FASE 7 - Propostas | nao iniciada |  |  |  |
-| F081 | Proposta somente em dinheiro | FASE 7 - Propostas | nao iniciada |  |  |  |
-| F082 | Proposta com um imovel | FASE 7 - Propostas | nao iniciada |  |  |  |
-| F083 | Proposta com ate dois imoveis | FASE 7 - Propostas | nao iniciada |  |  |  |
-| F084 | Registrar diferenca financeira | FASE 7 - Propostas | nao iniciada |  |  |  |
-| F085 | Reservar contrapartida | FASE 7 - Propostas | nao iniciada |  |  |  |
-| F086 | Criar caixa de propostas recebidas | FASE 7 - Propostas | nao iniciada |  |  |  |
-| F087 | Recusar proposta | FASE 7 - Propostas | nao iniciada |  |  |  |
-| F088 | Retirar proposta | FASE 7 - Propostas | nao iniciada |  |  |  |
-| F089 | Contrapropor com versionamento | FASE 7 - Propostas | nao iniciada |  |  |  |
-| F090 | Expirar proposta automaticamente | FASE 7 - Propostas | nao iniciada |  |  |  |
-| F091 | Aplicar limites antispam | FASE 7 - Propostas | nao iniciada |  |  |  |
-| F100 | Aceitar proposta atomicamente | FASE 8 - Acordo Inicial | nao iniciada |  |  |  |
-| F101 | Confirmar Acordo Inicial | FASE 8 - Acordo Inicial | nao iniciada |  |  |  |
-| F102 | Encerrar propostas concorrentes | FASE 8 - Acordo Inicial | nao iniciada |  |  |  |
-| F103 | Criar snapshot imutavel do Acordo Inicial | FASE 8 - Acordo Inicial | nao iniciada |  |  |  |
+| F080 | Criar entidade proposta | FASE 7 - Propostas | concluida | 2026-06-01 | node --check app.js | Entidade `exchange_proposals` ampliada com tipo, criador, respondente, expiracao, reserva e versao. |
+| F081 | Proposta somente em dinheiro | FASE 7 - Propostas | concluida | 2026-06-01 | node --check app.js | Modal permite proposta sem imovel oferecido quando ha diferenca em dinheiro registrada. |
+| F082 | Proposta com um imovel | FASE 7 - Propostas | concluida | 2026-06-01 | node --check app.js | Fluxo existente de selecionar um imovel proprio foi preservado. |
+| F083 | Proposta com ate dois imoveis | FASE 7 - Propostas | concluida | 2026-06-01 | node --check app.js | Proposta aceita um segundo imovel opcional como contrapartida. |
+| F084 | Registrar diferenca financeira | FASE 7 - Propostas | concluida | 2026-06-01 | node --check app.js | Valor e pagador da diferenca continuam registrados na proposta. |
+| F085 | Reservar contrapartida | FASE 7 - Propostas | concluida | 2026-06-01 | supabase.sql | `reserved_until` e politica RLS evitam reutilizar a mesma contrapartida em propostas pendentes ativas. |
+| F086 | Criar caixa de propostas recebidas | FASE 7 - Propostas | concluida | 2026-06-01 | node --check app.js | Painel separa propostas recebidas e enviadas por respondente/criador. |
+| F087 | Recusar proposta | FASE 7 - Propostas | concluida | 2026-06-01 | supabase.sql | RPC recusa proposta pelo usuario respondente. |
+| F088 | Retirar proposta | FASE 7 - Propostas | concluida | 2026-06-01 | supabase.sql | RPC cancela proposta pelo usuario criador. |
+| F089 | Contrapropor com versionamento | FASE 7 - Propostas | concluida | 2026-06-01 | node --check app.js; supabase.sql | Contraproposta encerra a versao anterior como `countered` e cria nova versao pendente. |
+| F090 | Expirar proposta automaticamente | FASE 7 - Propostas | parcial | 2026-06-01 | supabase.sql | RPC expira propostas vencidas ao carregar/agir; job agendado dedicado fica para fase de jobs. |
+| F091 | Aplicar limites antispam | FASE 7 - Propostas | parcial | 2026-06-01 | supabase.sql | RLS limita duplicidade por imovel e 10 propostas/24h; CAPTCHA/rate limit externo ficam pendentes. |
+| F100 | Aceitar proposta atomicamente | FASE 8 - Acordo Inicial | concluida | 2026-06-01 | supabase.sql | RPC aceita proposta em transacao, valida participantes e move imoveis envolvidos para acordo. |
+| F101 | Confirmar Acordo Inicial | FASE 8 - Acordo Inicial | parcial | 2026-06-01 | node --check app.js | Confirmação de aceite existe no painel; tela formal dedicada ainda fica pendente. |
+| F102 | Encerrar propostas concorrentes | FASE 8 - Acordo Inicial | concluida | 2026-06-01 | supabase.sql | Aceite rejeita propostas pendentes concorrentes envolvendo os imoveis do acordo. |
+| F103 | Criar snapshot imutavel do Acordo Inicial | FASE 8 - Acordo Inicial | concluida | 2026-06-01 | supabase.sql | Aceite grava `accepted_snapshot` com termos essenciais da proposta aceita. |
 | F110 | Criar lead automaticamente | FASE 9 - Lead e painel interno | nao iniciada |  |  |  |
 | F111 | Listar leads no painel | FASE 9 - Lead e painel interno | nao iniciada |  |  |  |
 | F112 | Exibir detalhe seguro do lead | FASE 9 - Lead e painel interno | nao iniciada |  |  |  |

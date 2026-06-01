@@ -47,7 +47,9 @@ const proposalStatusLabels = {
   accepted: "Aceita",
   rejected: "Recusada",
   cancelled: "Cancelada",
-  failed: "Não concluída"
+  failed: "Não concluída",
+  expired: "Expirada",
+  countered: "Contraproposta enviada"
 };
 
 const cashDirectionLabels = {
@@ -84,7 +86,8 @@ const state = {
   favoriteItemIds: loadFavoriteItemIds(),
   visibleItemCount: 12,
   schemaFeatures: {
-    moderation: true
+    moderation: true,
+    advancedProposals: true
   },
   selectedDetailItem: null
 };
@@ -93,6 +96,10 @@ const $ = (id) => document.getElementById(id);
 const formatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL"
+});
+const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
+  dateStyle: "short",
+  timeStyle: "short"
 });
 
 const elements = {
@@ -169,8 +176,12 @@ const elements = {
   proposalIntro: $("proposalIntro"),
   proposalForm: $("proposalForm"),
   proposalRequestedItemId: $("proposalRequestedItemId"),
+  proposalType: $("proposalType"),
   offeredItemSelect: $("offeredItemSelect"),
+  offeredItem2Select: $("offeredItem2Select"),
+  offeredItem2Label: $("offeredItem2Label"),
   noOfferItems: $("noOfferItems"),
+  advancedProposalHint: $("advancedProposalHint"),
   cashDifference: $("cashDifference"),
   cashDirection: $("cashDirection"),
   proposalMessage: $("proposalMessage")
@@ -284,6 +295,8 @@ function bindEvents() {
   elements.itemForm.addEventListener("submit", saveItem);
   elements.itemImages.addEventListener("change", previewSelectedImages);
   elements.proposalForm.addEventListener("submit", sendProposal);
+  elements.proposalType.addEventListener("change", syncProposalOfferFields);
+  elements.cashDifference.addEventListener("input", syncProposalOfferFields);
   elements.loadMoreItems.addEventListener("click", () => {
     state.visibleItemCount += 12;
     renderHome();
@@ -461,7 +474,37 @@ async function loadModerationItems() {
   ]);
 }
 
+async function ensureAdvancedProposalsFeature() {
+  if (!state.schemaFeatures.advancedProposals) {
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("exchange_proposals")
+    .select("offered_item_2_id,proposal_type,created_by,responder_id,expires_at")
+    .limit(1);
+
+  if (
+    isMissingColumnError(error, "offered_item_2_id") ||
+    isMissingColumnError(error, "proposal_type") ||
+    isMissingColumnError(error, "created_by") ||
+    isMissingColumnError(error, "responder_id") ||
+    isMissingColumnError(error, "expires_at")
+  ) {
+    state.schemaFeatures.advancedProposals = false;
+  }
+}
+
 async function loadProposals() {
+  await ensureAdvancedProposalsFeature();
+
+  if (state.schemaFeatures.advancedProposals) {
+    const { error } = await supabaseClient.rpc("expire_exchange_proposals");
+    if (error && !isMissingFunctionError(error, "expire_exchange_proposals")) {
+      handleDbError(error, "expirar propostas antigas");
+    }
+  }
+
   const { data, error } = await supabaseClient
     .from("exchange_proposals")
     .select("*")
@@ -475,7 +518,11 @@ async function loadProposals() {
 
   state.proposals = data ?? [];
   const itemIds = unique(
-    state.proposals.flatMap((proposal) => [proposal.requested_item_id, proposal.offered_item_id])
+    state.proposals.flatMap((proposal) => [
+      proposal.requested_item_id,
+      proposal.offered_item_id,
+      proposal.offered_item_2_id
+    ])
   );
   const userIds = unique(
     state.proposals.flatMap((proposal) => [proposal.requester_id, proposal.owner_id])
@@ -627,6 +674,8 @@ function handleDocumentClick(event) {
     runProposalRpc("reject_exchange_proposal", actionTarget.dataset.proposalId);
   } else if (action === "cancel-proposal") {
     runProposalRpc("cancel_exchange_proposal", actionTarget.dataset.proposalId);
+  } else if (action === "counter-proposal") {
+    counterProposal(actionTarget.dataset.proposalId);
   } else if (action === "fail-proposal") {
     runProposalRpc("mark_exchange_failed", actionTarget.dataset.proposalId);
   } else if (action === "report-item") {
@@ -782,8 +831,8 @@ function renderMyItems() {
 }
 
 function renderProposals() {
-  const received = state.proposals.filter((proposal) => proposal.owner_id === state.user.id);
-  const sent = state.proposals.filter((proposal) => proposal.requester_id === state.user.id);
+  const received = state.proposals.filter((proposal) => (proposal.responder_id ?? proposal.owner_id) === state.user.id);
+  const sent = state.proposals.filter((proposal) => (proposal.created_by ?? proposal.requester_id) === state.user.id);
   const pendingReceived = received.filter((proposal) => proposal.status === "pending").length;
 
   elements.pendingBadge.hidden = pendingReceived === 0;
@@ -888,22 +937,30 @@ function renderItemCard(item, options) {
 function renderProposalCard(proposal, mode) {
   const requested = state.proposalsItemsById.get(proposal.requested_item_id);
   const offered = state.proposalsItemsById.get(proposal.offered_item_id);
-  const counterpartId = mode === "received" ? proposal.requester_id : proposal.owner_id;
+  const offered2 = state.proposalsItemsById.get(proposal.offered_item_2_id);
+  const responderId = proposal.responder_id ?? proposal.owner_id;
+  const createdBy = proposal.created_by ?? proposal.requester_id;
+  const counterpartId = mode === "received" ? createdBy : responderId;
   const profile = state.profilesById.get(counterpartId);
   const contact = state.contactsByUserId.get(counterpartId);
   const card = document.createElement("article");
   card.className = "proposal-card";
+  const canRespond = proposal.status === "pending" && responderId === state.user.id;
+  const canCancel = proposal.status === "pending" && createdBy === state.user.id;
 
   const cashText = proposal.cash_difference > 0
     ? `${formatter.format(Number(proposal.cash_difference))} - ${cashDirectionLabels[proposal.cash_direction]}`
     : "Sem diferença em dinheiro";
 
   const actions = [];
-  if (proposal.status === "pending" && mode === "received") {
+  if (canRespond) {
     actions.push(`<button type="button" data-action="accept-proposal" data-proposal-id="${proposal.id}">Aceitar</button>`);
     actions.push(`<button class="secondary" type="button" data-action="reject-proposal" data-proposal-id="${proposal.id}">Recusar</button>`);
+    if (state.schemaFeatures.advancedProposals) {
+      actions.push(`<button class="secondary" type="button" data-action="counter-proposal" data-proposal-id="${proposal.id}">Contrapropor</button>`);
+    }
   }
-  if (proposal.status === "pending" && mode === "sent") {
+  if (canCancel) {
     actions.push(`<button class="secondary" type="button" data-action="cancel-proposal" data-proposal-id="${proposal.id}">Cancelar</button>`);
   }
   if (proposal.status === "accepted") {
@@ -924,17 +981,31 @@ function renderProposalCard(proposal, mode) {
       </div>
       <div class="proposal-arrow">por</div>
       <div class="proposal-item">
-        <strong>Imóvel oferecido</strong>
-        <p>${escapeHtml(offered?.title ?? "Imóvel indisponível")}</p>
+        <strong>Contrapartida</strong>
+        <p>${escapeHtml(formatProposalOffer(proposal, offered, offered2))}</p>
       </div>
     </div>
     <p><strong>Diferença:</strong> ${escapeHtml(cashText)}</p>
+    ${proposal.version ? `<p class="muted">Versão ${Number(proposal.version)}${proposal.expires_at ? ` - expira em ${formatDateTime(proposal.expires_at)}` : ""}</p>` : ""}
+    ${proposal.accepted_at ? `<p class="muted">Acordo inicial aceito em ${formatDateTime(proposal.accepted_at)}.</p>` : ""}
+    ${proposal.status === "pending" ? `<p class="muted">${canRespond ? "Aguardando sua resposta." : "Aguardando resposta da outra pessoa."}</p>` : ""}
     ${proposal.message ? `<p><strong>Mensagem:</strong> ${escapeHtml(proposal.message)}</p>` : ""}
     ${proposal.status === "accepted" ? renderContactBox(contact) : ""}
     <div class="proposal-actions">${actions.join("")}</div>
   `;
 
   return card;
+}
+
+function formatProposalOffer(proposal, offered, offered2) {
+  const titles = [offered?.title, offered2?.title].filter(Boolean);
+  if (titles.length) {
+    return titles.join(" + ");
+  }
+  if (proposal.proposal_type === "cash") {
+    return "Somente diferença em dinheiro";
+  }
+  return "Imóvel indisponível";
 }
 
 function renderContactBox(contact) {
@@ -1546,21 +1617,56 @@ async function openProposalModal(itemId) {
     (item) => item.status === "available" && (!state.schemaFeatures.moderation || item.moderation_status === "approved")
   );
   elements.proposalForm.reset();
+  elements.proposalType.value = state.schemaFeatures.advancedProposals && !availableMyItems.length ? "cash" : "item";
   elements.proposalRequestedItemId.value = itemId;
   elements.proposalIntro.textContent = `Você está enviando uma proposta pelo imóvel "${requested.title}".`;
   elements.offeredItemSelect.innerHTML = "";
+  elements.offeredItem2Select.innerHTML = '<option value="">Sem segundo imóvel</option>';
 
   for (const item of availableMyItems) {
     const option = document.createElement("option");
     option.value = item.id;
     option.textContent = `${item.title} - ${item.city}/${item.neighborhood}`;
-    elements.offeredItemSelect.appendChild(option);
+    elements.offeredItemSelect.appendChild(option.cloneNode(true));
+    elements.offeredItem2Select.appendChild(option);
+  }
+
+  if (!availableMyItems.length) {
+    elements.offeredItemSelect.innerHTML = '<option value="">Nenhum imóvel disponível</option>';
   }
 
   elements.noOfferItems.hidden = availableMyItems.length > 0;
-  elements.proposalForm.querySelector("button[type='submit']").disabled = availableMyItems.length === 0;
+  elements.proposalForm.querySelector("button[type='submit']").disabled = false;
+  syncProposalOfferFields();
   closeModals();
   openModal(elements.proposalModal);
+}
+
+function syncProposalOfferFields() {
+  const advanced = state.schemaFeatures.advancedProposals;
+  const type = elements.proposalType.value;
+  const cashOnly = type === "cash";
+  const hasCash = Number(elements.cashDifference.value || 0) > 0;
+
+  elements.proposalType.disabled = !advanced;
+  elements.advancedProposalHint.hidden = advanced;
+  elements.offeredItemSelect.disabled = cashOnly;
+  elements.offeredItemSelect.required = !cashOnly;
+  elements.offeredItem2Label.hidden = !advanced || cashOnly;
+  elements.offeredItem2Select.disabled = !advanced || cashOnly;
+  elements.cashDirection.disabled = !hasCash && !cashOnly;
+  elements.cashDirection.required = hasCash || cashOnly;
+
+  if (!advanced) {
+    elements.proposalType.value = "item";
+    elements.offeredItem2Select.value = "";
+  }
+  if (cashOnly) {
+    elements.offeredItemSelect.required = false;
+    elements.offeredItemSelect.value = "";
+    elements.offeredItem2Select.value = "";
+    elements.cashDirection.disabled = false;
+  }
 }
 
 async function sendProposal(event) {
@@ -1575,35 +1681,89 @@ async function sendProposal(event) {
   }
 
   const requested = state.publicItems.find((item) => item.id === elements.proposalRequestedItemId.value);
+  let proposalType = state.schemaFeatures.advancedProposals ? elements.proposalType.value : "item";
   const offered = state.myItems.find((item) => item.id === elements.offeredItemSelect.value);
+  const offered2 = state.myItems.find((item) => item.id === elements.offeredItem2Select.value);
 
-  if (!requested || !offered) {
+  if (!requested) {
     showNotice("Selecione um imóvel válido para enviar a proposta.", "error");
     return;
   }
 
   const cashDifference = Number(elements.cashDifference.value || 0);
   const cashDirection = elements.cashDirection.value;
+  if (proposalType === "item" && cashDifference > 0) {
+    proposalType = "mixed";
+  }
+  const needsOfferedItem = proposalType !== "cash";
 
   if (cashDifference < 0) {
     showNotice("A diferença em dinheiro não pode ser negativa.", "error");
     return;
   }
 
-  if (cashDifference > 0 && cashDirection === "none") {
+  if (proposalType === "cash" && cashDifference <= 0) {
+    showNotice("Informe o valor da proposta em dinheiro.", "error");
+    return;
+  }
+
+  if (proposalType === "mixed" && cashDifference <= 0) {
+    showNotice("Informe a diferença em dinheiro ou escolha proposta somente com imóvel.", "error");
+    return;
+  }
+
+  if (needsOfferedItem && !offered) {
+    showNotice("Selecione um imóvel seu para oferecer como contrapartida.", "error");
+    return;
+  }
+
+  if (offered && offered2 && offered.id === offered2.id) {
+    showNotice("Escolha imóveis diferentes na contrapartida.", "error");
+    return;
+  }
+
+  if ((cashDifference > 0 || proposalType === "cash") && cashDirection === "none") {
     showNotice("Informe quem pagaria a diferença em dinheiro.", "error");
     return;
   }
 
-  const { error } = await supabaseClient.from("exchange_proposals").insert({
+  const payload = {
     requested_item_id: requested.id,
-    offered_item_id: offered.id,
+    offered_item_id: offered?.id ?? null,
     requester_id: state.user.id,
     owner_id: requested.owner_id,
     cash_difference: cashDifference,
     cash_direction: cashDifference > 0 ? cashDirection : "none",
     message: elements.proposalMessage.value.trim()
-  });
+  };
+
+  if (state.schemaFeatures.advancedProposals) {
+    payload.offered_item_2_id = offered2?.id ?? null;
+    payload.proposal_type = proposalType;
+    payload.created_by = state.user.id;
+    payload.responder_id = requested.owner_id;
+    payload.expires_at = daysFromNowIso(7);
+    payload.reserved_until = daysFromNowIso(2);
+  }
+
+  let { error } = await supabaseClient.from("exchange_proposals").insert(payload);
+
+  if (state.schemaFeatures.advancedProposals && isAdvancedProposalSchemaError(error)) {
+    state.schemaFeatures.advancedProposals = false;
+    if (!offered) {
+      showNotice("Proposta somente em dinheiro depende da nova migração Supabase.", "error");
+      return;
+    }
+    delete payload.offered_item_2_id;
+    delete payload.proposal_type;
+    delete payload.created_by;
+    delete payload.responder_id;
+    delete payload.expires_at;
+    delete payload.reserved_until;
+    payload.offered_item_id = offered.id;
+    const fallback = await supabaseClient.from("exchange_proposals").insert(payload);
+    error = fallback.error;
+  }
 
   if (handleDbError(error, "enviar proposta")) {
     return;
@@ -1613,6 +1773,68 @@ async function sendProposal(event) {
   showNotice("Proposta enviada.");
   await refreshAll();
   setView("dashboard");
+}
+
+async function counterProposal(proposalId) {
+  if (!state.schemaFeatures.advancedProposals) {
+    showNotice("Contraproposta depende da nova migração Supabase.", "error");
+    return;
+  }
+
+  const proposal = state.proposals.find((candidate) => candidate.id === proposalId);
+  if (!proposal || proposal.status !== "pending") {
+    return;
+  }
+
+  const cashInput = prompt("Informe a nova diferença em dinheiro. Use 0 se não houver diferença.", String(proposal.cash_difference ?? 0));
+  if (cashInput === null) {
+    return;
+  }
+
+  const cashDifference = Number(cashInput.replace(",", ".") || 0);
+  if (Number.isNaN(cashDifference) || cashDifference < 0) {
+    showNotice("Valor de diferença inválido.", "error");
+    return;
+  }
+
+  if (proposal.proposal_type === "cash" && cashDifference <= 0) {
+    showNotice("Contraproposta somente em dinheiro precisa ter valor maior que zero.", "error");
+    return;
+  }
+
+  let cashDirection = "none";
+  if (cashDifference > 0) {
+    cashDirection = prompt("Quem pagaria a diferença? Digite requester_pays para interessado ou owner_pays para anunciante.", proposal.cash_direction || "requester_pays");
+    if (!["requester_pays", "owner_pays"].includes(cashDirection)) {
+      showNotice("Direção da diferença inválida.", "error");
+      return;
+    }
+  }
+
+  const message = prompt("Mensagem da contraproposta:", proposal.message || "");
+  if (message === null) {
+    return;
+  }
+
+  const { error } = await supabaseClient.rpc("counter_exchange_proposal", {
+    p_proposal_id: proposalId,
+    p_cash_difference: cashDifference,
+    p_cash_direction: cashDifference > 0 ? cashDirection : "none",
+    p_message: message.trim()
+  });
+
+  if (isMissingFunctionError(error, "counter_exchange_proposal")) {
+    state.schemaFeatures.advancedProposals = false;
+    showNotice("Contraproposta depende da nova migração Supabase.", "error");
+    return;
+  }
+
+  if (handleDbError(error, "enviar contraproposta")) {
+    return;
+  }
+
+  showNotice("Contraproposta enviada.");
+  await refreshAll();
 }
 
 async function runProposalRpc(functionName, proposalId) {
@@ -1804,6 +2026,22 @@ function isMissingColumnError(error, columnName) {
   return message.includes(columnName) && (message.includes("column") || message.includes("schema cache"));
 }
 
+function isMissingFunctionError(error, functionName) {
+  const message = error?.message || "";
+  return message.includes(functionName) && (message.includes("function") || message.includes("schema cache"));
+}
+
+function isAdvancedProposalSchemaError(error) {
+  return [
+    "offered_item_2_id",
+    "proposal_type",
+    "created_by",
+    "responder_id",
+    "expires_at",
+    "reserved_until"
+  ].some((columnName) => isMissingColumnError(error, columnName));
+}
+
 function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
@@ -1814,6 +2052,20 @@ function normalize(value) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+}
+
+function formatDateTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  return dateFormatter.format(date);
+}
+
+function daysFromNowIso(days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString();
 }
 
 function truncate(value, size) {
