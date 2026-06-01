@@ -4,7 +4,9 @@ import assert from "node:assert/strict";
 const files = {
   html: await readFile("index.html", "utf8"),
   js: await readFile("app.js", "utf8"),
-  sql: await readFile("supabase.sql", "utf8")
+  sql: await readFile("supabase.sql", "utf8"),
+  vercel: await readFile("vercel.json", "utf8"),
+  maintenance: await readFile("api/maintenance.js", "utf8")
 };
 
 const requiredDomIds = [
@@ -43,6 +45,9 @@ assert(files.js.includes("sanitizeAuditMetadata"), "app.js deve sanitizar metada
 assert(files.js.includes("recordAuditEvent"), "app.js deve registrar eventos de auditoria");
 assert(files.js.includes("saveAgencySettings"), "app.js deve permitir editar configuracoes da imobiliaria");
 assert(files.sql.includes("real estate agencies admin update"), "supabase.sql deve permitir atualizacao administrativa da imobiliaria");
+assert(files.vercel.includes("/api/maintenance"), "vercel.json deve agendar a manutencao");
+assert(files.maintenance.includes("run_scheduled_maintenance"), "api/maintenance.js deve chamar a RPC de manutencao");
+assert(files.maintenance.includes("CRON_SECRET"), "api/maintenance.js deve exigir CRON_SECRET");
 
 const forbiddenPublicTerms = [
   "checkout",

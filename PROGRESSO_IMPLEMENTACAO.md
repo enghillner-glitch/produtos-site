@@ -58,7 +58,7 @@ Atualizado em: 2026-05-31
 | F087 | Recusar proposta | FASE 7 - Propostas | concluida | 2026-06-01 | supabase.sql | RPC recusa proposta pelo usuario respondente. |
 | F088 | Retirar proposta | FASE 7 - Propostas | concluida | 2026-06-01 | supabase.sql | RPC cancela proposta pelo usuario criador. |
 | F089 | Contrapropor com versionamento | FASE 7 - Propostas | concluida | 2026-06-01 | node --check app.js; supabase.sql | Contraproposta encerra a versao anterior como `countered` e cria nova versao pendente. |
-| F090 | Expirar proposta automaticamente | FASE 7 - Propostas | parcial | 2026-06-01 | supabase.sql | RPC expira propostas vencidas ao carregar/agir; job agendado dedicado fica para fase de jobs. |
+| F090 | Expirar proposta automaticamente | FASE 7 - Propostas | concluida | 2026-06-01 | supabase.sql; api/maintenance.js; vercel.json | RPC expira propostas vencidas e cron diario da Vercel chama a manutencao, dependendo apenas das variaveis server-side. |
 | F091 | Aplicar limites antispam | FASE 7 - Propostas | parcial | 2026-06-01 | supabase.sql | RLS limita duplicidade por imovel e 10 propostas/24h; CAPTCHA/rate limit externo ficam pendentes. |
 | F100 | Aceitar proposta atomicamente | FASE 8 - Acordo Inicial | concluida | 2026-06-01 | supabase.sql | RPC aceita proposta em transacao, valida participantes e move imoveis envolvidos para acordo. |
 | F101 | Confirmar Acordo Inicial | FASE 8 - Acordo Inicial | parcial | 2026-06-01 | node --check app.js | Confirmação de aceite existe no painel; tela formal dedicada ainda fica pendente. |
@@ -82,7 +82,7 @@ Atualizado em: 2026-05-31
 | F133 | Formalizar conclusao administrativa | FASE 11 - Acordo Final | concluida | 2026-06-01 | supabase.sql | Administracao formaliza conclusao e fecha o lead como `closed`. |
 | F140 | Criar notificacoes internas | FASE 12 - Notificacoes e jobs | concluida | 2026-06-01 | node --check app.js | Tabela `notifications`, painel de notificacoes e marcacao como lida adicionados. |
 | F141 | Criar e-mails automaticos | FASE 12 - Notificacoes e jobs | parcial | 2026-06-01 | supabase.sql | Fila `email_queue` criada e eventos relevantes enfileiram mensagens; envio externo ainda pendente. |
-| F142 | Criar jobs agendados | FASE 12 - Notificacoes e jobs | parcial | 2026-06-01 | supabase.sql | RPC `run_scheduled_maintenance` consolida expiracao e limpeza da fila; agendamento externo ainda pendente. |
+| F142 | Criar jobs agendados | FASE 12 - Notificacoes e jobs | concluida | 2026-06-01 | api/maintenance.js; vercel.json; OPERACAO_JOBS.md | Rota server-side protegida e cron diario da Vercel preparados para executar `run_scheduled_maintenance`; ativacao exige env vars na Vercel. |
 | F150 | Registrar consentimentos versionados | FASE 13 - Seguranca e privacidade | concluida | 2026-06-01 | node --check app.js | Perfil exige aceite e registra `consent_records` com versao do termo. |
 | F151 | Proteger dados privados | FASE 13 - Seguranca e privacidade | concluida | 2026-06-01 | supabase.sql | CPF/CNPJ, contato e enderecos restritos permanecem em tabelas protegidas por RLS. |
 | F152 | Aplicar rate limit e CAPTCHA adaptativo | FASE 13 - Seguranca e privacidade | parcial | 2026-06-01 | supabase.sql | Limites anti-spam por RLS existem para propostas; CAPTCHA externo fica pendente. |
