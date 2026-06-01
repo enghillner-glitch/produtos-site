@@ -17,6 +17,8 @@ const files = {
   restoreScript: await readFile("scripts/restore-project.mjs", "utf8"),
   readinessScript: await readFile("scripts/check-production-readiness.mjs", "utf8"),
   deploymentConfigScript: await readFile("scripts/check-deployment-config.mjs", "utf8"),
+  splitSupabaseScript: await readFile("scripts/split-supabase-sql.mjs", "utf8"),
+  supabaseMigrationDoc: await readFile("SUPABASE_MIGRACAO.md", "utf8"),
   homologationReport: await readFile("RELATORIO_HOMOLOGACAO_EXECUTADA.md", "utf8"),
   homologationChecklist: await readFile("CHECKLIST_HOMOLOGACAO.md", "utf8")
 };
@@ -89,6 +91,9 @@ assert(files.restoreScript.includes("--apply-db"), "restore-project.mjs deve sup
 assert(files.readinessScript.includes("production-readiness ok"), "check-production-readiness.mjs deve existir");
 assert(files.deploymentConfigScript.includes("deployment-config ok"), "check-deployment-config.mjs deve existir");
 assert(files.deploymentConfigScript.includes("RPC anonima bloqueada"), "check-deployment-config.mjs deve auditar grants RPC");
+assert(files.splitSupabaseScript.includes("split-supabase-sql ok"), "split-supabase-sql.mjs deve existir");
+assert(files.splitSupabaseScript.includes("readDollarTag"), "split-supabase-sql.mjs deve preservar blocos dollar-quoted");
+assert(files.supabaseMigrationDoc.includes("work-supabase-sql-chunks"), "SUPABASE_MIGRACAO.md deve orientar aplicacao em blocos");
 assert(files.homologationReport.includes("Todos os testes automatizados executados passaram"), "relatorio de homologacao deve registrar resultado");
 assert(files.homologationReport.includes("renderizado em 40 paginas PNG"), "relatorio de homologacao deve registrar QA visual do DOCX");
 assert(files.homologationChecklist.includes("[x] DOCX mestre revisado"), "checklist deve marcar QA visual do DOCX");

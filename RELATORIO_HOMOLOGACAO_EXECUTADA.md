@@ -53,6 +53,7 @@ Esse resultado e coerente com a pendencia externa de aplicar `supabase.sql` e co
 ## Pendencias externas para homologacao autenticada completa
 
 - Aplicar `supabase.sql` no projeto Supabase de producao.
+- Se necessario, gerar blocos com `node scripts/split-supabase-sql.mjs` e seguir `SUPABASE_MIGRACAO.md`.
 - Executar `node scripts/check-deployment-config.mjs` depois da migracao para confirmar schema, RPCs e guardas server-side.
 - Configurar variaveis server-side na Vercel:
   - `CRON_SECRET`;

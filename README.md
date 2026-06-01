@@ -36,6 +36,8 @@ O repassecomrepasse sera uma plataforma de aproximacao entre usuarios com intere
 
 - `OPERACAO_JOBS.md` - configuracao do cron diario de manutencao na Vercel.
 
+- `SUPABASE_MIGRACAO.md` - aplicacao do `supabase.sql` em blocos e diagnostico pos-migracao.
+
 - `SEGURANCA_CAPTCHA.md` - ativacao opcional do Cloudflare Turnstile.
 
 - `SEGURANCA_IMAGENS.md` - verificacao de contato em imagens com OCR no navegador.
@@ -68,6 +70,7 @@ node --check scripts/backup-project.mjs
 node --check scripts/restore-project.mjs
 node --check scripts/check-production-readiness.mjs
 node --check scripts/check-deployment-config.mjs
+node --check scripts/split-supabase-sql.mjs
 node tests/static-checks.mjs
 node tests/unit-maintenance.mjs
 node tests/unit-turnstile.mjs
@@ -75,6 +78,7 @@ node tests/backup-restore-dry-run.mjs
 node tests/smoke-http.mjs
 node tests/e2e-public-flow.mjs
 node scripts/check-production-readiness.mjs
+node scripts/split-supabase-sql.mjs
 ```
 
 Homologacao operacional apos aplicar `supabase.sql` e configurar variaveis da Vercel:
@@ -87,6 +91,8 @@ $env:STRICT_CONFIG='1'; node scripts/check-deployment-config.mjs
 ## Proximos passos
 
 Aplicar `supabase.sql` no Supabase para liberar todos os recursos novos do banco em producao, principalmente moderacao, propostas avancadas, leads, cancelamentos, acordo final e notificacoes.
+
+Se o SQL Editor ficar instavel com o arquivo completo, gere blocos com `node scripts/split-supabase-sql.mjs` e siga `SUPABASE_MIGRACAO.md`.
 
 Configurar na Vercel as variaveis `CRON_SECRET`, `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` para ativar a rota protegida `/api/maintenance` e o cron diario definido em `vercel.json`.
 
