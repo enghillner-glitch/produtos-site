@@ -16,6 +16,7 @@ const files = {
   backupScript: await readFile("scripts/backup-project.mjs", "utf8"),
   restoreScript: await readFile("scripts/restore-project.mjs", "utf8"),
   readinessScript: await readFile("scripts/check-production-readiness.mjs", "utf8"),
+  deploymentConfigScript: await readFile("scripts/check-deployment-config.mjs", "utf8"),
   homologationReport: await readFile("RELATORIO_HOMOLOGACAO_EXECUTADA.md", "utf8")
 };
 
@@ -59,6 +60,9 @@ assert(files.js.includes("sanitizeAuditMetadata"), "app.js deve sanitizar metada
 assert(files.js.includes("recordAuditEvent"), "app.js deve registrar eventos de auditoria");
 assert(files.js.includes("saveAgencySettings"), "app.js deve permitir editar configuracoes da imobiliaria");
 assert(files.sql.includes("real estate agencies admin update"), "supabase.sql deve permitir atualizacao administrativa da imobiliaria");
+assert(files.sql.includes("revoke execute on all functions in schema public from public"), "supabase.sql deve revogar RPCs do papel publico");
+assert(files.sql.includes("grant execute on function public.run_scheduled_maintenance() to service_role"), "manutencao deve ficar restrita ao service_role");
+assert(files.sql.includes("grant execute on function public.accept_exchange_proposal(uuid) to authenticated"), "RPCs de usuario devem ser liberadas apenas para authenticated");
 assert(files.js.includes("renderInitialAgreementBox"), "app.js deve renderizar acordo inicial formal");
 assert(files.html.includes('data-auth-action="resend-confirmation"'), "index.html deve permitir reenviar confirmacao de email");
 assert(files.js.includes("supabaseClient.auth.resend"), "app.js deve usar reenvio de confirmacao do Supabase Auth");
@@ -82,6 +86,8 @@ assert(files.imageSecurity.includes("OCR no navegador"), "SEGURANCA_IMAGENS.md d
 assert(files.backupScript.includes("SUPABASE_DB_URL"), "backup-project.mjs deve suportar dump real do Supabase");
 assert(files.restoreScript.includes("--apply-db"), "restore-project.mjs deve suportar restauracao controlada do banco");
 assert(files.readinessScript.includes("production-readiness ok"), "check-production-readiness.mjs deve existir");
+assert(files.deploymentConfigScript.includes("deployment-config ok"), "check-deployment-config.mjs deve existir");
+assert(files.deploymentConfigScript.includes("RPC anonima bloqueada"), "check-deployment-config.mjs deve auditar grants RPC");
 assert(files.homologationReport.includes("Todos os testes automatizados executados passaram"), "relatorio de homologacao deve registrar resultado");
 
 const forbiddenPublicTerms = [

@@ -170,3 +170,10 @@
 | Testes sem bundler | Como o MVP e estatico, testes iniciais rodam por Node direto em `tests/`. |
 | E2E incremental | Smoke HTTP cobre disponibilidade; E2E autenticado fica condicionado a migracao Supabase e massa de usuarios. |
 | Projeto anterior encerrado | README e interface principal passam a tratar o produto como repassecomrepasse. |
+
+## 2026-06-01 - Endurecimento Supabase
+
+| Decisao | Registro |
+|---|---|
+| RPCs sem acesso anonimo | `supabase.sql` revoga `execute` de todas as funcoes no schema `public` para o papel publico e concede apenas as RPCs necessarias para `authenticated` ou `service_role`. |
+| Manutencao somente server-side | `run_scheduled_maintenance` fica executavel apenas por `service_role`, chamada pela rota protegida `/api/maintenance`. |

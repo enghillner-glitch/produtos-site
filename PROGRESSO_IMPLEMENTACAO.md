@@ -13,7 +13,7 @@ Atualizado em: 2026-05-31
 | F011 | Inserir aviso institucional no rodape | FASE 1 - Fundacao | concluida | 2026-05-31 |  | Aviso institucional inserido na experiencia do painel e configurado no JS. |
 | F012 | Centralizar configuracoes | FASE 1 - Fundacao | concluida | 2026-05-31 |  | Constantes centrais do produto adicionadas ao app.js. |
 | F013 | Criar auditoria reutilizavel | FASE 1 - Fundacao | concluida | 2026-05-31 |  | Tabela audit_events adicionada ao supabase.sql. |
-| F014 | Criar perfis e permissoes | FASE 1 - Fundacao | concluida | 2026-05-31 |  | Schema remoto recebeu papeis, dados privados e politicas base; UI de CPF/CNPJ segue em etapa propria. |
+| F014 | Criar perfis e permissoes | FASE 1 - Fundacao | concluida | 2026-06-01 | supabase.sql; tests/static-checks.mjs | Schema recebeu papeis, dados privados, politicas base e grants explicitos para bloquear RPCs sensiveis ao papel anonimo. |
 | F020 | Criar catalogo de estados | FASE 2 - Endereco e localizacao | concluida | 2026-05-31 |  | Catalogo de estados iniciado com PB na interface e no schema. |
 | F021 | Criar catalogo dos municipios da Paraiba | FASE 2 - Endereco e localizacao | concluida | 2026-05-31 |  | Catalogo de 223 municipios da Paraiba gerado a partir da API do IBGE em location-data.js. |
 | F022 | Criar combos Estado e Municipio | FASE 2 - Endereco e localizacao | concluida | 2026-05-31 |  | Combos Estado/Municipio aplicados na vitrine e cadastro de imovel. |
@@ -96,5 +96,5 @@ Atualizado em: 2026-05-31
 | F172 | Criar testes ponta a ponta | FASE 15 - Testes e descontinuacao | concluida | 2026-06-01 | tests/smoke-http.mjs; tests/e2e-public-flow.mjs | E2E publico valida home, assets, formularios, detalhe/proposta no codigo e linguagem sem venda; autenticado fica na homologacao manual com Supabase migrado. |
 | F173 | Auditar privacidade | FASE 15 - Testes e descontinuacao | concluida | 2026-06-01 | RELATORIO_PRIVACIDADE.md | Relatorio de privacidade criado. |
 | F174 | Criar homologacao | FASE 15 - Testes e descontinuacao | concluida | 2026-06-01 | CHECKLIST_HOMOLOGACAO.md | Checklist de homologacao atualizado. |
-| F175 | Executar homologacao funcional | FASE 15 - Testes e descontinuacao | concluida | 2026-06-01 | node --check; static-checks; unit-maintenance; unit-turnstile; backup dry-run; smoke/e2e local e producao | Homologacao automatizada executada e registrada; homologacao autenticada real fica condicionada a aplicar `supabase.sql` em producao. |
+| F175 | Executar homologacao funcional | FASE 15 - Testes e descontinuacao | concluida | 2026-06-01 | node --check; static-checks; unit-maintenance; unit-turnstile; backup dry-run; smoke/e2e local e producao | Homologacao automatizada executada e registrada; homologacao autenticada real fica condicionada a aplicar `supabase.sql` em producao e executar check-deployment-config. |
 | F176 | Descontinuar projeto anterior | FASE 15 - Testes e descontinuacao | concluida | 2026-06-01 | README.md | Interface principal e documentacao indicam repassecomrepasse e removem dependencia do cadastro simples anterior. |

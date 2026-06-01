@@ -35,9 +35,16 @@ node scripts/check-production-readiness.mjs
 
 Todos os testes automatizados executados passaram.
 
+## Diagnostico operacional adicional
+
+O verificador `scripts/check-deployment-config.mjs` foi criado para a etapa pos-migracao. Na execucao atual ele confirmou que o site publicado carrega `config.js` e que a configuracao publica do Supabase responde, mas tambem apontou que as tabelas avancadas `negotiation_leads`, `agreement_cancellations`, `final_agreement_terms`, `notifications`, `email_queue`, `consent_records` e `favorite_items` ainda nao estao disponiveis no Supabase de producao. Tambem indicou `missing_cron_secret` na Vercel.
+
+Esse resultado e coerente com a pendencia externa de aplicar `supabase.sql` e configurar variaveis server-side antes da homologacao autenticada completa.
+
 ## Pendencias externas para homologacao autenticada completa
 
 - Aplicar `supabase.sql` no projeto Supabase de producao.
+- Executar `node scripts/check-deployment-config.mjs` depois da migracao para confirmar schema, RPCs e guardas server-side.
 - Configurar variaveis server-side na Vercel:
   - `CRON_SECRET`;
   - `SUPABASE_URL`;

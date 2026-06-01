@@ -2301,3 +2301,20 @@ begin
   );
 end;
 $$;
+
+revoke execute on all functions in schema public from public;
+
+grant execute on function public.log_audit_event(text, text, uuid, jsonb) to authenticated;
+grant execute on function public.get_my_lead_updates() to authenticated;
+grant execute on function public.accept_exchange_proposal(uuid) to authenticated;
+grant execute on function public.reject_exchange_proposal(uuid) to authenticated;
+grant execute on function public.cancel_exchange_proposal(uuid) to authenticated;
+grant execute on function public.counter_exchange_proposal(uuid, numeric, text, text) to authenticated;
+grant execute on function public.request_final_agreement(uuid, text) to authenticated;
+grant execute on function public.accept_final_agreement(uuid) to authenticated;
+grant execute on function public.finalize_final_agreement(uuid) to authenticated;
+grant execute on function public.request_agreement_cancellation(uuid, text) to authenticated;
+grant execute on function public.resolve_agreement_cancellation(uuid, boolean, text) to authenticated;
+grant execute on function public.mark_exchange_failed(uuid) to authenticated;
+
+grant execute on function public.run_scheduled_maintenance() to service_role;

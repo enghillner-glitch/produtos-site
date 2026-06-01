@@ -67,6 +67,7 @@ node --check api/verify-turnstile.js
 node --check scripts/backup-project.mjs
 node --check scripts/restore-project.mjs
 node --check scripts/check-production-readiness.mjs
+node --check scripts/check-deployment-config.mjs
 node tests/static-checks.mjs
 node tests/unit-maintenance.mjs
 node tests/unit-turnstile.mjs
@@ -74,6 +75,13 @@ node tests/backup-restore-dry-run.mjs
 node tests/smoke-http.mjs
 node tests/e2e-public-flow.mjs
 node scripts/check-production-readiness.mjs
+```
+
+Homologacao operacional apos aplicar `supabase.sql` e configurar variaveis da Vercel:
+
+```powershell
+node scripts/check-deployment-config.mjs
+$env:STRICT_CONFIG='1'; node scripts/check-deployment-config.mjs
 ```
 
 ## Proximos passos
