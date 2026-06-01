@@ -402,7 +402,7 @@ textarea:focus {
 .filters {
   display: grid;
   gap: 14px;
-  grid-template-columns: 1.4fr repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
   margin-bottom: 26px;
   padding: 16px;
 }
@@ -429,6 +429,11 @@ textarea:focus {
   display: grid;
   gap: 16px;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+}
+
+.load-more {
+  display: block;
+  margin: 18px auto 0;
 }
 
 .item-card {

@@ -40,14 +40,14 @@ Atualizado em: 2026-05-31
 | F060 | Bloquear contatos em textos e imagens | FASE 5 - Cadastro de imoveis | parcial | 2026-06-01 | node --check app.js | Textos publicos bloqueiam telefone, email e link; analise de contato em imagens fica pendente. |
 | F061 | Editar anuncio com nova moderacao | FASE 5 - Cadastro de imoveis | concluida | 2026-06-01 | node --check app.js | Edicoes do anunciante retornam o anuncio para revisao, protegidas tambem por trigger SQL. |
 | F062 | Pausar, expirar e renovar anuncio | FASE 5 - Cadastro de imoveis | parcial | 2026-06-01 | node --check app.js | Pausar e reativar ja existem via inactive/available; expiracao automatica e renovacao programada ficam pendentes. |
-| F070 | Criar cartao da vitrine | FASE 6 - Vitrine | nao iniciada |  |  |  |
-| F071 | Criar pagina detalhada | FASE 6 - Vitrine | nao iniciada |  |  |  |
-| F072 | Criar filtros e busca | FASE 6 - Vitrine | nao iniciada |  |  |  |
-| F073 | Ordenar e carregar mais | FASE 6 - Vitrine | nao iniciada |  |  |  |
-| F074 | Favoritar imovel | FASE 6 - Vitrine | nao iniciada |  |  |  |
-| F075 | Compartilhar anuncio | FASE 6 - Vitrine | nao iniciada |  |  |  |
-| F076 | Denunciar anuncio | FASE 6 - Vitrine | nao iniciada |  |  |  |
-| F077 | Criar SEO seguro | FASE 6 - Vitrine | nao iniciada |  |  |  |
+| F070 | Criar cartao da vitrine | FASE 6 - Vitrine | concluida | 2026-06-01 | Browser local; node --check app.js | Cartoes exibem imagem, tipo, situacao, localizacao, repasse e acoes de detalhe/favorito/compartilhar. |
+| F071 | Criar pagina detalhada | FASE 6 - Vitrine | concluida | 2026-06-01 | Browser local; node --check app.js | Detalhe em modal mostra galeria, localizacao, dados financeiros, preferencias e acoes. |
+| F072 | Criar filtros e busca | FASE 6 - Vitrine | concluida | 2026-06-01 | Browser local; node --check app.js | Busca, estado, municipio, bairro, tipo, situacao e ordenacao estao disponiveis. |
+| F073 | Ordenar e carregar mais | FASE 6 - Vitrine | concluida | 2026-06-01 | Browser local; node --check app.js | Vitrine ordena por recentes/repasse e carrega mais em lotes de 12. |
+| F074 | Favoritar imovel | FASE 6 - Vitrine | parcial | 2026-06-01 | Browser local; node --check app.js | Favoritos locais por navegador via localStorage; persistencia no banco fica pendente. |
+| F075 | Compartilhar anuncio | FASE 6 - Vitrine | concluida | 2026-06-01 | Browser local; node --check app.js | Compartilhamento usa Web Share quando disponivel ou copia link do anuncio. |
+| F076 | Denunciar anuncio | FASE 6 - Vitrine | concluida | 2026-06-01 | node --check app.js | Denuncia de anuncio ja integrada ao fluxo de detalhe e tabela reports. |
+| F077 | Criar SEO seguro | FASE 6 - Vitrine | concluida | 2026-06-01 | Browser local | Metatags description e Open Graph basicas adicionadas sem expor dados privados. |
 | F080 | Criar entidade proposta | FASE 7 - Propostas | nao iniciada |  |  |  |
 | F081 | Proposta somente em dinheiro | FASE 7 - Propostas | nao iniciada |  |  |  |
 | F082 | Proposta com um imovel | FASE 7 - Propostas | nao iniciada |  |  |  |

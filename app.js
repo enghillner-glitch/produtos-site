@@ -56,6 +56,16 @@ const cashDirectionLabels = {
   owner_pays: "Anunciante pagaria a diferença"
 };
 
+function loadFavoriteItemIds() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("repasse:favorites") || "[]");
+    return new Set(Array.isArray(saved) ? saved : []);
+  } catch (_error) {
+    localStorage.removeItem("repasse:favorites");
+    return new Set();
+  }
+}
+
 const state = {
   user: null,
   profile: null,
@@ -71,6 +81,8 @@ const state = {
   profilesById: new Map(),
   contactsByUserId: new Map(),
   privateLocationsByItem: new Map(),
+  favoriteItemIds: loadFavoriteItemIds(),
+  visibleItemCount: 12,
   schemaFeatures: {
     moderation: true
   },
@@ -97,7 +109,9 @@ const elements = {
   neighborhoodFilter: $("neighborhoodFilter"),
   categoryFilter: $("categoryFilter"),
   conditionFilter: $("conditionFilter"),
+  sortFilter: $("sortFilter"),
   itemGrid: $("itemGrid"),
+  loadMoreItems: $("loadMoreItems"),
   homeEmpty: $("homeEmpty"),
   resultsCount: $("resultsCount"),
   signedOutPanel: $("signedOutPanel"),
@@ -243,9 +257,13 @@ function bindEvents() {
     elements.cityFilter,
     elements.neighborhoodFilter,
     elements.categoryFilter,
-    elements.conditionFilter
+    elements.conditionFilter,
+    elements.sortFilter
   ]) {
-    input.addEventListener("input", renderHome);
+    input.addEventListener("input", () => {
+      state.visibleItemCount = 12;
+      renderHome();
+    });
   }
 
   elements.stateFilter.addEventListener("change", () => {
@@ -266,6 +284,10 @@ function bindEvents() {
   elements.itemForm.addEventListener("submit", saveItem);
   elements.itemImages.addEventListener("change", previewSelectedImages);
   elements.proposalForm.addEventListener("submit", sendProposal);
+  elements.loadMoreItems.addEventListener("click", () => {
+    state.visibleItemCount += 12;
+    renderHome();
+  });
 
   document.querySelectorAll("[data-auth-action]").forEach((button) => {
     button.addEventListener("click", () => handleAuth(button.dataset.authAction));
@@ -541,15 +563,24 @@ async function loadImagesForItems(itemIds) {
 }
 
 function routeFromHash() {
-  const view = window.location.hash === "#dashboard" ? "dashboard" : window.location.hash === "#agency" ? "agency" : "home";
+  const hash = window.location.hash;
+  if (hash.startsWith("#item-")) {
+    setView("home", false);
+    openItemDetail(hash.replace("#item-", ""));
+    return;
+  }
+
+  const view = hash === "#dashboard" ? "dashboard" : hash === "#agency" ? "agency" : "home";
   setView(view);
 }
 
-function setView(view) {
+function setView(view, updateHash = true) {
   elements.homeView.hidden = view !== "home";
   elements.dashboardView.hidden = view !== "dashboard";
   elements.agencyView.hidden = view !== "agency";
-  window.location.hash = view === "dashboard" ? "dashboard" : view === "agency" ? "agency" : "home";
+  if (updateHash) {
+    window.location.hash = view === "dashboard" ? "dashboard" : view === "agency" ? "agency" : "home";
+  }
 }
 
 function handleDocumentClick(event) {
@@ -580,6 +611,10 @@ function handleDocumentClick(event) {
     openItemForm();
   } else if (action === "view-item") {
     openItemDetail(actionTarget.dataset.itemId);
+  } else if (action === "favorite-item") {
+    toggleFavorite(actionTarget.dataset.itemId);
+  } else if (action === "share-item") {
+    shareItem(actionTarget.dataset.itemId);
   } else if (action === "edit-item") {
     openItemForm(actionTarget.dataset.itemId);
   } else if (action === "toggle-item") {
@@ -627,12 +662,14 @@ function renderAuthControls() {
 }
 
 function renderHome() {
-  const filtered = filterPublicItems();
+  const filtered = sortPublicItems(filterPublicItems());
+  const visible = filtered.slice(0, state.visibleItemCount);
   elements.itemGrid.innerHTML = "";
   elements.homeEmpty.hidden = filtered.length > 0;
-  elements.resultsCount.textContent = `${filtered.length} imóvel${filtered.length === 1 ? "" : "s"}`;
+  elements.loadMoreItems.hidden = state.visibleItemCount >= filtered.length;
+  elements.resultsCount.textContent = `${visible.length} de ${filtered.length} imóvel${filtered.length === 1 ? "" : "s"}`;
 
-  for (const item of filtered) {
+  for (const item of visible) {
     elements.itemGrid.appendChild(renderItemCard(item, { context: "public" }));
   }
 }
@@ -658,6 +695,21 @@ function filterPublicItems() {
       (!condition || item.condition === condition)
     );
   });
+}
+
+function sortPublicItems(items) {
+  const sorted = [...items];
+  const sort = elements.sortFilter.value;
+
+  if (sort === "transfer_asc") {
+    return sorted.sort((a, b) => Number(a.transfer_amount ?? 0) - Number(b.transfer_amount ?? 0));
+  }
+
+  if (sort === "transfer_desc") {
+    return sorted.sort((a, b) => Number(b.transfer_amount ?? 0) - Number(a.transfer_amount ?? 0));
+  }
+
+  return sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 }
 
 function renderDashboard() {
@@ -801,6 +853,10 @@ function renderItemCard(item, options) {
       `
       : `
         <button type="button" data-action="view-item" data-item-id="${item.id}">Ver detalhes</button>
+        <button class="secondary" type="button" data-action="favorite-item" data-item-id="${item.id}">
+          ${state.favoriteItemIds.has(item.id) ? "Favorito" : "Favoritar"}
+        </button>
+        <button class="secondary" type="button" data-action="share-item" data-item-id="${item.id}">Compartilhar</button>
       `;
 
   article.innerHTML = `
@@ -1383,6 +1439,44 @@ async function moderateItem(itemId, moderationStatus) {
   await refreshAll();
 }
 
+function toggleFavorite(itemId) {
+  if (state.favoriteItemIds.has(itemId)) {
+    state.favoriteItemIds.delete(itemId);
+    showNotice("Imóvel removido dos favoritos.");
+  } else {
+    state.favoriteItemIds.add(itemId);
+    showNotice("Imóvel salvo nos favoritos deste navegador.");
+  }
+
+  localStorage.setItem("repasse:favorites", JSON.stringify([...state.favoriteItemIds]));
+  renderHome();
+  if (!elements.detailModal.hidden && state.selectedDetailItem?.id === itemId) {
+    openItemDetail(itemId);
+  }
+}
+
+async function shareItem(itemId) {
+  const item = state.publicItems.find((candidate) => candidate.id === itemId) ?? state.myItems.find((candidate) => candidate.id === itemId);
+  if (!item) {
+    return;
+  }
+
+  const url = `${window.location.origin}${window.location.pathname}#item-${item.id}`;
+  const text = `${item.title} - ${item.city}/${item.neighborhood}`;
+
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: item.title, text, url });
+      return;
+    } catch (_error) {
+      // User cancelled native share; fall back silently to clipboard.
+    }
+  }
+
+  await navigator.clipboard.writeText(`${text}\n${url}`);
+  showNotice("Link do anúncio copiado.");
+}
+
 function openItemDetail(itemId) {
   const item = state.publicItems.find((candidate) => candidate.id === itemId);
   if (!item) {
@@ -1421,6 +1515,10 @@ function openItemDetail(itemId) {
           <button type="button" data-action="open-proposal" data-item-id="${item.id}" ${isOwner ? "disabled" : ""}>
             ${isOwner ? "Este imóvel é seu" : "Enviar proposta"}
           </button>
+          <button class="secondary" type="button" data-action="favorite-item" data-item-id="${item.id}">
+            ${state.favoriteItemIds.has(item.id) ? "Favorito" : "Favoritar"}
+          </button>
+          <button class="secondary" type="button" data-action="share-item" data-item-id="${item.id}">Compartilhar</button>
           <button class="secondary" type="button" data-action="report-item" data-item-id="${item.id}" data-user-id="${item.owner_id}">Denunciar anúncio</button>
         </div>
       </div>

@@ -93,3 +93,12 @@
 | Fila interna simples | Perfis `real_estate_admin` e `admin` veem uma fila de anuncios pendentes para aprovar ou pedir ajustes. |
 | Anti-escalacao de papel | Trigger em `profiles` impede usuario comum de elevar o proprio `role` ou virar `real_estate_admin` por chamada direta a API. |
 | Edicao volta para revisao | Trigger em `items` preserva moderacao em pausas simples, mas devolve alteracoes de conteudo para `pending`. |
+
+## 2026-06-01 - Vitrine publica
+
+| Decisao | Registro |
+|---|---|
+| Favorito local no MVP | Favoritos ficam em `localStorage` para entregar utilidade imediata sem criar tabela antes da fase de contas/alertas. |
+| Link compartilhavel | Anuncios usam hash `#item-<id>` para abrir detalhe quando o imovel estiver aprovado e carregado na vitrine. |
+| SEO sem dados privados | Metatags sao institucionais e nao incluem endereco completo, contato, documento ou dados privados. |
+| Carregamento incremental | A vitrine mostra 12 anuncios por vez para preservar desempenho conforme a base crescer. |

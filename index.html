@@ -4,6 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>repassecomrepasse</title>
+    <meta name="description" content="Vitrine de repasses imobiliários com cidade, bairro, proposta registrada e intermediação responsável por imobiliária." />
+    <meta property="og:title" content="repassecomrepasse" />
+    <meta property="og:description" content="Aproxime interesses para negociar repasses imobiliários com mais clareza e segurança." />
+    <meta property="og:type" content="website" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -79,6 +83,14 @@
               <option value="">Todas</option>
             </select>
           </label>
+          <label>
+            Ordenar
+            <select id="sortFilter">
+              <option value="recent">Mais recentes</option>
+              <option value="transfer_asc">Menor repasse</option>
+              <option value="transfer_desc">Maior repasse</option>
+            </select>
+          </label>
         </section>
 
         <section class="section-heading">
@@ -90,6 +102,7 @@
         </section>
 
         <div class="item-grid" id="itemGrid"></div>
+        <button class="secondary load-more" type="button" id="loadMoreItems" hidden>Carregar mais</button>
         <div class="empty-state" id="homeEmpty" hidden>
           Nenhum imóvel encontrado. Ajuste os filtros ou cadastre o primeiro imóvel.
         </div>
