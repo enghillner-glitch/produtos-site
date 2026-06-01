@@ -371,6 +371,7 @@
         <h2 id="itemModalTitle">Cadastrar imóvel</h2>
         <form id="itemForm" class="form-grid">
           <input id="itemId" type="hidden" />
+          <input class="hp-field" id="itemHoneypot" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />
           <label>
             Título
             <input id="itemTitle" type="text" maxlength="120" required />
@@ -464,6 +465,7 @@
         <p class="muted" id="proposalIntro"></p>
         <form id="proposalForm">
           <input id="proposalRequestedItemId" type="hidden" />
+          <input class="hp-field" id="proposalHoneypot" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />
           <label>
             Tipo de proposta
             <select id="proposalType">

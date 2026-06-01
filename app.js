@@ -120,6 +120,10 @@ const state = {
   privateLocationsByItem: new Map(),
   favoriteItemIds: loadFavoriteItemIds(),
   visibleItemCount: 12,
+  formOpenedAt: {
+    item: 0,
+    proposal: 0
+  },
   schemaFeatures: {
     moderation: true,
     advancedProposals: true,
@@ -207,6 +211,7 @@ const elements = {
   itemModalTitle: $("itemModalTitle"),
   itemForm: $("itemForm"),
   itemId: $("itemId"),
+  itemHoneypot: $("itemHoneypot"),
   itemTitle: $("itemTitle"),
   itemCategory: $("itemCategory"),
   itemCondition: $("itemCondition"),
@@ -232,6 +237,7 @@ const elements = {
   proposalIntro: $("proposalIntro"),
   proposalForm: $("proposalForm"),
   proposalRequestedItemId: $("proposalRequestedItemId"),
+  proposalHoneypot: $("proposalHoneypot"),
   proposalType: $("proposalType"),
   offeredItemSelect: $("offeredItemSelect"),
   offeredItem2Select: $("offeredItem2Select"),
@@ -1882,6 +1888,7 @@ function openItemForm(itemId) {
 
   const item = itemId ? state.myItems.find((candidate) => candidate.id === itemId) : null;
   elements.itemForm.reset();
+  state.formOpenedAt.item = Date.now();
   elements.itemId.value = item?.id ?? "";
   elements.itemModalTitle.textContent = item ? "Editar imóvel" : "Cadastrar imóvel";
   elements.itemState.value = item?.state ?? "PB";
@@ -1924,13 +1931,23 @@ async function saveItem(event) {
     return;
   }
 
+  if (!passesAntiSpamCheck("item", elements.itemHoneypot, "item-submit", 1500, 8000)) {
+    return;
+  }
+
   const itemId = elements.itemId.value;
   const files = Array.from(elements.itemImages.files ?? []);
   const existingImages = itemId ? (state.imagesByItem.get(itemId) ?? []) : [];
   const invalidFile = files.find((file) => !["image/jpeg", "image/png", "image/webp"].includes(file.type));
+  const suspiciousImageName = files.find((file) => hasContactLikeContent(file.name));
 
   if (invalidFile) {
     showNotice("Envie imagens somente em JPG, PNG ou WebP.", "error");
+    return;
+  }
+
+  if (suspiciousImageName) {
+    showNotice("Renomeie imagens que contenham telefone, email ou link no nome do arquivo.", "error");
     return;
   }
 
@@ -2020,6 +2037,7 @@ async function saveItem(event) {
   }
 
   closeModals();
+  markAntiSpamSubmission("item-submit");
   showNotice("Imóvel salvo.");
   await refreshAll();
   setView("dashboard");
@@ -2579,6 +2597,7 @@ async function openProposalModal(itemId) {
     (item) => item.status === "available" && !isItemExpired(item) && (!state.schemaFeatures.moderation || item.moderation_status === "approved")
   );
   elements.proposalForm.reset();
+  state.formOpenedAt.proposal = Date.now();
   elements.proposalType.value = state.schemaFeatures.advancedProposals && !availableMyItems.length ? "cash" : "item";
   elements.proposalRequestedItemId.value = itemId;
   elements.proposalIntro.textContent = `Você está enviando uma proposta pelo imóvel "${requested.title}".`;
@@ -2639,6 +2658,10 @@ async function sendProposal(event) {
   }
 
   if (!requireCompleteProfile()) {
+    return;
+  }
+
+  if (!passesAntiSpamCheck("proposal", elements.proposalHoneypot, "proposal-submit", 1500, 10000)) {
     return;
   }
 
@@ -2740,6 +2763,7 @@ async function sendProposal(event) {
     has_cash_difference: Number(payload.cash_difference ?? 0) > 0
   });
   closeModals();
+  markAntiSpamSubmission("proposal-submit");
   showNotice("Proposta enviada.");
   await refreshAll();
   setView("dashboard");
@@ -3163,6 +3187,30 @@ function isAdvancedProposalSchemaError(error) {
     "expires_at",
     "reserved_until"
   ].some((columnName) => isMissingColumnError(error, columnName));
+}
+
+function passesAntiSpamCheck(formKey, honeypotInput, cooldownKey, minOpenMs, cooldownMs) {
+  if (honeypotInput?.value.trim()) {
+    showNotice("Não foi possível processar o envio. Revise os campos e tente novamente.", "error");
+    return false;
+  }
+
+  if (Date.now() - (state.formOpenedAt[formKey] || 0) < minOpenMs) {
+    showNotice("Aguarde um instante antes de enviar.", "error");
+    return false;
+  }
+
+  const lastSubmission = Number(localStorage.getItem(`repasse:${cooldownKey}`) || 0);
+  if (lastSubmission && Date.now() - lastSubmission < cooldownMs) {
+    showNotice("Aguarde alguns segundos antes de enviar novamente.", "error");
+    return false;
+  }
+
+  return true;
+}
+
+function markAntiSpamSubmission(cooldownKey) {
+  localStorage.setItem(`repasse:${cooldownKey}`, String(Date.now()));
 }
 
 function unique(values) {

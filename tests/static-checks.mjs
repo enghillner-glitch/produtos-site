@@ -14,6 +14,8 @@ const requiredDomIds = [
   "profileConsent",
   "proposalType",
   "offeredItem2Select",
+  "itemHoneypot",
+  "proposalHoneypot",
   "notificationsList",
   "leadsSection",
   "cancellationsSection",
@@ -49,6 +51,8 @@ assert(files.sql.includes("real estate agencies admin update"), "supabase.sql de
 assert(files.js.includes("renderInitialAgreementBox"), "app.js deve renderizar acordo inicial formal");
 assert(files.html.includes('data-auth-action="resend-confirmation"'), "index.html deve permitir reenviar confirmacao de email");
 assert(files.js.includes("supabaseClient.auth.resend"), "app.js deve usar reenvio de confirmacao do Supabase Auth");
+assert(files.js.includes("passesAntiSpamCheck"), "app.js deve aplicar protecao antispam local");
+assert(files.js.includes("markAntiSpamSubmission"), "app.js deve registrar cooldown local");
 assert(files.vercel.includes("/api/maintenance"), "vercel.json deve agendar a manutencao");
 assert(files.maintenance.includes("run_scheduled_maintenance"), "api/maintenance.js deve chamar a RPC de manutencao");
 assert(files.maintenance.includes("CRON_SECRET"), "api/maintenance.js deve exigir CRON_SECRET");
