@@ -59,6 +59,7 @@ node --check app.js
 node --check api/maintenance.js
 node tests/static-checks.mjs
 node tests/unit-maintenance.mjs
+node tests/backup-restore-dry-run.mjs
 node tests/smoke-http.mjs
 node tests/e2e-public-flow.mjs
 ```

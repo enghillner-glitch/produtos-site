@@ -17,6 +17,16 @@ Este projeto mantém o código no GitHub/Vercel e o banco no Supabase. O backup 
 3. Reverter somente os commits problemáticos.
 4. Fazer push para o GitHub e aguardar novo deploy da Vercel.
 
+## Teste local de restauração
+
+O repositório possui um dry-run automatizado para os arquivos críticos:
+
+```powershell
+node tests/backup-restore-dry-run.mjs
+```
+
+O teste copia os arquivos para uma pasta temporária, confere hash SHA-256 e valida a presença de objetos essenciais do schema.
+
 ## Restauração do banco
 
 1. Abrir o SQL Editor do Supabase.

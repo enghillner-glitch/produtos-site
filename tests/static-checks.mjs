@@ -8,7 +8,8 @@ const files = {
   vercel: await readFile("vercel.json", "utf8"),
   maintenance: await readFile("api/maintenance.js", "utf8"),
   unitMaintenance: await readFile("tests/unit-maintenance.mjs", "utf8"),
-  e2ePublic: await readFile("tests/e2e-public-flow.mjs", "utf8")
+  e2ePublic: await readFile("tests/e2e-public-flow.mjs", "utf8"),
+  backupDryRun: await readFile("tests/backup-restore-dry-run.mjs", "utf8")
 };
 
 const requiredDomIds = [
@@ -61,6 +62,7 @@ assert(files.maintenance.includes("RESEND_API_KEY"), "api/maintenance.js deve su
 assert(files.sql.includes("from auth.users"), "supabase.sql deve preencher destino da fila de emails");
 assert(files.unitMaintenance.includes("unit-maintenance ok"), "tests/unit-maintenance.mjs deve existir");
 assert(files.e2ePublic.includes("e2e-public-flow ok"), "tests/e2e-public-flow.mjs deve existir");
+assert(files.backupDryRun.includes("backup-restore-dry-run ok"), "tests/backup-restore-dry-run.mjs deve existir");
 
 const forbiddenPublicTerms = [
   "checkout",
