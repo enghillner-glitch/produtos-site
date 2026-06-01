@@ -652,6 +652,12 @@ textarea:focus {
   gap: 12px;
 }
 
+.admin-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
 .proposal-card {
   border: 1px solid var(--line);
   border-radius: 8px;

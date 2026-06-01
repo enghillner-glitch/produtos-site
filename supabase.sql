@@ -991,13 +991,54 @@ drop policy if exists "reports own read" on public.reports;
 create policy "reports own read"
   on public.reports
   for select
-  using (reporter_id = auth.uid());
+  using (
+    reporter_id = auth.uid()
+    or exists (
+      select 1
+      from public.profiles moderator
+      where moderator.id = auth.uid()
+        and moderator.role in ('real_estate_admin', 'admin')
+        and moderator.account_status = 'active'
+    )
+  );
+
+drop policy if exists "reports admin update" on public.reports;
+create policy "reports admin update"
+  on public.reports
+  for update
+  using (
+    exists (
+      select 1
+      from public.profiles moderator
+      where moderator.id = auth.uid()
+        and moderator.role in ('real_estate_admin', 'admin')
+        and moderator.account_status = 'active'
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from public.profiles moderator
+      where moderator.id = auth.uid()
+        and moderator.role in ('real_estate_admin', 'admin')
+        and moderator.account_status = 'active'
+    )
+  );
 
 drop policy if exists "audit own read" on public.audit_events;
 create policy "audit own read"
   on public.audit_events
   for select
-  using (actor_id = auth.uid());
+  using (
+    actor_id = auth.uid()
+    or exists (
+      select 1
+      from public.profiles moderator
+      where moderator.id = auth.uid()
+        and moderator.role in ('real_estate_admin', 'admin')
+        and moderator.account_status = 'active'
+    )
+  );
 
 drop policy if exists "audit authenticated insert" on public.audit_events;
 create policy "audit authenticated insert"

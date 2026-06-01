@@ -154,3 +154,11 @@
 | Consentimento versionado | Perfil passa a registrar aceite em `consent_records` com versao fixa do MVP. |
 | Dados sensiveis separados | CPF/CNPJ, contatos e endereco completo seguem fora dos dados publicos dos anuncios. |
 | Backup incremental | Procedimento de restauracao fica documentado, com teste real de dump reservado para ambiente com dados reais. |
+
+## 2026-06-01 - Administracao
+
+| Decisao | Registro |
+|---|---|
+| Painel unico | Configuracoes, auditoria e denuncias aparecem no painel do usuario apenas para perfis administrativos. |
+| Denuncias revisaveis | Admin pode marcar denuncia como revisada sem remocao automatica de conteudo no MVP. |
+| Auditoria visivel | Eventos de auditoria recentes ficam consultaveis por administradores. |

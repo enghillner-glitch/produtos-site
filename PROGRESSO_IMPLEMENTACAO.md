@@ -88,9 +88,9 @@ Atualizado em: 2026-05-31
 | F152 | Aplicar rate limit e CAPTCHA adaptativo | FASE 13 - Seguranca e privacidade | parcial | 2026-06-01 | supabase.sql | Limites anti-spam por RLS existem para propostas; CAPTCHA externo fica pendente. |
 | F153 | Criar logs seguros | FASE 13 - Seguranca e privacidade | parcial | 2026-06-01 | supabase.sql | `audit_events`, notificacoes e registros administrativos existem; cobertura total de eventos fica pendente. |
 | F154 | Criar backup e testar restauracao | FASE 13 - Seguranca e privacidade | parcial | 2026-06-01 | BACKUP_RESTAURACAO.md | Procedimento documentado; teste real com dump Supabase fica pendente. |
-| F160 | Criar painel de configuracoes | FASE 14 - Administracao | nao iniciada |  |  |  |
-| F161 | Criar painel de auditoria | FASE 14 - Administracao | nao iniciada |  |  |  |
-| F162 | Criar painel de denuncias | FASE 14 - Administracao | nao iniciada |  |  |  |
+| F160 | Criar painel de configuracoes | FASE 14 - Administracao | parcial | 2026-06-01 | node --check app.js | Painel admin exibe configuracoes essenciais e flags; edicao completa fica pendente. |
+| F161 | Criar painel de auditoria | FASE 14 - Administracao | concluida | 2026-06-01 | node --check app.js | Admin visualiza eventos recentes de `audit_events`. |
+| F162 | Criar painel de denuncias | FASE 14 - Administracao | concluida | 2026-06-01 | node --check app.js | Admin visualiza denuncias e pode marcar como revisadas. |
 | F170 | Criar testes unitarios | FASE 15 - Testes e descontinuacao | nao iniciada |  |  |  |
 | F171 | Criar testes de integracao | FASE 15 - Testes e descontinuacao | nao iniciada |  |  |  |
 | F172 | Criar testes ponta a ponta | FASE 15 - Testes e descontinuacao | nao iniciada |  |  |  |

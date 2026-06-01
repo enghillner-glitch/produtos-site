@@ -108,6 +108,8 @@ const state = {
   finalAgreements: [],
   finalAgreementsByProposalId: new Map(),
   notifications: [],
+  adminReports: [],
+  auditEvents: [],
   leadUpdatesByProposalId: new Map(),
   proposals: [],
   imagesByItem: new Map(),
@@ -148,6 +150,12 @@ const elements = {
   pendingBadge: $("pendingBadge"),
   notificationsList: $("notificationsList"),
   notificationsEmpty: $("notificationsEmpty"),
+  adminSection: $("adminSection"),
+  adminSettings: $("adminSettings"),
+  adminReportsList: $("adminReportsList"),
+  adminReportsEmpty: $("adminReportsEmpty"),
+  adminAuditList: $("adminAuditList"),
+  adminAuditEmpty: $("adminAuditEmpty"),
   searchInput: $("searchInput"),
   stateFilter: $("stateFilter"),
   cityFilter: $("cityFilter"),
@@ -424,6 +432,8 @@ async function loadUserData() {
   state.finalAgreements = [];
   state.finalAgreementsByProposalId = new Map();
   state.notifications = [];
+  state.adminReports = [];
+  state.auditEvents = [];
   state.leadUpdatesByProposalId = new Map();
   state.proposals = [];
   state.proposalsItemsById = new Map();
@@ -444,7 +454,8 @@ async function loadUserData() {
     loadLeadUpdates(),
     loadCancellations(),
     loadFinalAgreements(),
-    loadNotifications()
+    loadNotifications(),
+    loadAdminData()
   ]);
 }
 
@@ -768,6 +779,27 @@ async function loadNotifications() {
   state.notifications = data ?? [];
 }
 
+async function loadAdminData() {
+  state.adminReports = [];
+  state.auditEvents = [];
+
+  if (!isModerator()) {
+    return;
+  }
+
+  const [reportsResponse, auditResponse] = await Promise.all([
+    supabaseClient.from("reports").select("*").order("created_at", { ascending: false }).limit(20),
+    supabaseClient.from("audit_events").select("*").order("created_at", { ascending: false }).limit(20)
+  ]);
+
+  if (!handleDbError(reportsResponse.error, "carregar denúncias")) {
+    state.adminReports = reportsResponse.data ?? [];
+  }
+  if (!handleDbError(auditResponse.error, "carregar auditoria")) {
+    state.auditEvents = auditResponse.data ?? [];
+  }
+}
+
 async function loadProfiles(userIds) {
   if (!userIds.length) {
     return;
@@ -924,6 +956,8 @@ function handleDocumentClick(event) {
     finalizeFinalAgreement(actionTarget.dataset.finalId);
   } else if (action === "mark-notification-read") {
     markNotificationRead(actionTarget.dataset.notificationId);
+  } else if (action === "review-report") {
+    reviewReport(actionTarget.dataset.reportId);
   }
 }
 
@@ -1040,6 +1074,7 @@ function renderDashboard() {
   renderModerationQueue();
   renderLeads();
   renderCancellationQueue();
+  renderAdminPanel();
 }
 
 function renderAgency() {
@@ -1244,6 +1279,57 @@ function renderCancellationQueue() {
       </div>
     `;
     elements.cancellationsList.appendChild(card);
+  }
+}
+
+function renderAdminPanel() {
+  const visible = isModerator();
+  elements.adminSection.hidden = !visible;
+
+  if (!visible) {
+    return;
+  }
+
+  elements.adminSettings.innerHTML = `
+    <h3>Configuração</h3>
+    <p><strong>Imobiliária ativa:</strong> ${escapeHtml(state.agency?.trade_name ?? "Não configurada")}</p>
+    <p><strong>Perfil atual:</strong> ${escapeHtml(state.profile?.role ?? "user")}</p>
+    <p><strong>Supabase:</strong> ${hasSupabaseConfig ? "configurado" : "pendente"}</p>
+    <p><strong>Moderação:</strong> ${state.schemaFeatures.moderation ? "ativa" : "compatibilidade"}</p>
+  `;
+
+  elements.adminReportsList.innerHTML = "";
+  elements.adminReportsEmpty.hidden = state.adminReports.length > 0;
+  for (const report of state.adminReports) {
+    const item = document.createElement("div");
+    item.className = "proposal-card";
+    item.innerHTML = `
+      <div class="item-title-row">
+        <h3>${escapeHtml(report.target_type)}</h3>
+        <span class="pill status">${escapeHtml(report.status)}</span>
+      </div>
+      <p>${escapeHtml(report.reason)}</p>
+      <p class="muted">${formatDateTime(report.created_at)}</p>
+      <div class="proposal-actions">
+        <button class="secondary" type="button" data-action="review-report" data-report-id="${report.id}">Marcar revisada</button>
+      </div>
+    `;
+    elements.adminReportsList.appendChild(item);
+  }
+
+  elements.adminAuditList.innerHTML = "";
+  elements.adminAuditEmpty.hidden = state.auditEvents.length > 0;
+  for (const event of state.auditEvents) {
+    const item = document.createElement("div");
+    item.className = "proposal-card";
+    item.innerHTML = `
+      <div class="item-title-row">
+        <h3>${escapeHtml(event.action)}</h3>
+        <span class="pill status">${escapeHtml(event.entity_type)}</span>
+      </div>
+      <p class="muted">${formatDateTime(event.created_at)}</p>
+    `;
+    elements.adminAuditList.appendChild(item);
   }
 }
 
@@ -1962,6 +2048,24 @@ async function markNotificationRead(notificationId) {
     return;
   }
 
+  await refreshAll();
+}
+
+async function reviewReport(reportId) {
+  if (!isModerator()) {
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("reports")
+    .update({ status: "reviewed" })
+    .eq("id", reportId);
+
+  if (handleDbError(error, "revisar denúncia")) {
+    return;
+  }
+
+  showNotice("Denúncia marcada como revisada.");
   await refreshAll();
 }
 

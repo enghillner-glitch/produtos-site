@@ -265,6 +265,34 @@
               Nenhum pedido de cancelamento pendente.
             </div>
           </section>
+
+          <section class="dashboard-section moderation-section" id="adminSection" hidden>
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">Administração</p>
+                <h2>Configurações, auditoria e denúncias</h2>
+              </div>
+            </div>
+            <div class="admin-grid">
+              <article class="moderation-card">
+                <div id="adminSettings"></div>
+              </article>
+              <article class="moderation-card">
+                <div>
+                  <h3>Denúncias</h3>
+                  <div id="adminReportsList"></div>
+                  <div class="empty-state slim" id="adminReportsEmpty" hidden>Nenhuma denúncia aberta.</div>
+                </div>
+              </article>
+              <article class="moderation-card">
+                <div>
+                  <h3>Auditoria</h3>
+                  <div id="adminAuditList"></div>
+                  <div class="empty-state slim" id="adminAuditEmpty" hidden>Nenhum evento de auditoria.</div>
+                </div>
+              </article>
+            </div>
+          </section>
         </div>
       </section>
 
