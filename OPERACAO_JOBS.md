@@ -8,7 +8,8 @@ Essa rotina:
 
 - expira propostas vencidas;
 - expira anuncios vencidos;
-- marca emails sem destino como ignorados na fila interna.
+- marca emails sem destino como ignorados na fila interna;
+- envia emails pendentes da fila quando houver provedor configurado.
 
 ## Vercel Cron
 
@@ -37,6 +38,16 @@ Configure no projeto da Vercel, sem gravar valores no repositorio:
 
 Quando `CRON_SECRET` existe, a Vercel envia esse valor no header `Authorization: Bearer ...` para proteger a rota do cron.
 
+## Variaveis opcionais para envio de email
+
+O envio automatico usa a API HTTP do Resend. Configure apenas na Vercel:
+
+- `RESEND_API_KEY`: chave do Resend.
+- `EMAIL_FROM`: remetente validado no Resend, por exemplo `repassecomrepasse <avisos@seudominio.com>`.
+- `EMAIL_BATCH_LIMIT`: quantidade maxima por execucao, padrao `10`, maximo `50`.
+
+Se essas variaveis nao existirem, a manutencao continua expirando propostas/anuncios e informa `email_delivery.enabled = false`.
+
 ## Teste manual
 
 Depois de configurar as variaveis, teste pelo terminal ou por um cliente HTTP:
@@ -55,6 +66,10 @@ Resposta esperada:
     "expired_proposals": 0,
     "expired_items": 0,
     "emails_without_destination_marked": 0
+  },
+  "email_delivery": {
+    "enabled": false,
+    "reason": "missing_email_provider_env"
   }
 }
 ```
@@ -62,5 +77,6 @@ Resposta esperada:
 ## Cuidados
 
 - Nao coloque `SUPABASE_SERVICE_ROLE_KEY` em `config.js`.
+- Nao coloque `RESEND_API_KEY` em `config.js`.
 - A rota deve retornar `401` sem `CRON_SECRET`.
 - Se o Supabase ainda nao recebeu a versao nova de `supabase.sql`, a rotina pode falhar por ausencia da RPC.

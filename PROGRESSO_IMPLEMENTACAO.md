@@ -67,7 +67,7 @@ Atualizado em: 2026-05-31
 | F110 | Criar lead automaticamente | FASE 9 - Lead e painel interno | concluida | 2026-06-01 | supabase.sql | Aceite de proposta cria `negotiation_leads` vinculado ao acordo inicial. |
 | F111 | Listar leads no painel | FASE 9 - Lead e painel interno | concluida | 2026-06-01 | node --check app.js | Painel interno lista leads para `real_estate_admin` e `admin`. |
 | F112 | Exibir detalhe seguro do lead | FASE 9 - Lead e painel interno | concluida | 2026-06-01 | node --check app.js | Card exibe imovel, participantes, etapa, responsavel e observacoes internas apenas para administracao. |
-| F113 | Enviar e-mail resumido de lead | FASE 9 - Lead e painel interno | parcial | 2026-06-01 | node --check app.js | Resumo seguro pode ser copiado; envio automatico por email fica para fase de notificacoes. |
+| F113 | Enviar e-mail resumido de lead | FASE 9 - Lead e painel interno | concluida | 2026-06-01 | supabase.sql; api/maintenance.js | Eventos de lead/acordo entram na fila de email com destino do Auth e a manutencao envia quando Resend estiver configurado. |
 | F114 | Atribuir responsavel | FASE 9 - Lead e painel interno | concluida | 2026-06-01 | node --check app.js | Administrador pode assumir o lead como responsavel. |
 | F115 | Adicionar observacoes internas | FASE 9 - Lead e painel interno | concluida | 2026-06-01 | node --check app.js | Observacoes internas ficam restritas ao painel administrativo. |
 | F116 | Controlar etapas da negociacao | FASE 9 - Lead e painel interno | concluida | 2026-06-01 | node --check app.js | Lead possui etapas `new`, `contacted`, `document_review`, `negotiation`, `final_agreement`, `closed` e `cancelled`. |
@@ -81,7 +81,7 @@ Atualizado em: 2026-05-31
 | F132 | Controlar aceite parcial e completo | FASE 11 - Acordo Final | concluida | 2026-06-01 | supabase.sql | Aceites de interessado e anunciante sao registrados separadamente e fecham status `accepted`. |
 | F133 | Formalizar conclusao administrativa | FASE 11 - Acordo Final | concluida | 2026-06-01 | supabase.sql | Administracao formaliza conclusao e fecha o lead como `closed`. |
 | F140 | Criar notificacoes internas | FASE 12 - Notificacoes e jobs | concluida | 2026-06-01 | node --check app.js | Tabela `notifications`, painel de notificacoes e marcacao como lida adicionados. |
-| F141 | Criar e-mails automaticos | FASE 12 - Notificacoes e jobs | parcial | 2026-06-01 | supabase.sql | Fila `email_queue` criada e eventos relevantes enfileiram mensagens; envio externo ainda pendente. |
+| F141 | Criar e-mails automaticos | FASE 12 - Notificacoes e jobs | concluida | 2026-06-01 | api/maintenance.js; OPERACAO_JOBS.md | Manutencao envia `email_queue` via Resend quando `RESEND_API_KEY` e `EMAIL_FROM` existem; sem provedor, rotina continua segura e sem falha. |
 | F142 | Criar jobs agendados | FASE 12 - Notificacoes e jobs | concluida | 2026-06-01 | api/maintenance.js; vercel.json; OPERACAO_JOBS.md | Rota server-side protegida e cron diario da Vercel preparados para executar `run_scheduled_maintenance`; ativacao exige env vars na Vercel. |
 | F150 | Registrar consentimentos versionados | FASE 13 - Seguranca e privacidade | concluida | 2026-06-01 | node --check app.js | Perfil exige aceite e registra `consent_records` com versao do termo. |
 | F151 | Proteger dados privados | FASE 13 - Seguranca e privacidade | concluida | 2026-06-01 | supabase.sql | CPF/CNPJ, contato e enderecos restritos permanecem em tabelas protegidas por RLS. |

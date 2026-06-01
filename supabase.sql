@@ -1358,9 +1358,21 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_to_email text;
 begin
+  if p_user_id is null then
+    return;
+  end if;
+
+  select email
+  into v_to_email
+  from auth.users
+  where id = p_user_id;
+
   insert into public.email_queue (
     user_id,
+    to_email,
     subject,
     body,
     related_entity_type,
@@ -1369,6 +1381,7 @@ begin
   )
   values (
     p_user_id,
+    v_to_email,
     p_subject,
     p_body,
     p_entity_type,
