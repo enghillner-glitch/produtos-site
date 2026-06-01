@@ -1023,6 +1023,11 @@ function renderAuthControls() {
   elements.authControls.innerHTML = "";
 
   if (state.user) {
+    const status = document.createElement("span");
+    status.className = "user-session";
+    status.textContent = `Bem-vindo, ${state.user.email}`;
+    elements.authControls.appendChild(status);
+
     const button = document.createElement("button");
     button.className = "secondary auth-button";
     button.type = "button";
@@ -1094,6 +1099,7 @@ function sortPublicItems(items) {
 function renderDashboard() {
   elements.signedOutPanel.hidden = Boolean(state.user);
   elements.signedInPanel.hidden = !state.user;
+  syncProfileGatedActions();
 
   if (!state.user) {
     elements.pendingBadge.hidden = true;
@@ -1118,6 +1124,7 @@ function renderDashboard() {
   elements.profileStatus.textContent = accountInactive ? "Inativo" : profileComplete ? "Completo" : "Pendente";
   elements.profileStatus.classList.toggle("complete", profileComplete);
   elements.profileStatus.classList.toggle("inactive", accountInactive);
+  syncProfileGatedActions(profileComplete);
 
   renderMyItems();
   renderNotifications();
@@ -1762,6 +1769,24 @@ async function saveProfile(event) {
     return;
   }
 
+  const submitButton = elements.profileForm.querySelector("button[type='submit']");
+  const previousButtonText = submitButton?.textContent;
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = "Salvando...";
+  }
+
+  try {
+    await persistProfile();
+  } finally {
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = previousButtonText;
+    }
+  }
+}
+
+async function persistProfile() {
   const fullName = elements.profileName.value.trim();
   const userType = elements.profileUserType.value;
   const documentType = getDocumentTypeForUserType(userType);
@@ -1833,8 +1858,8 @@ async function saveProfile(event) {
   if (await saveConsentRecord()) {
     return;
   }
-  showNotice("Perfil salvo.");
   await refreshAll();
+  showNotice("Perfil salvo com sucesso. Agora você pode cadastrar imóveis.", "success");
 }
 
 async function saveConsentRecord() {
@@ -3194,6 +3219,32 @@ function requireCompleteProfile() {
   return false;
 }
 
+function syncProfileGatedActions(profileComplete = isProfileComplete()) {
+  const shouldHideItemActions = state.user && !profileComplete;
+
+  document.querySelectorAll("[data-action='open-item-form']").forEach((button) => {
+    button.hidden = shouldHideItemActions;
+    button.disabled = shouldHideItemActions;
+    button.title = shouldHideItemActions
+      ? "Complete e salve seu perfil antes de cadastrar imóveis."
+      : "";
+  });
+
+  document.querySelectorAll("[data-profile-gate-message]").forEach((node) => {
+    node.remove();
+  });
+
+  if (!shouldHideItemActions || elements.signedInPanel.hidden) {
+    return;
+  }
+
+  const message = document.createElement("p");
+  message.className = "profile-gate-message";
+  message.dataset.profileGateMessage = "true";
+  message.textContent = "Complete e salve seu perfil para liberar o cadastro de imóveis.";
+  elements.signedInPanel.prepend(message);
+}
+
 function openModal(modal) {
   modal.hidden = false;
 }
@@ -3206,8 +3257,30 @@ function closeModals() {
 
 function showNotice(message, type = "info") {
   elements.notice.textContent = message;
-  elements.notice.className = `notice${type === "error" ? " error" : ""}`;
+  elements.notice.className = `notice${type === "error" ? " error" : type === "success" ? " success" : ""}`;
   elements.notice.hidden = false;
+  elements.notice.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  if (type === "error" || type === "success") {
+    showFeedbackWindow(type === "error" ? "Atenção" : "Tudo certo", message, type);
+  }
+}
+
+function showFeedbackWindow(title, message, type = "success") {
+  document.querySelectorAll(".feedback-window").forEach((node) => node.remove());
+
+  const box = document.createElement("div");
+  box.className = `feedback-window ${type === "error" ? "error" : "success"}`;
+  box.setAttribute("role", "status");
+  box.innerHTML = `
+    <strong>${escapeHtml(title)}</strong>
+    <span>${escapeHtml(message)}</span>
+  `;
+  document.body.appendChild(box);
+
+  window.setTimeout(() => {
+    box.remove();
+  }, 5200);
 }
 
 function clearNotice() {

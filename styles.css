@@ -283,6 +283,26 @@ textarea:focus {
   color: #7b1f2e;
 }
 
+.notice.success {
+  background: #e7f8ed;
+  border-color: #a7dfbb;
+  color: #145f36;
+}
+
+.user-session {
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  max-width: min(360px, 42vw);
+  overflow: hidden;
+  padding: 8px 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .hero-band {
   align-items: stretch;
   display: grid;
@@ -617,6 +637,51 @@ textarea:focus {
   padding: 24px;
 }
 
+.profile-gate-message {
+  background: #fff7de;
+  border: 1px solid #f0d491;
+  border-radius: 8px;
+  color: #5d4100;
+  font-weight: 800;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+}
+
+.feedback-window {
+  background: #ffffff;
+  border: 1px solid #a7dfbb;
+  border-left: 5px solid var(--brand);
+  border-radius: 8px;
+  bottom: 22px;
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  display: grid;
+  gap: 4px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 15px 16px;
+  position: fixed;
+  right: 22px;
+  z-index: 80;
+}
+
+.feedback-window strong {
+  color: #145f36;
+}
+
+.feedback-window.error {
+  border-color: #f1bac2;
+  border-left-color: var(--danger);
+}
+
+.feedback-window.error strong {
+  color: #7b1f2e;
+}
+
+.feedback-window span {
+  color: var(--muted);
+  line-height: 1.4;
+}
+
 .panel-grid {
   display: grid;
   gap: 18px;
@@ -903,6 +968,11 @@ textarea:focus {
     flex: 1;
   }
 
+  .user-session {
+    max-width: 100%;
+    width: 100%;
+  }
+
   .hero-band,
   .agency-hero,
   .process-band,
@@ -937,5 +1007,11 @@ textarea:focus {
 
   .brand {
     font-size: 18px;
+  }
+
+  .feedback-window {
+    bottom: 12px;
+    left: 10px;
+    right: 10px;
   }
 }
