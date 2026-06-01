@@ -1531,6 +1531,7 @@ function renderProposalCard(proposal, mode) {
     <p><strong>Diferença:</strong> ${escapeHtml(cashText)}</p>
     ${proposal.version ? `<p class="muted">Versão ${Number(proposal.version)}${proposal.expires_at ? ` - expira em ${formatDateTime(proposal.expires_at)}` : ""}</p>` : ""}
     ${proposal.accepted_at ? `<p class="muted">Acordo inicial aceito em ${formatDateTime(proposal.accepted_at)}.</p>` : ""}
+    ${proposal.status === "accepted" || proposal.accepted_snapshot ? renderInitialAgreementBox(proposal, requested, offered, offered2, cashText) : ""}
     ${leadUpdate ? `<div class="contact-box"><strong>Acompanhamento da imobiliária</strong><span>${escapeHtml(leadStatusLabels[leadUpdate.status] ?? leadUpdate.status)} desde ${formatDateTime(leadUpdate.updated_at)}.</span></div>` : ""}
     ${cancellation ? `<p class="muted">Cancelamento: ${escapeHtml(cancellationStatusLabels[cancellation.status] ?? cancellation.status)}.</p>` : ""}
     ${finalAgreement ? renderFinalAgreementBox(finalAgreement) : ""}
@@ -1552,6 +1553,29 @@ function formatProposalOffer(proposal, offered, offered2) {
     return "Somente diferença em dinheiro";
   }
   return "Imóvel indisponível";
+}
+
+function renderInitialAgreementBox(proposal, requested, offered, offered2, cashText) {
+  const snapshot = proposal.accepted_snapshot ?? {};
+  const acceptedAt = snapshot.accepted_at ?? proposal.accepted_at;
+  const version = snapshot.version ?? proposal.version;
+  const proposalType = snapshot.proposal_type ?? proposal.proposal_type ?? "item";
+
+  return `
+    <div class="agreement-box">
+      <div class="item-title-row">
+        <strong>Acordo inicial</strong>
+        <span class="pill status accepted">Registrado</span>
+      </div>
+      <div class="agreement-grid">
+        <span><strong>Imóvel desejado</strong>${escapeHtml(requested?.title ?? "Registro preservado")}</span>
+        <span><strong>Contrapartida</strong>${escapeHtml(formatProposalOffer(proposal, offered, offered2))}</span>
+        <span><strong>Diferença financeira</strong>${escapeHtml(cashText)}</span>
+        <span><strong>Tipo de proposta</strong>${escapeHtml(proposalType)}</span>
+      </div>
+      <p class="muted">Registro imutável v${Number(version ?? 1)}${acceptedAt ? ` aceito em ${formatDateTime(acceptedAt)}` : ""}. A imobiliária conduz a conferência documental antes do acordo final.</p>
+    </div>
+  `;
 }
 
 function renderFinalAgreementBox(agreement) {

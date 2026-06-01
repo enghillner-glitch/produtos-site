@@ -61,7 +61,7 @@ Atualizado em: 2026-05-31
 | F090 | Expirar proposta automaticamente | FASE 7 - Propostas | concluida | 2026-06-01 | supabase.sql; api/maintenance.js; vercel.json | RPC expira propostas vencidas e cron diario da Vercel chama a manutencao, dependendo apenas das variaveis server-side. |
 | F091 | Aplicar limites antispam | FASE 7 - Propostas | parcial | 2026-06-01 | supabase.sql | RLS limita duplicidade por imovel e 10 propostas/24h; CAPTCHA/rate limit externo ficam pendentes. |
 | F100 | Aceitar proposta atomicamente | FASE 8 - Acordo Inicial | concluida | 2026-06-01 | supabase.sql | RPC aceita proposta em transacao, valida participantes e move imoveis envolvidos para acordo. |
-| F101 | Confirmar Acordo Inicial | FASE 8 - Acordo Inicial | parcial | 2026-06-01 | node --check app.js | Confirmação de aceite existe no painel; tela formal dedicada ainda fica pendente. |
+| F101 | Confirmar Acordo Inicial | FASE 8 - Acordo Inicial | concluida | 2026-06-01 | node --check app.js; tests/static-checks.mjs | Proposta aceita exibe caixa formal de Acordo Inicial com snapshot, contrapartida, diferenca financeira e proxima etapa imobiliaria. |
 | F102 | Encerrar propostas concorrentes | FASE 8 - Acordo Inicial | concluida | 2026-06-01 | supabase.sql | Aceite rejeita propostas pendentes concorrentes envolvendo os imoveis do acordo. |
 | F103 | Criar snapshot imutavel do Acordo Inicial | FASE 8 - Acordo Inicial | concluida | 2026-06-01 | supabase.sql | Aceite grava `accepted_snapshot` com termos essenciais da proposta aceita. |
 | F110 | Criar lead automaticamente | FASE 9 - Lead e painel interno | concluida | 2026-06-01 | supabase.sql | Aceite de proposta cria `negotiation_leads` vinculado ao acordo inicial. |

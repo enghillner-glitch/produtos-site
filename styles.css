@@ -525,6 +525,11 @@ textarea:focus {
   color: #8f1d1d;
 }
 
+.status.accepted {
+  background: #e3f7e8;
+  color: #1c6637;
+}
+
 .moderation.pending,
 .status.pending {
   background: #fff4cf;
@@ -720,6 +725,30 @@ textarea:focus {
   padding: 12px;
 }
 
+.agreement-box {
+  background: #f4f8fb;
+  border: 1px solid #cddfe8;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.agreement-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.agreement-grid span {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  display: grid;
+  gap: 3px;
+  padding: 9px;
+}
+
 .proposal-arrow {
   align-self: center;
   color: var(--brand);
@@ -863,7 +892,8 @@ textarea:focus {
   .panel-grid,
   .detail-layout,
   .proposal-summary,
-  .settings-grid {
+  .settings-grid,
+  .agreement-grid {
     grid-template-columns: 1fr;
   }
 
