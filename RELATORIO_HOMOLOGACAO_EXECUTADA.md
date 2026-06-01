@@ -48,7 +48,7 @@ O DOCX mestre revisado foi renderizado em 40 paginas PNG e inspecionado visualme
 
 O verificador `scripts/check-deployment-config.mjs` foi criado para a etapa pos-migracao. Apos aplicar o `supabase.sql` em dois blocos no SQL Editor do Supabase, a execucao confirmou que as tabelas avancadas `negotiation_leads`, `agreement_cancellations`, `final_agreement_terms`, `notifications`, `email_queue`, `consent_records` e `favorite_items` estao disponiveis em producao. Tambem confirmou que a RPC anonima foi bloqueada com status `401`.
 
-As variaveis obrigatorias `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` e `CRON_SECRET` foram cadastradas na Vercel em 2026-06-01. O proximo deploy deve carregar essas variaveis nas funcoes server-side.
+As variaveis obrigatorias `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` e `CRON_SECRET` foram cadastradas na Vercel em 2026-06-01. A chave server-side foi revisada para usar a API key legacy `service_role`, nao o segredo JWT bruto. O proximo deploy deve carregar essas variaveis nas funcoes server-side.
 
 ## Pendencias externas para homologacao autenticada completa
 
