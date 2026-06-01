@@ -62,6 +62,12 @@ const leadStatusLabels = {
   cancelled: "Cancelado"
 };
 
+const cancellationStatusLabels = {
+  requested: "Solicitado",
+  approved: "Aprovado",
+  rejected: "Retornado para ajustes"
+};
+
 const cashDirectionLabels = {
   none: "Sem diferença em dinheiro",
   requester_pays: "Interessado pagaria a diferença",
@@ -88,6 +94,8 @@ const state = {
   myItems: [],
   moderationItems: [],
   leads: [],
+  cancellations: [],
+  cancellationsByProposalId: new Map(),
   leadUpdatesByProposalId: new Map(),
   proposals: [],
   imagesByItem: new Map(),
@@ -100,7 +108,8 @@ const state = {
   schemaFeatures: {
     moderation: true,
     advancedProposals: true,
-    leads: true
+    leads: true,
+    cancellations: true
   },
   selectedDetailItem: null
 };
@@ -158,6 +167,9 @@ const elements = {
   leadsSection: $("leadsSection"),
   leadsList: $("leadsList"),
   leadsEmpty: $("leadsEmpty"),
+  cancellationsSection: $("cancellationsSection"),
+  cancellationsList: $("cancellationsList"),
+  cancellationsEmpty: $("cancellationsEmpty"),
   authModal: $("authModal"),
   loginFields: $("loginFields"),
   authEmail: $("authEmail"),
@@ -389,6 +401,8 @@ async function loadUserData() {
   state.myItems = [];
   state.moderationItems = [];
   state.leads = [];
+  state.cancellations = [];
+  state.cancellationsByProposalId = new Map();
   state.leadUpdatesByProposalId = new Map();
   state.proposals = [];
   state.proposalsItemsById = new Map();
@@ -401,7 +415,7 @@ async function loadUserData() {
   }
 
   await loadProfile();
-  await Promise.all([loadMyItems(), loadProposals(), loadModerationItems(), loadLeads(), loadLeadUpdates()]);
+  await Promise.all([loadMyItems(), loadProposals(), loadModerationItems(), loadLeads(), loadLeadUpdates(), loadCancellations()]);
 }
 
 async function loadProfile() {
@@ -624,6 +638,38 @@ async function loadLeadUpdates() {
   state.leadUpdatesByProposalId = new Map((data ?? []).map((lead) => [lead.proposal_id, lead]));
 }
 
+async function loadCancellations() {
+  state.cancellations = [];
+  state.cancellationsByProposalId = new Map();
+
+  if (!state.schemaFeatures.cancellations) {
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("agreement_cancellations")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (isMissingRelationError(error, "agreement_cancellations")) {
+    state.schemaFeatures.cancellations = false;
+    return;
+  }
+
+  if (handleDbError(error, "carregar cancelamentos")) {
+    return;
+  }
+
+  state.cancellations = data ?? [];
+  for (const cancellation of state.cancellations) {
+    if (!state.cancellationsByProposalId.has(cancellation.proposal_id)) {
+      state.cancellationsByProposalId.set(cancellation.proposal_id, cancellation);
+    }
+  }
+
+  await loadProfiles(unique(state.cancellations.map((cancellation) => cancellation.requested_by)));
+}
+
 async function loadProfiles(userIds) {
   if (!userIds.length) {
     return;
@@ -750,6 +796,12 @@ function handleDocumentClick(event) {
     counterProposal(actionTarget.dataset.proposalId);
   } else if (action === "fail-proposal") {
     runProposalRpc("mark_exchange_failed", actionTarget.dataset.proposalId);
+  } else if (action === "request-cancellation") {
+    requestAgreementCancellation(actionTarget.dataset.proposalId);
+  } else if (action === "approve-cancellation") {
+    resolveAgreementCancellation(actionTarget.dataset.cancellationId, true);
+  } else if (action === "reject-cancellation") {
+    resolveAgreementCancellation(actionTarget.dataset.cancellationId, false);
   } else if (action === "report-item") {
     reportTarget("item", actionTarget.dataset.itemId, actionTarget.dataset.userId);
   } else if (action === "report-user") {
@@ -879,6 +931,7 @@ function renderDashboard() {
   renderProposals();
   renderModerationQueue();
   renderLeads();
+  renderCancellationQueue();
 }
 
 function renderAgency() {
@@ -1029,6 +1082,42 @@ function renderLeadCard(lead) {
   return card;
 }
 
+function renderCancellationQueue() {
+  const visible = isModerator() && state.schemaFeatures.cancellations;
+  elements.cancellationsSection.hidden = !visible;
+
+  if (!visible) {
+    return;
+  }
+
+  const pending = state.cancellations.filter((cancellation) => cancellation.status === "requested");
+  elements.cancellationsList.innerHTML = "";
+  elements.cancellationsEmpty.hidden = pending.length > 0;
+
+  for (const cancellation of pending) {
+    const requester = state.profilesById.get(cancellation.requested_by);
+    const card = document.createElement("article");
+    card.className = "moderation-card";
+    card.innerHTML = `
+      <div>
+        <div class="item-title-row">
+          <h3>Cancelamento de acordo inicial</h3>
+          <span class="pill status">${cancellationStatusLabels[cancellation.status] ?? cancellation.status}</span>
+        </div>
+        <p class="muted">Proposta: ${escapeHtml(cancellation.proposal_id)}</p>
+        <p><strong>Solicitante:</strong> ${escapeHtml(requester?.full_name ?? "Participante")}</p>
+        <p><strong>Motivo:</strong> ${escapeHtml(cancellation.reason)}</p>
+        <p><strong>Solicitado em:</strong> ${formatDateTime(cancellation.created_at)}</p>
+      </div>
+      <div class="proposal-actions">
+        <button type="button" data-action="approve-cancellation" data-cancellation-id="${cancellation.id}">Liberar imóveis</button>
+        <button class="secondary" type="button" data-action="reject-cancellation" data-cancellation-id="${cancellation.id}">Retornar para ajustes</button>
+      </div>
+    `;
+    elements.cancellationsList.appendChild(card);
+  }
+}
+
 function renderItemCard(item, options) {
   const images = state.imagesByItem.get(item.id) ?? [];
   const firstImage = images[0]?.public_url;
@@ -1091,6 +1180,7 @@ function renderProposalCard(proposal, mode) {
   const canRespond = proposal.status === "pending" && responderId === state.user.id;
   const canCancel = proposal.status === "pending" && createdBy === state.user.id;
   const leadUpdate = state.leadUpdatesByProposalId.get(proposal.id);
+  const cancellation = state.cancellationsByProposalId.get(proposal.id);
 
   const cashText = proposal.cash_difference > 0
     ? `${formatter.format(Number(proposal.cash_difference))} - ${cashDirectionLabels[proposal.cash_direction]}`
@@ -1108,7 +1198,13 @@ function renderProposalCard(proposal, mode) {
     actions.push(`<button class="secondary" type="button" data-action="cancel-proposal" data-proposal-id="${proposal.id}">Cancelar</button>`);
   }
   if (proposal.status === "accepted") {
-    actions.push(`<button class="secondary" type="button" data-action="fail-proposal" data-proposal-id="${proposal.id}">Proposta não aconteceu</button>`);
+    if (cancellation?.status === "requested") {
+      actions.push(`<span class="pill status">Cancelamento solicitado</span>`);
+    } else if (state.schemaFeatures.cancellations) {
+      actions.push(`<button class="secondary" type="button" data-action="request-cancellation" data-proposal-id="${proposal.id}">Solicitar cancelamento</button>`);
+    } else {
+      actions.push(`<button class="secondary" type="button" data-action="fail-proposal" data-proposal-id="${proposal.id}">Proposta não aconteceu</button>`);
+    }
   }
   actions.push(`<button class="secondary" type="button" data-action="report-user" data-user-id="${counterpartId}">Denunciar usuário</button>`);
 
@@ -1133,6 +1229,7 @@ function renderProposalCard(proposal, mode) {
     ${proposal.version ? `<p class="muted">Versão ${Number(proposal.version)}${proposal.expires_at ? ` - expira em ${formatDateTime(proposal.expires_at)}` : ""}</p>` : ""}
     ${proposal.accepted_at ? `<p class="muted">Acordo inicial aceito em ${formatDateTime(proposal.accepted_at)}.</p>` : ""}
     ${leadUpdate ? `<div class="contact-box"><strong>Acompanhamento da imobiliária</strong><span>${escapeHtml(leadStatusLabels[leadUpdate.status] ?? leadUpdate.status)} desde ${formatDateTime(leadUpdate.updated_at)}.</span></div>` : ""}
+    ${cancellation ? `<p class="muted">Cancelamento: ${escapeHtml(cancellationStatusLabels[cancellation.status] ?? cancellation.status)}.</p>` : ""}
     ${proposal.status === "pending" ? `<p class="muted">${canRespond ? "Aguardando sua resposta." : "Aguardando resposta da outra pessoa."}</p>` : ""}
     ${proposal.message ? `<p><strong>Mensagem:</strong> ${escapeHtml(proposal.message)}</p>` : ""}
     ${proposal.status === "accepted" ? renderContactBox(contact) : ""}
@@ -2110,6 +2207,56 @@ async function counterProposal(proposalId) {
   }
 
   showNotice("Contraproposta enviada.");
+  await refreshAll();
+}
+
+async function requestAgreementCancellation(proposalId) {
+  if (!state.schemaFeatures.cancellations) {
+    runProposalRpc("mark_exchange_failed", proposalId);
+    return;
+  }
+
+  const reason = prompt("Explique por que o acordo inicial precisa ser cancelado:");
+  if (!reason?.trim()) {
+    return;
+  }
+
+  const { error } = await supabaseClient.rpc("request_agreement_cancellation", {
+    p_proposal_id: proposalId,
+    p_reason: reason.trim()
+  });
+
+  if (isMissingFunctionError(error, "request_agreement_cancellation")) {
+    state.schemaFeatures.cancellations = false;
+    showNotice("Cancelamento rastreável depende da nova migração Supabase.", "error");
+    return;
+  }
+
+  if (handleDbError(error, "solicitar cancelamento")) {
+    return;
+  }
+
+  showNotice("Pedido de cancelamento enviado para análise.");
+  await refreshAll();
+}
+
+async function resolveAgreementCancellation(cancellationId, approved) {
+  const note = prompt(approved ? "Observação da liberação dos imóveis:" : "Explique o ajuste necessário:", "");
+  if (note === null) {
+    return;
+  }
+
+  const { error } = await supabaseClient.rpc("resolve_agreement_cancellation", {
+    p_cancellation_id: cancellationId,
+    p_approved: approved,
+    p_notes: note.trim()
+  });
+
+  if (handleDbError(error, "resolver cancelamento")) {
+    return;
+  }
+
+  showNotice(approved ? "Cancelamento aprovado e imóveis liberados." : "Pedido retornado para ajustes.");
   await refreshAll();
 }
 

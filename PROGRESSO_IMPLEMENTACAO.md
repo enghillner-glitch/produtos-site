@@ -73,9 +73,9 @@ Atualizado em: 2026-05-31
 | F116 | Controlar etapas da negociacao | FASE 9 - Lead e painel interno | concluida | 2026-06-01 | node --check app.js | Lead possui etapas `new`, `contacted`, `document_review`, `negotiation`, `final_agreement`, `closed` e `cancelled`. |
 | F117 | Mostrar acompanhamento resumido ao usuario | FASE 9 - Lead e painel interno | concluida | 2026-06-01 | node --check app.js | Participantes veem apenas status resumido do lead via RPC segura. |
 | F118 | Exportar leads para CSV | FASE 9 - Lead e painel interno | concluida | 2026-06-01 | node --check app.js | Painel administrativo exporta os leads carregados em CSV. |
-| F120 | Solicitar cancelamento apos Acordo Inicial | FASE 10 - Cancelamento e retorno | nao iniciada |  |  |  |
-| F121 | Encerrar cancelamento e liberar imoveis | FASE 10 - Cancelamento e retorno | nao iniciada |  |  |  |
-| F122 | Retornar para ajustes | FASE 10 - Cancelamento e retorno | nao iniciada |  |  |  |
+| F120 | Solicitar cancelamento apos Acordo Inicial | FASE 10 - Cancelamento e retorno | concluida | 2026-06-01 | node --check app.js | Participante pode solicitar cancelamento rastreavel do acordo aceito, informando motivo. |
+| F121 | Encerrar cancelamento e liberar imoveis | FASE 10 - Cancelamento e retorno | concluida | 2026-06-01 | supabase.sql | Administracao aprova o pedido, marca proposta como `failed`, cancela lead e reabre imoveis. |
+| F122 | Retornar para ajustes | FASE 10 - Cancelamento e retorno | concluida | 2026-06-01 | supabase.sql | Administracao rejeita o cancelamento e devolve o lead para etapa de negociacao. |
 | F130 | Criar termos finais versionados | FASE 11 - Acordo Final | nao iniciada |  |  |  |
 | F131 | Solicitar Acordo Final | FASE 11 - Acordo Final | nao iniciada |  |  |  |
 | F132 | Controlar aceite parcial e completo | FASE 11 - Acordo Final | nao iniciada |  |  |  |

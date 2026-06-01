@@ -170,6 +170,19 @@ create table if not exists public.negotiation_leads (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.agreement_cancellations (
+  id uuid primary key default gen_random_uuid(),
+  proposal_id uuid not null references public.exchange_proposals(id) on delete cascade,
+  requested_by uuid not null references public.profiles(id) on delete cascade,
+  reason text not null,
+  status text not null default 'requested' check (status in ('requested', 'approved', 'rejected')),
+  resolution_notes text,
+  resolved_by uuid references public.profiles(id) on delete set null,
+  resolved_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 alter table public.profiles
   add column if not exists user_type text not null default 'individual',
   add column if not exists role text not null default 'user',
@@ -316,6 +329,16 @@ alter table public.negotiation_leads
   add constraint negotiation_leads_status_check
   check (status in ('new', 'contacted', 'document_review', 'negotiation', 'final_agreement', 'closed', 'cancelled'));
 
+alter table public.agreement_cancellations
+  add column if not exists resolution_notes text,
+  add column if not exists resolved_by uuid references public.profiles(id) on delete set null,
+  add column if not exists resolved_at timestamptz;
+
+alter table public.agreement_cancellations drop constraint if exists agreement_cancellations_status_check;
+alter table public.agreement_cancellations
+  add constraint agreement_cancellations_status_check
+  check (status in ('requested', 'approved', 'rejected'));
+
 alter table public.profiles drop constraint if exists profiles_user_type_check;
 alter table public.profiles
   add constraint profiles_user_type_check
@@ -388,6 +411,8 @@ create index if not exists real_estate_agencies_status_idx on public.real_estate
 create index if not exists negotiation_leads_status_idx on public.negotiation_leads(status, updated_at desc);
 create index if not exists negotiation_leads_participants_idx on public.negotiation_leads(requester_id, owner_id);
 create index if not exists negotiation_leads_assigned_idx on public.negotiation_leads(assigned_to, status);
+create index if not exists agreement_cancellations_proposal_idx on public.agreement_cancellations(proposal_id, status);
+create index if not exists agreement_cancellations_requested_idx on public.agreement_cancellations(requested_by, created_at desc);
 
 insert into public.real_estate_agencies (
   legal_name,
@@ -541,6 +566,11 @@ create trigger negotiation_leads_set_updated_at
 before update on public.negotiation_leads
 for each row execute function public.set_updated_at();
 
+drop trigger if exists agreement_cancellations_set_updated_at on public.agreement_cancellations;
+create trigger agreement_cancellations_set_updated_at
+before update on public.agreement_cancellations
+for each row execute function public.set_updated_at();
+
 alter table public.profiles enable row level security;
 alter table public.profile_private_data enable row level security;
 alter table public.profile_contacts enable row level security;
@@ -552,6 +582,7 @@ alter table public.reports enable row level security;
 alter table public.audit_events enable row level security;
 alter table public.real_estate_agencies enable row level security;
 alter table public.negotiation_leads enable row level security;
+alter table public.agreement_cancellations enable row level security;
 
 drop policy if exists "profiles public read" on public.profiles;
 create policy "profiles public read"
@@ -943,6 +974,50 @@ create policy "negotiation leads admin update"
     )
   );
 
+drop policy if exists "agreement cancellations participant read" on public.agreement_cancellations;
+create policy "agreement cancellations participant read"
+  on public.agreement_cancellations
+  for select
+  using (
+    requested_by = auth.uid()
+    or exists (
+      select 1
+      from public.exchange_proposals ep
+      where ep.id = agreement_cancellations.proposal_id
+        and auth.uid() in (ep.requester_id, ep.owner_id)
+    )
+    or exists (
+      select 1
+      from public.profiles moderator
+      where moderator.id = auth.uid()
+        and moderator.role in ('real_estate_admin', 'admin')
+        and moderator.account_status = 'active'
+    )
+  );
+
+drop policy if exists "agreement cancellations admin update" on public.agreement_cancellations;
+create policy "agreement cancellations admin update"
+  on public.agreement_cancellations
+  for update
+  using (
+    exists (
+      select 1
+      from public.profiles moderator
+      where moderator.id = auth.uid()
+        and moderator.role in ('real_estate_admin', 'admin')
+        and moderator.account_status = 'active'
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from public.profiles moderator
+      where moderator.id = auth.uid()
+        and moderator.role in ('real_estate_admin', 'admin')
+        and moderator.account_status = 'active'
+    )
+  );
+
 insert into storage.buckets (id, name, public)
 values ('item-images', 'item-images', true)
 on conflict (id) do update set public = true;
@@ -1277,6 +1352,149 @@ begin
   returning id into v_new_id;
 
   return v_new_id;
+end;
+$$;
+
+create or replace function public.request_agreement_cancellation(
+  p_proposal_id uuid,
+  p_reason text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_proposal public.exchange_proposals;
+  v_id uuid;
+begin
+  select *
+  into v_proposal
+  from public.exchange_proposals
+  where id = p_proposal_id
+  for update;
+
+  if not found then
+    raise exception 'Proposta não encontrada.';
+  end if;
+
+  if auth.uid() not in (v_proposal.requester_id, v_proposal.owner_id) then
+    raise exception 'Apenas participantes podem solicitar cancelamento.';
+  end if;
+
+  if v_proposal.status <> 'accepted' then
+    raise exception 'Somente acordo inicial aceito pode receber pedido de cancelamento.';
+  end if;
+
+  if nullif(trim(coalesce(p_reason, '')), '') is null then
+    raise exception 'Informe o motivo do cancelamento.';
+  end if;
+
+  if exists (
+    select 1
+    from public.agreement_cancellations cancellation
+    where cancellation.proposal_id = p_proposal_id
+      and cancellation.status = 'requested'
+  ) then
+    raise exception 'Já existe pedido de cancelamento pendente para este acordo.';
+  end if;
+
+  insert into public.agreement_cancellations (
+    proposal_id,
+    requested_by,
+    reason
+  )
+  values (
+    p_proposal_id,
+    auth.uid(),
+    trim(p_reason)
+  )
+  returning id into v_id;
+
+  return v_id;
+end;
+$$;
+
+create or replace function public.resolve_agreement_cancellation(
+  p_cancellation_id uuid,
+  p_approved boolean,
+  p_notes text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_cancellation public.agreement_cancellations;
+  v_proposal public.exchange_proposals;
+  v_item_ids uuid[];
+begin
+  if not exists (
+    select 1
+    from public.profiles moderator
+    where moderator.id = auth.uid()
+      and moderator.role in ('real_estate_admin', 'admin')
+      and moderator.account_status = 'active'
+  ) then
+    raise exception 'Apenas a administração pode resolver cancelamentos.';
+  end if;
+
+  select *
+  into v_cancellation
+  from public.agreement_cancellations
+  where id = p_cancellation_id
+  for update;
+
+  if not found then
+    raise exception 'Pedido de cancelamento não encontrado.';
+  end if;
+
+  if v_cancellation.status <> 'requested' then
+    raise exception 'Pedido de cancelamento já resolvido.';
+  end if;
+
+  select *
+  into v_proposal
+  from public.exchange_proposals
+  where id = v_cancellation.proposal_id
+  for update;
+
+  if not found then
+    raise exception 'Proposta vinculada não encontrada.';
+  end if;
+
+  update public.agreement_cancellations
+  set status = case when p_approved then 'approved' else 'rejected' end,
+      resolution_notes = nullif(trim(coalesce(p_notes, '')), ''),
+      resolved_by = auth.uid(),
+      resolved_at = now()
+  where id = p_cancellation_id;
+
+  if p_approved then
+    v_item_ids := array_remove(array[
+      v_proposal.requested_item_id,
+      v_proposal.offered_item_id,
+      v_proposal.offered_item_2_id
+    ], null);
+
+    update public.exchange_proposals
+    set status = 'failed'
+    where id = v_proposal.id;
+
+    update public.items
+    set status = 'available'
+    where id = any(v_item_ids);
+
+    update public.negotiation_leads
+    set status = 'cancelled'
+    where proposal_id = v_proposal.id;
+  else
+    update public.negotiation_leads
+    set status = 'negotiation'
+    where proposal_id = v_proposal.id
+      and status <> 'closed';
+  end if;
 end;
 $$;
 

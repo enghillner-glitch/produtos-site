@@ -122,3 +122,11 @@
 | Painel restrito | Leads completos, observacoes e atribuicao ficam visiveis apenas para `real_estate_admin` e `admin`. |
 | Acompanhamento publico minimo | Participantes veem somente etapa e datas resumidas por RPC, sem observacoes internas. |
 | Email adiado | O MVP copia um resumo seguro do lead; envio automatico fica para a fase de notificacoes. |
+
+## 2026-06-01 - Cancelamento de acordo
+
+| Decisao | Registro |
+|---|---|
+| Cancelamento rastreavel | Depois do acordo inicial, o participante solicita cancelamento com motivo em vez de reabrir imoveis diretamente. |
+| Resolucao administrativa | A administracao aprova para liberar os imoveis ou rejeita para devolver o lead a negociacao. |
+| Compatibilidade temporaria | O RPC antigo `mark_exchange_failed` permanece como fallback enquanto ambientes sem a nova migracao existirem. |
