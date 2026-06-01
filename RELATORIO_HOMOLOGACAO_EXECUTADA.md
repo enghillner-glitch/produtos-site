@@ -12,6 +12,7 @@ Data: 2026-06-01
 - Smoke HTTP local e em producao.
 - E2E publico local e em producao.
 - Renderizacao visual do DOCX mestre revisado.
+- E2E autenticado de backend em producao com dados temporarios e limpeza automatica.
 
 ## Comandos
 
@@ -30,6 +31,7 @@ $env:APP_URL='http://127.0.0.1:4177/'; node tests/e2e-public-flow.mjs
 $env:APP_URL='https://produtos-site.vercel.app/'; node tests/smoke-http.mjs
 $env:APP_URL='https://produtos-site.vercel.app/'; node tests/e2e-public-flow.mjs
 node scripts/check-production-readiness.mjs
+node tests/e2e-authenticated-backend.mjs
 ```
 
 Renderizacao DOCX:
@@ -43,6 +45,8 @@ python render_docx.py C:\Users\jpsecundario\Desktop\Plano_Mestre_Repassecomrepas
 Todos os testes automatizados executados passaram.
 
 O DOCX mestre revisado foi renderizado em 40 paginas PNG e inspecionado visualmente em pranchas de conferencia, sem cortes, sobreposicoes ou tabelas quebradas aparentes.
+
+O E2E autenticado de backend foi executado em producao com usuarios e imoveis temporarios. O fluxo validou criacao de perfis, cadastro de imoveis, proposta, aceite, liberacao de contato apenas para participante, bloqueio de contato para usuario fora da troca, solicitacao/resolucao de cancelamento e reabertura dos imoveis. A limpeza confirmou `remainingProfiles: 0`.
 
 ## Diagnostico operacional adicional
 
@@ -64,7 +68,6 @@ As variaveis obrigatorias `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` e `CRON_SE
   - `TURNSTILE_SECRET_KEY`, se Turnstile for ativado;
   - `RESEND_API_KEY` e `EMAIL_FROM`, se emails automaticos forem ativados.
 - Preencher `turnstileSiteKey` em `config.js`, se Turnstile for ativado.
-- Executar fluxo autenticado real com usuario, perfil, anuncio, proposta, acordo inicial, lead, acordo final e cancelamento.
 
 ## Observacao
 

@@ -88,6 +88,17 @@ node scripts/check-deployment-config.mjs
 $env:STRICT_CONFIG='1'; node scripts/check-deployment-config.mjs
 ```
 
+Homologacao autenticada de backend com dados temporarios:
+
+```powershell
+$env:SUPABASE_URL='https://lzuaqhmjzwchkesxnocz.supabase.co'
+$env:SUPABASE_ANON_KEY='<publishable-ou-anon-key>'
+$env:SUPABASE_SERVICE_ROLE_KEY='<service-role-key>'
+node tests/e2e-authenticated-backend.mjs
+```
+
+O teste cria usuarios e imoveis temporarios, valida proposta, aceite, contato restrito e cancelamento, e remove os usuarios ao final.
+
 ## Proximos passos
 
 Aplicar `supabase.sql` no Supabase para liberar todos os recursos novos do banco em producao, principalmente moderacao, propostas avancadas, leads, cancelamentos, acordo final e notificacoes.

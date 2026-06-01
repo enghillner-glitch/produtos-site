@@ -54,4 +54,4 @@
 
 - [x] Manutencao server-side autenticada executada em producao.
 
-- [ ] Homologacao autenticada em producao com dados reais apos aplicar `supabase.sql`.
+- [x] Homologacao autenticada em producao com dados temporarios apos aplicar `supabase.sql`.
