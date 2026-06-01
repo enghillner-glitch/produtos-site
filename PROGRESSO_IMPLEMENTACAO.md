@@ -64,15 +64,15 @@ Atualizado em: 2026-05-31
 | F101 | Confirmar Acordo Inicial | FASE 8 - Acordo Inicial | parcial | 2026-06-01 | node --check app.js | Confirmação de aceite existe no painel; tela formal dedicada ainda fica pendente. |
 | F102 | Encerrar propostas concorrentes | FASE 8 - Acordo Inicial | concluida | 2026-06-01 | supabase.sql | Aceite rejeita propostas pendentes concorrentes envolvendo os imoveis do acordo. |
 | F103 | Criar snapshot imutavel do Acordo Inicial | FASE 8 - Acordo Inicial | concluida | 2026-06-01 | supabase.sql | Aceite grava `accepted_snapshot` com termos essenciais da proposta aceita. |
-| F110 | Criar lead automaticamente | FASE 9 - Lead e painel interno | nao iniciada |  |  |  |
-| F111 | Listar leads no painel | FASE 9 - Lead e painel interno | nao iniciada |  |  |  |
-| F112 | Exibir detalhe seguro do lead | FASE 9 - Lead e painel interno | nao iniciada |  |  |  |
-| F113 | Enviar e-mail resumido de lead | FASE 9 - Lead e painel interno | nao iniciada |  |  |  |
-| F114 | Atribuir responsavel | FASE 9 - Lead e painel interno | nao iniciada |  |  |  |
-| F115 | Adicionar observacoes internas | FASE 9 - Lead e painel interno | nao iniciada |  |  |  |
-| F116 | Controlar etapas da negociacao | FASE 9 - Lead e painel interno | nao iniciada |  |  |  |
-| F117 | Mostrar acompanhamento resumido ao usuario | FASE 9 - Lead e painel interno | nao iniciada |  |  |  |
-| F118 | Exportar leads para CSV | FASE 9 - Lead e painel interno | nao iniciada |  |  |  |
+| F110 | Criar lead automaticamente | FASE 9 - Lead e painel interno | concluida | 2026-06-01 | supabase.sql | Aceite de proposta cria `negotiation_leads` vinculado ao acordo inicial. |
+| F111 | Listar leads no painel | FASE 9 - Lead e painel interno | concluida | 2026-06-01 | node --check app.js | Painel interno lista leads para `real_estate_admin` e `admin`. |
+| F112 | Exibir detalhe seguro do lead | FASE 9 - Lead e painel interno | concluida | 2026-06-01 | node --check app.js | Card exibe imovel, participantes, etapa, responsavel e observacoes internas apenas para administracao. |
+| F113 | Enviar e-mail resumido de lead | FASE 9 - Lead e painel interno | parcial | 2026-06-01 | node --check app.js | Resumo seguro pode ser copiado; envio automatico por email fica para fase de notificacoes. |
+| F114 | Atribuir responsavel | FASE 9 - Lead e painel interno | concluida | 2026-06-01 | node --check app.js | Administrador pode assumir o lead como responsavel. |
+| F115 | Adicionar observacoes internas | FASE 9 - Lead e painel interno | concluida | 2026-06-01 | node --check app.js | Observacoes internas ficam restritas ao painel administrativo. |
+| F116 | Controlar etapas da negociacao | FASE 9 - Lead e painel interno | concluida | 2026-06-01 | node --check app.js | Lead possui etapas `new`, `contacted`, `document_review`, `negotiation`, `final_agreement`, `closed` e `cancelled`. |
+| F117 | Mostrar acompanhamento resumido ao usuario | FASE 9 - Lead e painel interno | concluida | 2026-06-01 | node --check app.js | Participantes veem apenas status resumido do lead via RPC segura. |
+| F118 | Exportar leads para CSV | FASE 9 - Lead e painel interno | concluida | 2026-06-01 | node --check app.js | Painel administrativo exporta os leads carregados em CSV. |
 | F120 | Solicitar cancelamento apos Acordo Inicial | FASE 10 - Cancelamento e retorno | nao iniciada |  |  |  |
 | F121 | Encerrar cancelamento e liberar imoveis | FASE 10 - Cancelamento e retorno | nao iniciada |  |  |  |
 | F122 | Retornar para ajustes | FASE 10 - Cancelamento e retorno | nao iniciada |  |  |  |

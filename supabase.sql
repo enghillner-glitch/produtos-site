@@ -154,6 +154,22 @@ create table if not exists public.real_estate_agencies (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.negotiation_leads (
+  id uuid primary key default gen_random_uuid(),
+  proposal_id uuid not null unique references public.exchange_proposals(id) on delete cascade,
+  agency_id uuid references public.real_estate_agencies(id) on delete set null,
+  requested_item_id uuid not null references public.items(id) on delete cascade,
+  requester_id uuid not null references public.profiles(id) on delete cascade,
+  owner_id uuid not null references public.profiles(id) on delete cascade,
+  status text not null default 'new' check (status in ('new', 'contacted', 'document_review', 'negotiation', 'final_agreement', 'closed', 'cancelled')),
+  assigned_to uuid references public.profiles(id) on delete set null,
+  internal_notes text,
+  summary jsonb not null default '{}'::jsonb,
+  email_summary_sent_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 alter table public.profiles
   add column if not exists user_type text not null default 'individual',
   add column if not exists role text not null default 'user',
@@ -288,6 +304,18 @@ alter table public.exchange_proposals
   add constraint exchange_creator_participant_check
   check (created_by in (requester_id, owner_id));
 
+alter table public.negotiation_leads
+  add column if not exists agency_id uuid references public.real_estate_agencies(id) on delete set null,
+  add column if not exists assigned_to uuid references public.profiles(id) on delete set null,
+  add column if not exists internal_notes text,
+  add column if not exists summary jsonb not null default '{}'::jsonb,
+  add column if not exists email_summary_sent_at timestamptz;
+
+alter table public.negotiation_leads drop constraint if exists negotiation_leads_status_check;
+alter table public.negotiation_leads
+  add constraint negotiation_leads_status_check
+  check (status in ('new', 'contacted', 'document_review', 'negotiation', 'final_agreement', 'closed', 'cancelled'));
+
 alter table public.profiles drop constraint if exists profiles_user_type_check;
 alter table public.profiles
   add constraint profiles_user_type_check
@@ -357,6 +385,9 @@ create index if not exists exchange_pending_reservation_idx on public.exchange_p
 create index if not exists audit_events_actor_idx on public.audit_events(actor_id, created_at desc);
 create index if not exists audit_events_entity_idx on public.audit_events(entity_type, entity_id);
 create index if not exists real_estate_agencies_status_idx on public.real_estate_agencies(status);
+create index if not exists negotiation_leads_status_idx on public.negotiation_leads(status, updated_at desc);
+create index if not exists negotiation_leads_participants_idx on public.negotiation_leads(requester_id, owner_id);
+create index if not exists negotiation_leads_assigned_idx on public.negotiation_leads(assigned_to, status);
 
 insert into public.real_estate_agencies (
   legal_name,
@@ -505,6 +536,11 @@ create trigger real_estate_agencies_set_updated_at
 before update on public.real_estate_agencies
 for each row execute function public.set_updated_at();
 
+drop trigger if exists negotiation_leads_set_updated_at on public.negotiation_leads;
+create trigger negotiation_leads_set_updated_at
+before update on public.negotiation_leads
+for each row execute function public.set_updated_at();
+
 alter table public.profiles enable row level security;
 alter table public.profile_private_data enable row level security;
 alter table public.profile_contacts enable row level security;
@@ -515,6 +551,7 @@ alter table public.exchange_proposals enable row level security;
 alter table public.reports enable row level security;
 alter table public.audit_events enable row level security;
 alter table public.real_estate_agencies enable row level security;
+alter table public.negotiation_leads enable row level security;
 
 drop policy if exists "profiles public read" on public.profiles;
 create policy "profiles public read"
@@ -869,6 +906,43 @@ create policy "real estate agencies public active read"
   for select
   using (status = 'active');
 
+drop policy if exists "negotiation leads admin read" on public.negotiation_leads;
+create policy "negotiation leads admin read"
+  on public.negotiation_leads
+  for select
+  using (
+    exists (
+      select 1
+      from public.profiles moderator
+      where moderator.id = auth.uid()
+        and moderator.role in ('real_estate_admin', 'admin')
+        and moderator.account_status = 'active'
+    )
+  );
+
+drop policy if exists "negotiation leads admin update" on public.negotiation_leads;
+create policy "negotiation leads admin update"
+  on public.negotiation_leads
+  for update
+  using (
+    exists (
+      select 1
+      from public.profiles moderator
+      where moderator.id = auth.uid()
+        and moderator.role in ('real_estate_admin', 'admin')
+        and moderator.account_status = 'active'
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from public.profiles moderator
+      where moderator.id = auth.uid()
+        and moderator.role in ('real_estate_admin', 'admin')
+        and moderator.account_status = 'active'
+    )
+  );
+
 insert into storage.buckets (id, name, public)
 values ('item-images', 'item-images', true)
 on conflict (id) do update set public = true;
@@ -916,6 +990,26 @@ begin
   get diagnostics v_count = row_count;
   return v_count;
 end;
+$$;
+
+create or replace function public.get_my_lead_updates()
+returns table (
+  proposal_id uuid,
+  status text,
+  created_at timestamptz,
+  updated_at timestamptz
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select
+    lead.proposal_id,
+    lead.status,
+    lead.created_at,
+    lead.updated_at
+  from public.negotiation_leads lead
+  where auth.uid() in (lead.requester_id, lead.owner_id);
 $$;
 
 create or replace function public.accept_exchange_proposal(p_proposal_id uuid)
@@ -1003,6 +1097,31 @@ begin
   update public.items
   set status = 'traded'
   where id = any(v_item_ids);
+
+  insert into public.negotiation_leads (
+    proposal_id,
+    agency_id,
+    requested_item_id,
+    requester_id,
+    owner_id,
+    status,
+    summary
+  )
+  values (
+    v_proposal.id,
+    (select id from public.real_estate_agencies where status = 'active' order by created_at asc limit 1),
+    v_proposal.requested_item_id,
+    v_proposal.requester_id,
+    v_proposal.owner_id,
+    'new',
+    jsonb_build_object(
+      'cash_difference', v_proposal.cash_difference,
+      'cash_direction', v_proposal.cash_direction,
+      'proposal_type', v_proposal.proposal_type,
+      'version', v_proposal.version
+    )
+  )
+  on conflict (proposal_id) do nothing;
 
   update public.exchange_proposals
   set status = 'rejected'

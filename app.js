@@ -52,6 +52,16 @@ const proposalStatusLabels = {
   countered: "Contraproposta enviada"
 };
 
+const leadStatusLabels = {
+  new: "Novo",
+  contacted: "Contato iniciado",
+  document_review: "Análise documental",
+  negotiation: "Em negociação",
+  final_agreement: "Acordo final",
+  closed: "Concluído",
+  cancelled: "Cancelado"
+};
+
 const cashDirectionLabels = {
   none: "Sem diferença em dinheiro",
   requester_pays: "Interessado pagaria a diferença",
@@ -77,6 +87,8 @@ const state = {
   publicItems: [],
   myItems: [],
   moderationItems: [],
+  leads: [],
+  leadUpdatesByProposalId: new Map(),
   proposals: [],
   imagesByItem: new Map(),
   proposalsItemsById: new Map(),
@@ -87,7 +99,8 @@ const state = {
   visibleItemCount: 12,
   schemaFeatures: {
     moderation: true,
-    advancedProposals: true
+    advancedProposals: true,
+    leads: true
   },
   selectedDetailItem: null
 };
@@ -142,6 +155,9 @@ const elements = {
   moderationSection: $("moderationSection"),
   moderationList: $("moderationList"),
   moderationEmpty: $("moderationEmpty"),
+  leadsSection: $("leadsSection"),
+  leadsList: $("leadsList"),
+  leadsEmpty: $("leadsEmpty"),
   authModal: $("authModal"),
   loginFields: $("loginFields"),
   authEmail: $("authEmail"),
@@ -261,6 +277,7 @@ function addOptions(select, options) {
 function bindEvents() {
   window.addEventListener("hashchange", routeFromHash);
   document.addEventListener("click", handleDocumentClick);
+  document.addEventListener("change", handleDocumentChange);
 
   for (const input of [
     elements.searchInput,
@@ -371,6 +388,8 @@ async function loadUserData() {
   state.privateData = null;
   state.myItems = [];
   state.moderationItems = [];
+  state.leads = [];
+  state.leadUpdatesByProposalId = new Map();
   state.proposals = [];
   state.proposalsItemsById = new Map();
   state.profilesById = new Map();
@@ -382,7 +401,7 @@ async function loadUserData() {
   }
 
   await loadProfile();
-  await Promise.all([loadMyItems(), loadProposals(), loadModerationItems()]);
+  await Promise.all([loadMyItems(), loadProposals(), loadModerationItems(), loadLeads(), loadLeadUpdates()]);
 }
 
 async function loadProfile() {
@@ -538,7 +557,6 @@ async function loadProposals() {
 
 async function loadProposalItems(itemIds) {
   if (!itemIds.length) {
-    state.proposalsItemsById = new Map();
     return;
   }
 
@@ -549,7 +567,61 @@ async function loadProposalItems(itemIds) {
     return;
   }
 
-  state.proposalsItemsById = new Map((data ?? []).map((item) => [item.id, item]));
+  for (const item of data ?? []) {
+    state.proposalsItemsById.set(item.id, item);
+  }
+}
+
+async function loadLeads() {
+  state.leads = [];
+
+  if (!isModerator() || !state.schemaFeatures.leads) {
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("negotiation_leads")
+    .select("*")
+    .order("updated_at", { ascending: false });
+
+  if (isMissingRelationError(error, "negotiation_leads")) {
+    state.schemaFeatures.leads = false;
+    return;
+  }
+
+  if (handleDbError(error, "carregar leads")) {
+    return;
+  }
+
+  state.leads = data ?? [];
+  const itemIds = unique(state.leads.map((lead) => lead.requested_item_id));
+  const userIds = unique(state.leads.flatMap((lead) => [lead.requester_id, lead.owner_id, lead.assigned_to]));
+
+  await Promise.all([
+    loadProposalItems(itemIds),
+    loadProfiles(userIds)
+  ]);
+}
+
+async function loadLeadUpdates() {
+  state.leadUpdatesByProposalId = new Map();
+
+  if (!state.schemaFeatures.leads) {
+    return;
+  }
+
+  const { data, error } = await supabaseClient.rpc("get_my_lead_updates");
+
+  if (isMissingFunctionError(error, "get_my_lead_updates")) {
+    state.schemaFeatures.leads = false;
+    return;
+  }
+
+  if (error) {
+    return;
+  }
+
+  state.leadUpdatesByProposalId = new Map((data ?? []).map((lead) => [lead.proposal_id, lead]));
 }
 
 async function loadProfiles(userIds) {
@@ -686,6 +758,21 @@ function handleDocumentClick(event) {
     moderateItem(actionTarget.dataset.itemId, "approved");
   } else if (action === "reject-item") {
     moderateItem(actionTarget.dataset.itemId, "rejected");
+  } else if (action === "assign-lead") {
+    assignLeadToMe(actionTarget.dataset.leadId);
+  } else if (action === "note-lead") {
+    editLeadNote(actionTarget.dataset.leadId);
+  } else if (action === "copy-lead-summary") {
+    copyLeadSummary(actionTarget.dataset.leadId);
+  } else if (action === "export-leads") {
+    exportLeadsCsv();
+  }
+}
+
+function handleDocumentChange(event) {
+  const statusSelect = event.target.closest("[data-lead-status]");
+  if (statusSelect) {
+    updateLeadStatus(statusSelect.dataset.leadStatus, statusSelect.value);
   }
 }
 
@@ -791,6 +878,7 @@ function renderDashboard() {
   renderMyItems();
   renderProposals();
   renderModerationQueue();
+  renderLeads();
 }
 
 function renderAgency() {
@@ -886,6 +974,61 @@ function renderModerationQueue() {
   }
 }
 
+function renderLeads() {
+  const visible = isModerator() && state.schemaFeatures.leads;
+  elements.leadsSection.hidden = !visible;
+
+  if (!visible) {
+    return;
+  }
+
+  elements.leadsList.innerHTML = "";
+  elements.leadsEmpty.hidden = state.leads.length > 0;
+
+  for (const lead of state.leads) {
+    elements.leadsList.appendChild(renderLeadCard(lead));
+  }
+}
+
+function renderLeadCard(lead) {
+  const requested = state.proposalsItemsById.get(lead.requested_item_id);
+  const requester = state.profilesById.get(lead.requester_id);
+  const owner = state.profilesById.get(lead.owner_id);
+  const assigned = state.profilesById.get(lead.assigned_to);
+  const card = document.createElement("article");
+  card.className = "moderation-card";
+
+  card.innerHTML = `
+    <div>
+      <div class="item-title-row">
+        <h3>${escapeHtml(requested?.title ?? "Imóvel do acordo inicial")}</h3>
+        <span class="pill status">${leadStatusLabels[lead.status] ?? lead.status}</span>
+      </div>
+      <p class="muted">Lead: ${escapeHtml(lead.id)}</p>
+      <p><strong>Interessado:</strong> ${escapeHtml(requester?.full_name ?? "Usuário")}</p>
+      <p><strong>Anunciante:</strong> ${escapeHtml(owner?.full_name ?? "Usuário")}</p>
+      <p><strong>Responsável:</strong> ${escapeHtml(assigned?.full_name ?? "Sem responsável")}</p>
+      <p><strong>Atualizado:</strong> ${formatDateTime(lead.updated_at)}</p>
+      ${lead.internal_notes ? `<p><strong>Observações internas:</strong> ${escapeHtml(truncate(lead.internal_notes, 220))}</p>` : ""}
+      <label class="inline-control">
+        Etapa
+        <select data-lead-status="${lead.id}">
+          ${Object.entries(leadStatusLabels)
+            .map(([value, label]) => `<option value="${value}" ${lead.status === value ? "selected" : ""}>${label}</option>`)
+            .join("")}
+        </select>
+      </label>
+    </div>
+    <div class="proposal-actions">
+      <button type="button" data-action="assign-lead" data-lead-id="${lead.id}">Assumir</button>
+      <button class="secondary" type="button" data-action="note-lead" data-lead-id="${lead.id}">Observação</button>
+      <button class="secondary" type="button" data-action="copy-lead-summary" data-lead-id="${lead.id}">Copiar resumo</button>
+    </div>
+  `;
+
+  return card;
+}
+
 function renderItemCard(item, options) {
   const images = state.imagesByItem.get(item.id) ?? [];
   const firstImage = images[0]?.public_url;
@@ -947,6 +1090,7 @@ function renderProposalCard(proposal, mode) {
   card.className = "proposal-card";
   const canRespond = proposal.status === "pending" && responderId === state.user.id;
   const canCancel = proposal.status === "pending" && createdBy === state.user.id;
+  const leadUpdate = state.leadUpdatesByProposalId.get(proposal.id);
 
   const cashText = proposal.cash_difference > 0
     ? `${formatter.format(Number(proposal.cash_difference))} - ${cashDirectionLabels[proposal.cash_direction]}`
@@ -988,6 +1132,7 @@ function renderProposalCard(proposal, mode) {
     <p><strong>Diferença:</strong> ${escapeHtml(cashText)}</p>
     ${proposal.version ? `<p class="muted">Versão ${Number(proposal.version)}${proposal.expires_at ? ` - expira em ${formatDateTime(proposal.expires_at)}` : ""}</p>` : ""}
     ${proposal.accepted_at ? `<p class="muted">Acordo inicial aceito em ${formatDateTime(proposal.accepted_at)}.</p>` : ""}
+    ${leadUpdate ? `<div class="contact-box"><strong>Acompanhamento da imobiliária</strong><span>${escapeHtml(leadStatusLabels[leadUpdate.status] ?? leadUpdate.status)} desde ${formatDateTime(leadUpdate.updated_at)}.</span></div>` : ""}
     ${proposal.status === "pending" ? `<p class="muted">${canRespond ? "Aguardando sua resposta." : "Aguardando resposta da outra pessoa."}</p>` : ""}
     ${proposal.message ? `<p><strong>Mensagem:</strong> ${escapeHtml(proposal.message)}</p>` : ""}
     ${proposal.status === "accepted" ? renderContactBox(contact) : ""}
@@ -1510,6 +1655,137 @@ async function moderateItem(itemId, moderationStatus) {
   await refreshAll();
 }
 
+async function updateLeadStatus(leadId, status) {
+  if (!isModerator() || !state.schemaFeatures.leads) {
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("negotiation_leads")
+    .update({ status })
+    .eq("id", leadId);
+
+  if (handleDbError(error, "atualizar etapa do lead")) {
+    return;
+  }
+
+  showNotice("Etapa do lead atualizada.");
+  await refreshAll();
+}
+
+async function assignLeadToMe(leadId) {
+  if (!isModerator() || !state.schemaFeatures.leads) {
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("negotiation_leads")
+    .update({ assigned_to: state.user.id })
+    .eq("id", leadId);
+
+  if (handleDbError(error, "atribuir lead")) {
+    return;
+  }
+
+  showNotice("Lead atribuído a você.");
+  await refreshAll();
+}
+
+async function editLeadNote(leadId) {
+  const lead = state.leads.find((candidate) => candidate.id === leadId);
+  if (!lead) {
+    return;
+  }
+
+  const note = prompt("Observação interna do lead:", lead.internal_notes ?? "");
+  if (note === null) {
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("negotiation_leads")
+    .update({ internal_notes: note.trim() || null })
+    .eq("id", leadId);
+
+  if (handleDbError(error, "salvar observação do lead")) {
+    return;
+  }
+
+  showNotice("Observação interna salva.");
+  await refreshAll();
+}
+
+async function copyLeadSummary(leadId) {
+  const lead = state.leads.find((candidate) => candidate.id === leadId);
+  if (!lead) {
+    return;
+  }
+
+  const summary = buildLeadSummary(lead);
+  try {
+    await navigator.clipboard.writeText(summary);
+    showNotice("Resumo do lead copiado.");
+  } catch (_error) {
+    prompt("Resumo do lead:", summary);
+  }
+}
+
+function exportLeadsCsv() {
+  if (!state.leads.length) {
+    showNotice("Não há leads para exportar.", "error");
+    return;
+  }
+
+  const rows = [
+    ["id", "status", "imovel", "interessado", "anunciante", "responsavel", "criado_em", "atualizado_em"],
+    ...state.leads.map((lead) => {
+      const requested = state.proposalsItemsById.get(lead.requested_item_id);
+      return [
+        lead.id,
+        leadStatusLabels[lead.status] ?? lead.status,
+        requested?.title ?? "",
+        state.profilesById.get(lead.requester_id)?.full_name ?? "",
+        state.profilesById.get(lead.owner_id)?.full_name ?? "",
+        state.profilesById.get(lead.assigned_to)?.full_name ?? "",
+        lead.created_at ?? "",
+        lead.updated_at ?? ""
+      ];
+    })
+  ];
+
+  const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `leads-repassecomrepasse-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function buildLeadSummary(lead) {
+  const requested = state.proposalsItemsById.get(lead.requested_item_id);
+  const requester = state.profilesById.get(lead.requester_id);
+  const owner = state.profilesById.get(lead.owner_id);
+  return [
+    `Lead: ${lead.id}`,
+    `Etapa: ${leadStatusLabels[lead.status] ?? lead.status}`,
+    `Imóvel: ${requested?.title ?? "Imóvel do acordo inicial"}`,
+    `Interessado: ${requester?.full_name ?? "Usuário"}`,
+    `Anunciante: ${owner?.full_name ?? "Usuário"}`,
+    `Criado em: ${formatDateTime(lead.created_at)}`,
+    `Atualizado em: ${formatDateTime(lead.updated_at)}`
+  ].join("\n");
+}
+
+function csvEscape(value) {
+  const text = String(value ?? "");
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
 function toggleFavorite(itemId) {
   if (state.favoriteItemIds.has(itemId)) {
     state.favoriteItemIds.delete(itemId);
@@ -2029,6 +2305,11 @@ function isMissingColumnError(error, columnName) {
 function isMissingFunctionError(error, functionName) {
   const message = error?.message || "";
   return message.includes(functionName) && (message.includes("function") || message.includes("schema cache"));
+}
+
+function isMissingRelationError(error, relationName) {
+  const message = error?.message || "";
+  return message.includes(relationName) && (message.includes("relation") || message.includes("schema cache"));
 }
 
 function isAdvancedProposalSchemaError(error) {

@@ -113,3 +113,12 @@
 | Reserva leve | Contrapartidas ficam reservadas por `reserved_until` para evitar uso simultaneo em propostas pendentes do mesmo usuario. |
 | Expiracao incremental | Propostas vencidas sao expiradas por RPC chamada em carregamentos e acoes; job agendado fica para a fase de notificacoes/jobs. |
 | Snapshot de aceite | O aceite grava `accepted_snapshot` com os termos essenciais para auditoria e encaminhamento. |
+
+## 2026-06-01 - Leads administrativos
+
+| Decisao | Registro |
+|---|---|
+| Lead nasce do aceite | Um lead interno e criado automaticamente quando uma proposta vira acordo inicial. |
+| Painel restrito | Leads completos, observacoes e atribuicao ficam visiveis apenas para `real_estate_admin` e `admin`. |
+| Acompanhamento publico minimo | Participantes veem somente etapa e datas resumidas por RPC, sem observacoes internas. |
+| Email adiado | O MVP copia um resumo seguro do lead; envio automatico fica para a fase de notificacoes. |
