@@ -1341,6 +1341,39 @@ begin
 end;
 $$;
 
+create or replace function public.log_audit_event(
+  p_action text,
+  p_entity_type text,
+  p_entity_id uuid default null,
+  p_metadata jsonb default '{}'::jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    return;
+  end if;
+
+  insert into public.audit_events (
+    actor_id,
+    action,
+    entity_type,
+    entity_id,
+    metadata
+  )
+  values (
+    auth.uid(),
+    left(coalesce(nullif(trim(p_action), ''), 'unknown'), 120),
+    left(coalesce(nullif(trim(p_entity_type), ''), 'unknown'), 80),
+    p_entity_id,
+    coalesce(p_metadata, '{}'::jsonb)
+  );
+end;
+$$;
+
 create or replace function public.expire_exchange_proposals()
 returns integer
 language plpgsql
@@ -1439,6 +1472,7 @@ declare
   v_proposal public.exchange_proposals;
   v_item_ids uuid[];
   v_required_count integer;
+  v_rejected_count integer;
 begin
   perform public.expire_exchange_proposals();
 
@@ -1566,6 +1600,22 @@ begin
       or offered_item_id = any(v_item_ids)
       or offered_item_2_id = any(v_item_ids)
     );
+
+  get diagnostics v_rejected_count = row_count;
+
+  perform public.log_audit_event(
+    'proposal_accepted',
+    'exchange_proposal',
+    v_proposal.id,
+    jsonb_build_object(
+      'requested_item_id', v_proposal.requested_item_id,
+      'offered_item_id', v_proposal.offered_item_id,
+      'offered_item_2_id', v_proposal.offered_item_2_id,
+      'proposal_type', v_proposal.proposal_type,
+      'version', v_proposal.version,
+      'rejected_competing_proposals', v_rejected_count
+    )
+  );
 end;
 $$;
 
@@ -1587,6 +1637,13 @@ begin
   if not found then
     raise exception 'Não foi possível recusar a proposta.';
   end if;
+
+  perform public.log_audit_event(
+    'proposal_rejected',
+    'exchange_proposal',
+    p_proposal_id,
+    '{}'::jsonb
+  );
 end;
 $$;
 
@@ -1608,6 +1665,13 @@ begin
   if not found then
     raise exception 'Não foi possível cancelar a proposta.';
   end if;
+
+  perform public.log_audit_event(
+    'proposal_cancelled',
+    'exchange_proposal',
+    p_proposal_id,
+    '{}'::jsonb
+  );
 end;
 $$;
 
@@ -1710,6 +1774,19 @@ begin
   )
   returning id into v_new_id;
 
+  perform public.log_audit_event(
+    'proposal_countered',
+    'exchange_proposal',
+    v_new_id,
+    jsonb_build_object(
+      'parent_proposal_id', v_proposal.id,
+      'proposal_type', v_proposal.proposal_type,
+      'version', coalesce(v_proposal.version, 1) + 1,
+      'cash_difference', p_cash_difference,
+      'cash_direction', p_cash_direction
+    )
+  );
+
   return v_new_id;
 end;
 $$;
@@ -1792,6 +1869,16 @@ begin
   perform public.enqueue_email(v_proposal.requester_id, 'Acordo final solicitado', 'Acesse o painel do repassecomrepasse para revisar os termos finais.', 'final_agreement', v_id);
   perform public.enqueue_email(v_proposal.owner_id, 'Acordo final solicitado', 'Acesse o painel do repassecomrepasse para revisar os termos finais.', 'final_agreement', v_id);
 
+  perform public.log_audit_event(
+    'final_agreement_requested',
+    'final_agreement',
+    v_id,
+    jsonb_build_object(
+      'proposal_id', p_proposal_id,
+      'version', v_next_version
+    )
+  );
+
   return v_id;
 end;
 $$;
@@ -1851,6 +1938,16 @@ begin
     'final_agreement',
     p_terms_id
   );
+
+  perform public.log_audit_event(
+    'final_agreement_accepted',
+    'final_agreement',
+    p_terms_id,
+    jsonb_build_object(
+      'proposal_id', v_terms.proposal_id,
+      'accepted_as', case when auth.uid() = v_proposal.requester_id then 'requester' else 'owner' end
+    )
+  );
 end;
 $$;
 
@@ -1908,6 +2005,13 @@ begin
   perform public.create_notification(ep.owner_id, 'final_agreement_finalized', 'Acordo final formalizado', 'A imobiliária formalizou a conclusão administrativa.', 'final_agreement', p_terms_id)
   from public.exchange_proposals ep
   where ep.id = v_terms.proposal_id;
+
+  perform public.log_audit_event(
+    'final_agreement_finalized',
+    'final_agreement',
+    p_terms_id,
+    jsonb_build_object('proposal_id', v_terms.proposal_id)
+  );
 end;
 $$;
 
@@ -1974,6 +2078,13 @@ begin
     'A outra parte solicitou cancelamento do acordo inicial. A administração fará a análise.',
     'agreement_cancellation',
     v_id
+  );
+
+  perform public.log_audit_event(
+    'agreement_cancellation_requested',
+    'agreement_cancellation',
+    v_id,
+    jsonb_build_object('proposal_id', p_proposal_id)
   );
 
   return v_id;
@@ -2077,6 +2188,16 @@ begin
     'agreement_cancellation',
     p_cancellation_id
   );
+
+  perform public.log_audit_event(
+    case when p_approved then 'agreement_cancellation_approved' else 'agreement_cancellation_rejected' end,
+    'agreement_cancellation',
+    p_cancellation_id,
+    jsonb_build_object(
+      'proposal_id', v_proposal.id,
+      'approved', p_approved
+    )
+  );
 end;
 $$;
 
@@ -2121,5 +2242,12 @@ begin
   update public.items
   set status = 'available'
   where id = any(v_item_ids);
+
+  perform public.log_audit_event(
+    'exchange_marked_failed',
+    'exchange_proposal',
+    p_proposal_id,
+    jsonb_build_object('reopened_items_count', coalesce(array_length(v_item_ids, 1), 0))
+  );
 end;
 $$;

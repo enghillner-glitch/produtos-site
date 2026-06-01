@@ -29,6 +29,7 @@ const requiredSqlObjects = [
   "final_agreement_terms",
   "notifications",
   "consent_records",
+  "log_audit_event",
   "accept_exchange_proposal",
   "request_final_agreement",
   "run_scheduled_maintenance"
@@ -37,6 +38,9 @@ const requiredSqlObjects = [
 for (const objectName of requiredSqlObjects) {
   assert(files.sql.includes(objectName), `supabase.sql deve conter ${objectName}`);
 }
+
+assert(files.js.includes("sanitizeAuditMetadata"), "app.js deve sanitizar metadados de auditoria");
+assert(files.js.includes("recordAuditEvent"), "app.js deve registrar eventos de auditoria");
 
 const forbiddenPublicTerms = [
   "checkout",

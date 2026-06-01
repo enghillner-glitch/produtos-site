@@ -127,7 +127,8 @@ const state = {
     cancellations: true,
     finalAgreements: true,
     notifications: true,
-    favorites: true
+    favorites: true,
+    audit: true
   },
   selectedDetailItem: null
 };
@@ -2047,6 +2048,10 @@ async function toggleItemStatus(itemId) {
     return;
   }
 
+  await recordAuditEvent("item_status_changed", "item", itemId, {
+    from_status: item.status,
+    to_status: nextStatus
+  });
   showNotice(nextStatus === "available" ? "Imóvel reativado." : "Imóvel inativado.");
   await refreshAll();
 }
@@ -2077,6 +2082,9 @@ async function renewItem(itemId) {
     return;
   }
 
+  await recordAuditEvent("item_renewed", "item", itemId, {
+    expires_at: payload.expires_at
+  });
   showNotice("Anúncio renovado por mais 30 dias.");
   await refreshAll();
 }
@@ -2110,6 +2118,9 @@ async function moderateItem(itemId, moderationStatus) {
     return;
   }
 
+  await recordAuditEvent("item_moderated", "item", itemId, {
+    moderation_status: moderationStatus
+  });
   showNotice(moderationStatus === "approved" ? "Anúncio aprovado." : "Ajuste solicitado ao anunciante.");
   await refreshAll();
 }
@@ -2128,6 +2139,7 @@ async function updateLeadStatus(leadId, status) {
     return;
   }
 
+  await recordAuditEvent("lead_status_changed", "negotiation_lead", leadId, { status });
   showNotice("Etapa do lead atualizada.");
   await refreshAll();
 }
@@ -2146,6 +2158,7 @@ async function markNotificationRead(notificationId) {
     return;
   }
 
+  await recordAuditEvent("notification_read", "notification", notificationId);
   await refreshAll();
 }
 
@@ -2163,6 +2176,7 @@ async function reviewReport(reportId) {
     return;
   }
 
+  await recordAuditEvent("report_reviewed", "report", reportId);
   showNotice("Denúncia marcada como revisada.");
   await refreshAll();
 }
@@ -2181,6 +2195,9 @@ async function assignLeadToMe(leadId) {
     return;
   }
 
+  await recordAuditEvent("lead_assigned", "negotiation_lead", leadId, {
+    assigned_to_self: true
+  });
   showNotice("Lead atribuído a você.");
   await refreshAll();
 }
@@ -2205,6 +2222,9 @@ async function editLeadNote(leadId) {
     return;
   }
 
+  await recordAuditEvent("lead_internal_note_updated", "negotiation_lead", leadId, {
+    has_internal_note: Boolean(note.trim())
+  });
   showNotice("Observação interna salva.");
   await refreshAll();
 }
@@ -2562,6 +2582,14 @@ async function sendProposal(event) {
     return;
   }
 
+  await recordAuditEvent("proposal_created", "exchange_proposal", null, {
+    requested_item_id: requested.id,
+    offered_item_id: offered?.id ?? null,
+    offered_item_2_id: offered2?.id ?? null,
+    proposal_type: payload.proposal_type ?? "item",
+    cash_direction: payload.cash_direction,
+    has_cash_difference: Number(payload.cash_difference ?? 0) > 0
+  });
   closeModals();
   showNotice("Proposta enviada.");
   await refreshAll();
@@ -2788,6 +2816,11 @@ async function reportTarget(targetType, itemId, userId) {
     return;
   }
 
+  await recordAuditEvent("report_created", "report", null, {
+    target_type: targetType,
+    target_item_id: itemId || null,
+    target_user_id: userId || null
+  });
   showNotice("Denúncia registrada para revisão.");
 }
 
@@ -2937,6 +2970,39 @@ function isMissingFunctionError(error, functionName) {
 function isMissingRelationError(error, relationName) {
   const message = error?.message || "";
   return message.includes(relationName) && (message.includes("relation") || message.includes("schema cache"));
+}
+
+async function recordAuditEvent(action, entityType, entityId = null, metadata = {}) {
+  if (!state.user || !state.schemaFeatures.audit) {
+    return;
+  }
+
+  const { error } = await supabaseClient.from("audit_events").insert({
+    actor_id: state.user.id,
+    action,
+    entity_type: entityType,
+    entity_id: entityId,
+    metadata: sanitizeAuditMetadata(metadata)
+  });
+
+  if (isMissingRelationError(error, "audit_events")) {
+    state.schemaFeatures.audit = false;
+    return;
+  }
+
+  if (error) {
+    console.warn("Falha ao registrar auditoria:", error.message || error);
+  }
+}
+
+function sanitizeAuditMetadata(metadata) {
+  const blocked = ["cpf", "cnpj", "document", "phone", "whatsapp", "address", "reason", "note", "terms", "message"];
+  return Object.fromEntries(
+    Object.entries(metadata ?? {}).filter(([key, value]) => {
+      const normalizedKey = normalize(key).toLowerCase();
+      return value !== undefined && !blocked.some((blockedKey) => normalizedKey.includes(blockedKey));
+    })
+  );
 }
 
 function isAdvancedProposalSchemaError(error) {
