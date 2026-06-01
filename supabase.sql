@@ -357,6 +357,19 @@ alter table public.exchange_proposals
     and (offered_item_id is null or offered_item_2_id is null or offered_item_id <> offered_item_2_id)
   );
 
+update public.exchange_proposals
+set proposal_type = 'mixed'
+where proposal_type = 'item'
+  and offered_item_id is not null
+  and cash_difference > 0
+  and cash_direction in ('requester_pays', 'owner_pays');
+
+update public.exchange_proposals
+set cash_difference = 0,
+    cash_direction = 'none'
+where proposal_type = 'item'
+  and (cash_difference <> 0 or cash_direction <> 'none');
+
 alter table public.exchange_proposals drop constraint if exists exchange_offer_type_check;
 alter table public.exchange_proposals
   add constraint exchange_offer_type_check
@@ -371,6 +384,8 @@ alter table public.exchange_proposals
     or (
       proposal_type = 'item'
       and offered_item_id is not null
+      and cash_difference = 0
+      and cash_direction = 'none'
     )
     or (
       proposal_type = 'mixed'
@@ -792,9 +807,10 @@ drop policy if exists "items own update" on public.items;
 create policy "items own update"
   on public.items
   for update
-  using (owner_id = auth.uid())
+  using (owner_id = auth.uid() and status <> 'traded')
   with check (
     owner_id = auth.uid()
+    and status <> 'traded'
     and exists (
       select 1
       from public.profiles p
@@ -941,12 +957,23 @@ create policy "proposals valid insert"
         and owner_profile.account_status = 'active'
     )
     and (
-      proposal_type = 'cash'
-      and offered_item_id is null
-      and offered_item_2_id is null
-      and cash_difference > 0
-      and cash_direction <> 'none'
-      or proposal_type in ('item', 'mixed')
+      (
+        proposal_type = 'cash'
+        and offered_item_id is null
+        and offered_item_2_id is null
+        and cash_difference > 0
+        and cash_direction <> 'none'
+      )
+      or (
+        proposal_type = 'item'
+        and cash_difference = 0
+        and cash_direction = 'none'
+      )
+      or (
+        proposal_type = 'mixed'
+        and cash_difference > 0
+        and cash_direction <> 'none'
+      )
     )
     and (
       offered_item_id is null
@@ -1740,6 +1767,7 @@ declare
   v_proposal public.exchange_proposals;
   v_new_id uuid;
   v_next_responder uuid;
+  v_next_proposal_type text;
 begin
   perform public.expire_exchange_proposals();
 
@@ -1777,6 +1805,12 @@ begin
     p_cash_direction := 'none';
   end if;
 
+  v_next_proposal_type := case
+    when v_proposal.proposal_type = 'cash' then 'cash'
+    when p_cash_difference > 0 then 'mixed'
+    else 'item'
+  end;
+
   v_next_responder := case
     when auth.uid() = v_proposal.requester_id then v_proposal.owner_id
     else v_proposal.requester_id
@@ -1808,7 +1842,7 @@ begin
     v_proposal.requested_item_id,
     v_proposal.offered_item_id,
     v_proposal.offered_item_2_id,
-    v_proposal.proposal_type,
+    v_next_proposal_type,
     v_proposal.requester_id,
     v_proposal.owner_id,
     auth.uid(),
@@ -1830,7 +1864,7 @@ begin
     v_new_id,
     jsonb_build_object(
       'parent_proposal_id', v_proposal.id,
-      'proposal_type', v_proposal.proposal_type,
+      'proposal_type', v_next_proposal_type,
       'version', coalesce(v_proposal.version, 1) + 1,
       'cash_difference', p_cash_difference,
       'cash_direction', p_cash_direction
@@ -1877,6 +1911,15 @@ begin
 
   if v_proposal.status <> 'accepted' then
     raise exception 'Acordo final exige acordo inicial aceito.';
+  end if;
+
+  if exists (
+    select 1
+    from public.agreement_cancellations cancellation
+    where cancellation.proposal_id = p_proposal_id
+      and cancellation.status = 'requested'
+  ) then
+    raise exception 'Existe pedido de cancelamento pendente para este acordo.';
   end if;
 
   if nullif(trim(coalesce(p_terms_text, '')), '') is null then
@@ -1961,6 +2004,19 @@ begin
   into v_proposal
   from public.exchange_proposals
   where id = v_terms.proposal_id;
+
+  if not found or v_proposal.status <> 'accepted' then
+    raise exception 'Termos finais exigem acordo inicial aceito.';
+  end if;
+
+  if exists (
+    select 1
+    from public.agreement_cancellations cancellation
+    where cancellation.proposal_id = v_proposal.id
+      and cancellation.status = 'requested'
+  ) then
+    raise exception 'Nao e possivel aceitar acordo final com cancelamento pendente.';
+  end if;
 
   if auth.uid() = v_proposal.requester_id then
     update public.final_agreement_terms
@@ -2096,6 +2152,15 @@ begin
     raise exception 'Somente acordo inicial aceito pode receber pedido de cancelamento.';
   end if;
 
+  if exists (
+    select 1
+    from public.final_agreement_terms terms
+    where terms.proposal_id = p_proposal_id
+      and terms.status in ('accepted', 'finalized')
+  ) then
+    raise exception 'Acordo final aceito ou formalizado nao pode voltar para cancelamento simples.';
+  end if;
+
   if nullif(trim(coalesce(p_reason, '')), '') is null then
     raise exception 'Informe o motivo do cancelamento.';
   end if;
@@ -2215,6 +2280,11 @@ begin
     update public.negotiation_leads
     set status = 'cancelled'
     where proposal_id = v_proposal.id;
+
+    update public.final_agreement_terms
+    set status = 'cancelled'
+    where proposal_id = v_proposal.id
+      and status = 'requested';
   else
     update public.negotiation_leads
     set status = 'negotiation'
@@ -2271,8 +2341,8 @@ begin
     raise exception 'Proposta não encontrada.';
   end if;
 
-  if auth.uid() not in (v_proposal.requester_id, v_proposal.owner_id) then
-    raise exception 'Apenas participantes podem reabrir a negociação.';
+  if coalesce(current_setting('request.jwt.claim.role', true), '') <> 'service_role' then
+    raise exception 'Use o fluxo rastreavel de solicitacao e resolucao de cancelamento.';
   end if;
 
   if v_proposal.status <> 'accepted' then
@@ -2334,6 +2404,6 @@ grant execute on function public.accept_final_agreement(uuid) to authenticated;
 grant execute on function public.finalize_final_agreement(uuid) to authenticated;
 grant execute on function public.request_agreement_cancellation(uuid, text) to authenticated;
 grant execute on function public.resolve_agreement_cancellation(uuid, boolean, text) to authenticated;
-grant execute on function public.mark_exchange_failed(uuid) to authenticated;
 
 grant execute on function public.run_scheduled_maintenance() to service_role;
+grant execute on function public.mark_exchange_failed(uuid) to service_role;

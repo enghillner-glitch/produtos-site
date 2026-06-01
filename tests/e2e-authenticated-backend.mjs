@@ -63,6 +63,33 @@ export async function runAuthenticatedBackendE2E(options = {}) {
     assertEqual(new Set(tradedItems.map((item) => item.status)).size, 1, "imoveis devem ter mesmo status");
     assertEqual(tradedItems[0].status, "traded", "imoveis devem ficar em acordo");
 
+    await expectRpcFailure(
+      supabaseUrl,
+      anonKey,
+      requesterSession.access_token,
+      "mark_exchange_failed",
+      { p_proposal_id: proposal.id },
+      "participante nao deve conseguir reabrir acordo aceito por RPC legado"
+    );
+
+    const directItemUpdate = await patchItemAsUser(
+      supabaseUrl,
+      anonKey,
+      ownerSession.access_token,
+      requestedItem.id,
+      { status: "available" }
+    );
+    assertEqual(directItemUpdate.length, 0, "dono nao deve alterar diretamente imovel em acordo");
+
+    const stillTradedItems = await getRows(
+      supabaseUrl,
+      serviceRoleKey,
+      "items",
+      `id=in.(${requestedItem.id},${offeredItem.id})&select=id,status`
+    );
+    assertEqual(new Set(stillTradedItems.map((item) => item.status)).size, 1, "imoveis devem seguir com mesmo status apos tentativa direta");
+    assertEqual(stillTradedItems[0].status, "traded", "imoveis devem continuar em acordo apos tentativa direta");
+
     const visibleContact = await getRows(
       supabaseUrl,
       anonKey,
@@ -109,7 +136,9 @@ export async function runAuthenticatedBackendE2E(options = {}) {
       proposalStatus: failedProposal.status,
       itemStatus: reopenedItems[0].status,
       contactReleasedForParticipant: visibleContact.length === 1,
-      contactHiddenForNonParticipant: hiddenContact.length === 0
+      contactHiddenForNonParticipant: hiddenContact.length === 0,
+      legacyFailureRpcBlocked: true,
+      directTradedItemUpdateBlocked: directItemUpdate.length === 0
     };
   } finally {
     await Promise.allSettled(users.map((id) => deleteUser(supabaseUrl, serviceRoleKey, id)));
@@ -243,6 +272,24 @@ async function createProposal(options) {
 async function callRpc(supabaseUrl, apikey, token, name, body) {
   return restFetch(supabaseUrl, apikey, token, `rpc/${name}`, {
     method: "POST",
+    body
+  });
+}
+
+async function expectRpcFailure(supabaseUrl, apikey, token, name, body, message) {
+  try {
+    await callRpc(supabaseUrl, apikey, token, name, body);
+  } catch (_error) {
+    return;
+  }
+
+  throw new Error(message);
+}
+
+async function patchItemAsUser(supabaseUrl, apikey, token, itemId, body) {
+  return restFetch(supabaseUrl, apikey, token, `items?id=eq.${itemId}&select=id,status`, {
+    method: "PATCH",
+    prefer: "return=representation",
     body
   });
 }

@@ -129,7 +129,8 @@
 |---|---|
 | Cancelamento rastreavel | Depois do acordo inicial, o participante solicita cancelamento com motivo em vez de reabrir imoveis diretamente. |
 | Resolucao administrativa | A administracao aprova para liberar os imoveis ou rejeita para devolver o lead a negociacao. |
-| Compatibilidade temporaria | O RPC antigo `mark_exchange_failed` permanece como fallback enquanto ambientes sem a nova migracao existirem. |
+| Compatibilidade encerrada no schema novo | Com a migracao avancada aplicada, `mark_exchange_failed` deixou de ser executavel por `authenticated`; participantes usam somente solicitacao e resolucao rastreavel de cancelamento. |
+| Imovel em acordo protegido | Donos nao podem editar, inativar, renovar ou reabrir diretamente imoveis com status `traded`; a liberacao volta pelo fluxo administrativo de cancelamento. |
 
 ## 2026-06-01 - Acordo final
 
@@ -138,6 +139,7 @@
 | Termos versionados | Cada pedido de acordo final cria nova versao em `final_agreement_terms`, cancelando versoes pendentes anteriores. |
 | Aceite bilateral | Interessado e anunciante aceitam separadamente; o status passa a `accepted` somente com os dois aceites. |
 | Fechamento administrativo | Somente administracao formaliza a conclusao e fecha o lead. |
+| Cancelamento simples bloqueado depois do acordo final | Depois que os termos finais sao aceitos ou formalizados, o acordo nao volta ao cancelamento simples do acordo inicial. |
 
 ## 2026-06-01 - Notificacoes e jobs
 

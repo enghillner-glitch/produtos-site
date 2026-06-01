@@ -1428,15 +1428,18 @@ function renderItemCard(item, options) {
   article.className = "item-card";
   const displayStatus = getItemDisplayStatus(item);
 
+  const ownerActions = item.status === "traded"
+    ? '<span class="pill status traded">Em acompanhamento interno</span>'
+    : `
+      <button class="secondary" type="button" data-action="edit-item" data-item-id="${item.id}">Editar</button>
+      <button class="secondary" type="button" data-action="toggle-item" data-item-id="${item.id}">
+        ${item.status === "inactive" ? "Reativar" : "Inativar"}
+      </button>
+      <button class="secondary" type="button" data-action="renew-item" data-item-id="${item.id}">Renovar</button>
+    `;
   const actionButtons =
     options.context === "mine"
-      ? `
-        <button class="secondary" type="button" data-action="edit-item" data-item-id="${item.id}">Editar</button>
-        <button class="secondary" type="button" data-action="toggle-item" data-item-id="${item.id}">
-          ${item.status === "inactive" ? "Reativar" : "Inativar"}
-        </button>
-        ${item.status === "traded" ? "" : `<button class="secondary" type="button" data-action="renew-item" data-item-id="${item.id}">Renovar</button>`}
-      `
+      ? ownerActions
       : `
         <button type="button" data-action="view-item" data-item-id="${item.id}">Ver detalhes</button>
         <button class="secondary" type="button" data-action="favorite-item" data-item-id="${item.id}">
@@ -1504,7 +1507,8 @@ function renderProposalCard(proposal, mode) {
   if (canCancel) {
     actions.push(`<button class="secondary" type="button" data-action="cancel-proposal" data-proposal-id="${proposal.id}">Cancelar</button>`);
   }
-  if (proposal.status === "accepted") {
+  const finalAgreementLocked = ["accepted", "finalized"].includes(finalAgreement?.status);
+  if (proposal.status === "accepted" && !finalAgreementLocked) {
     if (cancellation?.status === "requested") {
       actions.push(`<span class="pill status">Cancelamento solicitado</span>`);
     } else if (state.schemaFeatures.cancellations) {
@@ -1896,6 +1900,11 @@ async function openItemForm(itemId) {
   }
 
   const item = itemId ? state.myItems.find((candidate) => candidate.id === itemId) : null;
+  if (item?.status === "traded") {
+    showNotice("Imovel em acordo nao pode ser editado fora do fluxo da negociacao.", "error");
+    return;
+  }
+
   elements.itemForm.reset();
   state.formOpenedAt.item = Date.now();
   elements.itemId.value = item?.id ?? "";
@@ -1950,6 +1959,12 @@ async function saveItem(event) {
   }
 
   const itemId = elements.itemId.value;
+  const currentItem = itemId ? state.myItems.find((candidate) => candidate.id === itemId) : null;
+  if (currentItem?.status === "traded") {
+    showNotice("Imovel em acordo nao pode ser alterado fora do fluxo da negociacao.", "error");
+    return;
+  }
+
   const files = Array.from(elements.itemImages.files ?? []);
   const existingImages = itemId ? (state.imagesByItem.get(itemId) ?? []) : [];
   const invalidFile = files.find((file) => !["image/jpeg", "image/png", "image/webp"].includes(file.type));
@@ -2220,6 +2235,11 @@ async function toggleItemStatus(itemId) {
     return;
   }
 
+  if (item.status === "traded") {
+    showNotice("Imovel em acordo nao pode ser inativado ou reativado manualmente.", "error");
+    return;
+  }
+
   const nextStatus = item.status === "inactive" ? "available" : "inactive";
   const updatePayload = { status: nextStatus };
   if (nextStatus === "available" && item.expires_at !== undefined) {
@@ -2251,8 +2271,13 @@ async function renewItem(itemId) {
     return;
   }
 
+  if (item.status === "traded") {
+    showNotice("Imovel em acordo nao pode ser renovado manualmente.", "error");
+    return;
+  }
+
   const payload = {
-    status: item.status === "traded" ? "traded" : "available",
+    status: "available",
     expires_at: daysFromNowIso(30),
     renewed_at: new Date().toISOString()
   };
@@ -2906,6 +2931,12 @@ async function counterProposal(proposalId) {
 }
 
 async function requestAgreementCancellation(proposalId) {
+  const finalAgreement = state.finalAgreementsByProposalId.get(proposalId);
+  if (["accepted", "finalized"].includes(finalAgreement?.status)) {
+    showNotice("Acordo final aceito ou formalizado nao pode voltar para cancelamento simples.", "error");
+    return;
+  }
+
   if (!state.schemaFeatures.cancellations) {
     runProposalRpc("mark_exchange_failed", proposalId);
     return;

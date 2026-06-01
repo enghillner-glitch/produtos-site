@@ -97,7 +97,7 @@ $env:SUPABASE_SERVICE_ROLE_KEY='<service-role-key>'
 node tests/e2e-authenticated-backend.mjs
 ```
 
-O teste cria usuarios e imoveis temporarios, valida proposta, aceite, contato restrito e cancelamento, e remove os usuarios ao final.
+O teste cria usuarios e imoveis temporarios, valida proposta, aceite, contato restrito, bloqueio de reabertura direta fora do fluxo, cancelamento administrativo e remove os usuarios ao final.
 
 ## Proximos passos
 

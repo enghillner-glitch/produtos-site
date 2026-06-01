@@ -68,6 +68,12 @@ assert(files.sql.includes("revoke execute on function public.run_scheduled_maint
 assert(files.sql.includes("revoke execute on function public.log_audit_event(text, text, uuid, jsonb) from public, anon, authenticated"), "log_audit_event deve ser bloqueada para anon antes do grant authenticated");
 assert(files.sql.includes("grant execute on function public.run_scheduled_maintenance() to service_role"), "manutencao deve ficar restrita ao service_role");
 assert(files.sql.includes("grant execute on function public.accept_exchange_proposal(uuid) to authenticated"), "RPCs de usuario devem ser liberadas apenas para authenticated");
+assert(files.sql.includes("using (owner_id = auth.uid() and status <> 'traded')"), "dono nao deve editar imovel em acordo por RLS");
+assert(files.sql.includes("grant execute on function public.mark_exchange_failed(uuid) to service_role"), "RPC legado de falha deve ficar restrito ao service_role");
+assert(!files.sql.includes("grant execute on function public.mark_exchange_failed(uuid) to authenticated"), "RPC legado de falha nao deve ficar liberado para participantes");
+assert(/proposal_type = 'item'\s+and offered_item_id is not null\s+and cash_difference = 0/.test(files.sql), "proposta somente por imovel nao deve carregar diferenca em dinheiro");
+assert(files.sql.includes("v_next_proposal_type"), "contraproposta deve recalcular tipo quando diferenca em dinheiro muda");
+assert(files.sql.includes("Acordo final aceito ou formalizado nao pode voltar para cancelamento simples"), "cancelamento simples deve ser bloqueado depois do acordo final aceito");
 assert(files.js.includes("renderInitialAgreementBox"), "app.js deve renderizar acordo inicial formal");
 assert(files.html.includes('data-auth-action="resend-confirmation"'), "index.html deve permitir reenviar confirmacao de email");
 assert(files.js.includes("supabaseClient.auth.resend"), "app.js deve usar reenvio de confirmacao do Supabase Auth");
@@ -89,6 +95,8 @@ assert(files.e2ePublic.includes("e2e-public-flow ok"), "tests/e2e-public-flow.mj
 assert(files.e2eAuthenticated.includes("runAuthenticatedBackendE2E"), "tests/e2e-authenticated-backend.mjs deve existir");
 assert(files.e2eAuthenticated.includes("contactHiddenForNonParticipant"), "E2E autenticado deve validar contato restrito");
 assert(files.e2eAuthenticated.includes("request_agreement_cancellation"), "E2E autenticado deve validar cancelamento");
+assert(files.e2eAuthenticated.includes("legacyFailureRpcBlocked"), "E2E autenticado deve validar bloqueio do RPC legado de falha");
+assert(files.e2eAuthenticated.includes("directTradedItemUpdateBlocked"), "E2E autenticado deve validar bloqueio de update direto de imovel em acordo");
 assert(files.backupDryRun.includes("backup-restore-dry-run ok"), "tests/backup-restore-dry-run.mjs deve existir");
 assert(files.imageSecurity.includes("OCR no navegador"), "SEGURANCA_IMAGENS.md deve documentar OCR");
 assert(files.backupScript.includes("SUPABASE_DB_URL"), "backup-project.mjs deve suportar dump real do Supabase");
