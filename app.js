@@ -105,6 +105,7 @@ const state = {
   cancellationsByProposalId: new Map(),
   finalAgreements: [],
   finalAgreementsByProposalId: new Map(),
+  notifications: [],
   leadUpdatesByProposalId: new Map(),
   proposals: [],
   imagesByItem: new Map(),
@@ -119,7 +120,8 @@ const state = {
     advancedProposals: true,
     leads: true,
     cancellations: true,
-    finalAgreements: true
+    finalAgreements: true,
+    notifications: true
   },
   selectedDetailItem: null
 };
@@ -142,6 +144,8 @@ const elements = {
   agencyCard: $("agencyCard"),
   authControls: $("authControls"),
   pendingBadge: $("pendingBadge"),
+  notificationsList: $("notificationsList"),
+  notificationsEmpty: $("notificationsEmpty"),
   searchInput: $("searchInput"),
   stateFilter: $("stateFilter"),
   cityFilter: $("cityFilter"),
@@ -415,6 +419,7 @@ async function loadUserData() {
   state.cancellationsByProposalId = new Map();
   state.finalAgreements = [];
   state.finalAgreementsByProposalId = new Map();
+  state.notifications = [];
   state.leadUpdatesByProposalId = new Map();
   state.proposals = [];
   state.proposalsItemsById = new Map();
@@ -434,7 +439,8 @@ async function loadUserData() {
     loadLeads(),
     loadLeadUpdates(),
     loadCancellations(),
-    loadFinalAgreements()
+    loadFinalAgreements(),
+    loadNotifications()
   ]);
 }
 
@@ -720,6 +726,31 @@ async function loadFinalAgreements() {
   }
 }
 
+async function loadNotifications() {
+  state.notifications = [];
+
+  if (!state.schemaFeatures.notifications) {
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("notifications")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (isMissingRelationError(error, "notifications")) {
+    state.schemaFeatures.notifications = false;
+    return;
+  }
+
+  if (handleDbError(error, "carregar notificações")) {
+    return;
+  }
+
+  state.notifications = data ?? [];
+}
+
 async function loadProfiles(userIds) {
   if (!userIds.length) {
     return;
@@ -874,6 +905,8 @@ function handleDocumentClick(event) {
     acceptFinalAgreement(actionTarget.dataset.finalId);
   } else if (action === "finalize-final-agreement") {
     finalizeFinalAgreement(actionTarget.dataset.finalId);
+  } else if (action === "mark-notification-read") {
+    markNotificationRead(actionTarget.dataset.notificationId);
   }
 }
 
@@ -984,6 +1017,7 @@ function renderDashboard() {
   elements.profileStatus.classList.toggle("inactive", accountInactive);
 
   renderMyItems();
+  renderNotifications();
   renderProposals();
   renderModerationQueue();
   renderLeads();
@@ -1024,6 +1058,26 @@ function renderMyItems() {
 
   for (const item of state.myItems) {
     elements.myItemsGrid.appendChild(renderItemCard(item, { context: "mine" }));
+  }
+}
+
+function renderNotifications() {
+  elements.notificationsList.innerHTML = "";
+  elements.notificationsEmpty.hidden = state.notifications.length > 0;
+
+  for (const notification of state.notifications) {
+    const card = document.createElement("article");
+    card.className = "proposal-card";
+    card.innerHTML = `
+      <div class="item-title-row">
+        <h3>${escapeHtml(notification.title)}</h3>
+        <span class="pill status">${notification.read_at ? "Lida" : "Nova"}</span>
+      </div>
+      <p>${escapeHtml(notification.body)}</p>
+      <p class="muted">${formatDateTime(notification.created_at)}</p>
+      ${notification.read_at ? "" : `<div class="proposal-actions"><button class="secondary" type="button" data-action="mark-notification-read" data-notification-id="${notification.id}">Marcar como lida</button></div>`}
+    `;
+    elements.notificationsList.appendChild(card);
   }
 }
 
@@ -1848,6 +1902,23 @@ async function updateLeadStatus(leadId, status) {
   }
 
   showNotice("Etapa do lead atualizada.");
+  await refreshAll();
+}
+
+async function markNotificationRead(notificationId) {
+  if (!state.schemaFeatures.notifications) {
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("id", notificationId);
+
+  if (handleDbError(error, "marcar notificação como lida")) {
+    return;
+  }
+
   await refreshAll();
 }
 

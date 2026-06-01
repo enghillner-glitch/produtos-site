@@ -138,3 +138,11 @@
 | Termos versionados | Cada pedido de acordo final cria nova versao em `final_agreement_terms`, cancelando versoes pendentes anteriores. |
 | Aceite bilateral | Interessado e anunciante aceitam separadamente; o status passa a `accepted` somente com os dois aceites. |
 | Fechamento administrativo | Somente administracao formaliza a conclusao e fecha o lead. |
+
+## 2026-06-01 - Notificacoes e jobs
+
+| Decisao | Registro |
+|---|---|
+| Notificacao interna primeiro | O MVP usa notificacoes internas no painel como canal confiavel antes de automacao externa de email. |
+| Fila de email preparada | Eventos importantes enfileiram mensagens em `email_queue`, mas envio real depende de integracao futura. |
+| Job como RPC | Manutencao agendada fica encapsulada em `run_scheduled_maintenance` para acionar por cron externo depois. |

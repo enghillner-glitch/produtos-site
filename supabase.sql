@@ -199,6 +199,31 @@ create table if not exists public.final_agreement_terms (
   unique (proposal_id, version)
 );
 
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  type text not null,
+  title text not null,
+  body text not null,
+  entity_type text,
+  entity_id uuid,
+  read_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.email_queue (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references public.profiles(id) on delete set null,
+  to_email text,
+  subject text not null,
+  body text not null,
+  status text not null default 'queued' check (status in ('queued', 'sent', 'failed', 'skipped')),
+  related_entity_type text,
+  related_entity_id uuid,
+  created_at timestamptz not null default now(),
+  processed_at timestamptz
+);
+
 alter table public.profiles
   add column if not exists user_type text not null default 'individual',
   add column if not exists role text not null default 'user',
@@ -440,6 +465,8 @@ create index if not exists agreement_cancellations_proposal_idx on public.agreem
 create index if not exists agreement_cancellations_requested_idx on public.agreement_cancellations(requested_by, created_at desc);
 create index if not exists final_agreement_terms_proposal_idx on public.final_agreement_terms(proposal_id, version desc);
 create index if not exists final_agreement_terms_status_idx on public.final_agreement_terms(status, updated_at desc);
+create index if not exists notifications_user_idx on public.notifications(user_id, created_at desc);
+create index if not exists email_queue_status_idx on public.email_queue(status, created_at asc);
 
 insert into public.real_estate_agencies (
   legal_name,
@@ -616,6 +643,8 @@ alter table public.real_estate_agencies enable row level security;
 alter table public.negotiation_leads enable row level security;
 alter table public.agreement_cancellations enable row level security;
 alter table public.final_agreement_terms enable row level security;
+alter table public.notifications enable row level security;
+alter table public.email_queue enable row level security;
 
 drop policy if exists "profiles public read" on public.profiles;
 create policy "profiles public read"
@@ -1071,6 +1100,33 @@ create policy "final agreements participant read"
     )
   );
 
+drop policy if exists "notifications own read" on public.notifications;
+create policy "notifications own read"
+  on public.notifications
+  for select
+  using (user_id = auth.uid());
+
+drop policy if exists "notifications own update" on public.notifications;
+create policy "notifications own update"
+  on public.notifications
+  for update
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+drop policy if exists "email queue admin read" on public.email_queue;
+create policy "email queue admin read"
+  on public.email_queue
+  for select
+  using (
+    exists (
+      select 1
+      from public.profiles moderator
+      where moderator.id = auth.uid()
+        and moderator.role in ('real_estate_admin', 'admin')
+        and moderator.account_status = 'active'
+    )
+  );
+
 insert into storage.buckets (id, name, public)
 values ('item-images', 'item-images', true)
 on conflict (id) do update set public = true;
@@ -1100,6 +1156,102 @@ create policy "item images storage own delete"
     and auth.uid() is not null
     and name like auth.uid()::text || '/%'
   );
+
+create or replace function public.create_notification(
+  p_user_id uuid,
+  p_type text,
+  p_title text,
+  p_body text,
+  p_entity_type text default null,
+  p_entity_id uuid default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_user_id is null then
+    return;
+  end if;
+
+  insert into public.notifications (
+    user_id,
+    type,
+    title,
+    body,
+    entity_type,
+    entity_id
+  )
+  values (
+    p_user_id,
+    p_type,
+    p_title,
+    p_body,
+    p_entity_type,
+    p_entity_id
+  );
+end;
+$$;
+
+create or replace function public.enqueue_email(
+  p_user_id uuid,
+  p_subject text,
+  p_body text,
+  p_entity_type text default null,
+  p_entity_id uuid default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.email_queue (
+    user_id,
+    subject,
+    body,
+    related_entity_type,
+    related_entity_id,
+    status
+  )
+  values (
+    p_user_id,
+    p_subject,
+    p_body,
+    p_entity_type,
+    p_entity_id,
+    'queued'
+  );
+end;
+$$;
+
+create or replace function public.run_scheduled_maintenance()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_expired integer;
+  v_marked integer;
+begin
+  v_expired := public.expire_exchange_proposals();
+
+  update public.email_queue
+  set status = 'skipped',
+      processed_at = now()
+  where status = 'queued'
+    and to_email is null;
+
+  get diagnostics v_marked = row_count;
+
+  return jsonb_build_object(
+    'expired_proposals', v_expired,
+    'emails_without_destination_marked', v_marked
+  );
+end;
+$$;
 
 create or replace function public.expire_exchange_proposals()
 returns integer
@@ -1250,6 +1402,23 @@ begin
     )
   )
   on conflict (proposal_id) do nothing;
+
+  perform public.create_notification(
+    v_proposal.requester_id,
+    'proposal_accepted',
+    'Acordo inicial aceito',
+    'Uma proposta foi aceita e seguirá para acompanhamento da imobiliária.',
+    'exchange_proposal',
+    v_proposal.id
+  );
+  perform public.create_notification(
+    v_proposal.owner_id,
+    'proposal_accepted',
+    'Acordo inicial aceito',
+    'Você aceitou uma proposta e ela seguirá para acompanhamento da imobiliária.',
+    'exchange_proposal',
+    v_proposal.id
+  );
 
   update public.exchange_proposals
   set status = 'rejected'
@@ -1481,6 +1650,11 @@ begin
   where proposal_id = p_proposal_id
     and status <> 'closed';
 
+  perform public.create_notification(v_proposal.requester_id, 'final_agreement_requested', 'Acordo final solicitado', 'A imobiliária enviou os termos finais para seu aceite.', 'final_agreement', v_id);
+  perform public.create_notification(v_proposal.owner_id, 'final_agreement_requested', 'Acordo final solicitado', 'A imobiliária enviou os termos finais para seu aceite.', 'final_agreement', v_id);
+  perform public.enqueue_email(v_proposal.requester_id, 'Acordo final solicitado', 'Acesse o painel do repassecomrepasse para revisar os termos finais.', 'final_agreement', v_id);
+  perform public.enqueue_email(v_proposal.owner_id, 'Acordo final solicitado', 'Acesse o painel do repassecomrepasse para revisar os termos finais.', 'final_agreement', v_id);
+
   return v_id;
 end;
 $$;
@@ -1531,6 +1705,15 @@ begin
   where id = p_terms_id
     and requester_accepted_at is not null
     and owner_accepted_at is not null;
+
+  perform public.create_notification(
+    case when auth.uid() = v_proposal.requester_id then v_proposal.owner_id else v_proposal.requester_id end,
+    'final_agreement_acceptance',
+    'Aceite de acordo final registrado',
+    'A outra parte registrou aceite dos termos finais.',
+    'final_agreement',
+    p_terms_id
+  );
 end;
 $$;
 
@@ -1576,6 +1759,18 @@ begin
   update public.negotiation_leads
   set status = 'closed'
   where proposal_id = v_terms.proposal_id;
+
+  select *
+  into v_terms
+  from public.final_agreement_terms
+  where id = p_terms_id;
+
+  perform public.create_notification(ep.requester_id, 'final_agreement_finalized', 'Acordo final formalizado', 'A imobiliária formalizou a conclusão administrativa.', 'final_agreement', p_terms_id)
+  from public.exchange_proposals ep
+  where ep.id = v_terms.proposal_id;
+  perform public.create_notification(ep.owner_id, 'final_agreement_finalized', 'Acordo final formalizado', 'A imobiliária formalizou a conclusão administrativa.', 'final_agreement', p_terms_id)
+  from public.exchange_proposals ep
+  where ep.id = v_terms.proposal_id;
 end;
 $$;
 
@@ -1634,6 +1829,15 @@ begin
     trim(p_reason)
   )
   returning id into v_id;
+
+  perform public.create_notification(
+    case when auth.uid() = v_proposal.requester_id then v_proposal.owner_id else v_proposal.requester_id end,
+    'agreement_cancellation_requested',
+    'Cancelamento solicitado',
+    'A outra parte solicitou cancelamento do acordo inicial. A administração fará a análise.',
+    'agreement_cancellation',
+    v_id
+  );
 
   return v_id;
 end;
@@ -1719,6 +1923,23 @@ begin
     where proposal_id = v_proposal.id
       and status <> 'closed';
   end if;
+
+  perform public.create_notification(
+    v_proposal.requester_id,
+    'agreement_cancellation_resolved',
+    'Cancelamento analisado',
+    case when p_approved then 'O cancelamento foi aprovado e os imóveis foram liberados.' else 'O pedido foi retornado para ajustes.' end,
+    'agreement_cancellation',
+    p_cancellation_id
+  );
+  perform public.create_notification(
+    v_proposal.owner_id,
+    'agreement_cancellation_resolved',
+    'Cancelamento analisado',
+    case when p_approved then 'O cancelamento foi aprovado e os imóveis foram liberados.' else 'O pedido foi retornado para ajustes.' end,
+    'agreement_cancellation',
+    p_cancellation_id
+  );
 end;
 $$;
 

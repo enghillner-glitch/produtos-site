@@ -80,9 +80,9 @@ Atualizado em: 2026-05-31
 | F131 | Solicitar Acordo Final | FASE 11 - Acordo Final | concluida | 2026-06-01 | node --check app.js | Administracao solicita acordo final a partir do lead. |
 | F132 | Controlar aceite parcial e completo | FASE 11 - Acordo Final | concluida | 2026-06-01 | supabase.sql | Aceites de interessado e anunciante sao registrados separadamente e fecham status `accepted`. |
 | F133 | Formalizar conclusao administrativa | FASE 11 - Acordo Final | concluida | 2026-06-01 | supabase.sql | Administracao formaliza conclusao e fecha o lead como `closed`. |
-| F140 | Criar notificacoes internas | FASE 12 - Notificacoes e jobs | nao iniciada |  |  |  |
-| F141 | Criar e-mails automaticos | FASE 12 - Notificacoes e jobs | nao iniciada |  |  |  |
-| F142 | Criar jobs agendados | FASE 12 - Notificacoes e jobs | nao iniciada |  |  |  |
+| F140 | Criar notificacoes internas | FASE 12 - Notificacoes e jobs | concluida | 2026-06-01 | node --check app.js | Tabela `notifications`, painel de notificacoes e marcacao como lida adicionados. |
+| F141 | Criar e-mails automaticos | FASE 12 - Notificacoes e jobs | parcial | 2026-06-01 | supabase.sql | Fila `email_queue` criada e eventos relevantes enfileiram mensagens; envio externo ainda pendente. |
+| F142 | Criar jobs agendados | FASE 12 - Notificacoes e jobs | parcial | 2026-06-01 | supabase.sql | RPC `run_scheduled_maintenance` consolida expiracao e limpeza da fila; agendamento externo ainda pendente. |
 | F150 | Registrar consentimentos versionados | FASE 13 - Seguranca e privacidade | nao iniciada |  |  |  |
 | F151 | Proteger dados privados | FASE 13 - Seguranca e privacidade | nao iniciada |  |  |  |
 | F152 | Aplicar rate limit e CAPTCHA adaptativo | FASE 13 - Seguranca e privacidade | nao iniciada |  |  |  |
