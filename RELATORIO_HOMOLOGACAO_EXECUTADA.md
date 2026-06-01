@@ -11,6 +11,7 @@ Data: 2026-06-01
 - Dry-run de backup e restauracao com manifest/hash.
 - Smoke HTTP local e em producao.
 - E2E publico local e em producao.
+- Renderizacao visual do DOCX mestre revisado.
 
 ## Comandos
 
@@ -31,9 +32,17 @@ $env:APP_URL='https://produtos-site.vercel.app/'; node tests/e2e-public-flow.mjs
 node scripts/check-production-readiness.mjs
 ```
 
+Renderizacao DOCX:
+
+```powershell
+python render_docx.py C:\Users\jpsecundario\Desktop\Plano_Mestre_Repassecomrepasse_CODEX_REVISADO_CODEX.docx --output_dir work-docx-render --renderer artifact-tool
+```
+
 ## Resultado
 
 Todos os testes automatizados executados passaram.
+
+O DOCX mestre revisado foi renderizado em 40 paginas PNG e inspecionado visualmente em pranchas de conferencia, sem cortes, sobreposicoes ou tabelas quebradas aparentes.
 
 ## Diagnostico operacional adicional
 

@@ -17,7 +17,8 @@ const files = {
   restoreScript: await readFile("scripts/restore-project.mjs", "utf8"),
   readinessScript: await readFile("scripts/check-production-readiness.mjs", "utf8"),
   deploymentConfigScript: await readFile("scripts/check-deployment-config.mjs", "utf8"),
-  homologationReport: await readFile("RELATORIO_HOMOLOGACAO_EXECUTADA.md", "utf8")
+  homologationReport: await readFile("RELATORIO_HOMOLOGACAO_EXECUTADA.md", "utf8"),
+  homologationChecklist: await readFile("CHECKLIST_HOMOLOGACAO.md", "utf8")
 };
 
 const requiredDomIds = [
@@ -89,6 +90,8 @@ assert(files.readinessScript.includes("production-readiness ok"), "check-product
 assert(files.deploymentConfigScript.includes("deployment-config ok"), "check-deployment-config.mjs deve existir");
 assert(files.deploymentConfigScript.includes("RPC anonima bloqueada"), "check-deployment-config.mjs deve auditar grants RPC");
 assert(files.homologationReport.includes("Todos os testes automatizados executados passaram"), "relatorio de homologacao deve registrar resultado");
+assert(files.homologationReport.includes("renderizado em 40 paginas PNG"), "relatorio de homologacao deve registrar QA visual do DOCX");
+assert(files.homologationChecklist.includes("[x] DOCX mestre revisado"), "checklist deve marcar QA visual do DOCX");
 
 const forbiddenPublicTerms = [
   "checkout",

@@ -4,7 +4,7 @@
 
 - [x] Backup minimo criado e restauracao documentada.
 
-- [ ] DOCX mestre revisado e renderizado sem quebra visual.
+- [x] DOCX mestre revisado e renderizado sem quebra visual.
 
 - [x] Arquivos permanentes criados na raiz do repositorio.
 
