@@ -679,6 +679,21 @@ textarea:focus {
   padding: 14px;
 }
 
+.settings-form {
+  display: grid;
+  gap: 12px;
+}
+
+.settings-form h3 {
+  margin-bottom: 2px;
+}
+
+.settings-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .proposal-summary {
   display: grid;
   gap: 9px;
@@ -847,7 +862,8 @@ textarea:focus {
   .filters,
   .panel-grid,
   .detail-layout,
-  .proposal-summary {
+  .proposal-summary,
+  .settings-grid {
     grid-template-columns: 1fr;
   }
 

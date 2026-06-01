@@ -318,6 +318,7 @@ function bindEvents() {
   window.addEventListener("hashchange", routeFromHash);
   document.addEventListener("click", handleDocumentClick);
   document.addEventListener("change", handleDocumentChange);
+  document.addEventListener("submit", handleDocumentSubmit);
 
   for (const input of [
     elements.searchInput,
@@ -997,6 +998,12 @@ function handleDocumentChange(event) {
   }
 }
 
+function handleDocumentSubmit(event) {
+  if (event.target.id === "agencySettingsForm") {
+    saveAgencySettings(event);
+  }
+}
+
 function renderAuthControls() {
   elements.authControls.innerHTML = "";
 
@@ -1319,12 +1326,49 @@ function renderAdminPanel() {
     return;
   }
 
+  const agency = state.agency ?? {};
   elements.adminSettings.innerHTML = `
-    <h3>Configuração</h3>
-    <p><strong>Imobiliária ativa:</strong> ${escapeHtml(state.agency?.trade_name ?? "Não configurada")}</p>
-    <p><strong>Perfil atual:</strong> ${escapeHtml(state.profile?.role ?? "user")}</p>
-    <p><strong>Supabase:</strong> ${hasSupabaseConfig ? "configurado" : "pendente"}</p>
-    <p><strong>Moderação:</strong> ${state.schemaFeatures.moderation ? "ativa" : "compatibilidade"}</p>
+    <form class="settings-form" id="agencySettingsForm">
+      <h3>Configuração</h3>
+      <label>
+        Nome público da imobiliária
+        <input name="trade_name" required value="${escapeAttr(agency.trade_name ?? "")}" placeholder="Imobiliária parceira">
+      </label>
+      <label>
+        Razão social
+        <input name="legal_name" required value="${escapeAttr(agency.legal_name ?? "")}" placeholder="Razão social">
+      </label>
+      <div class="settings-grid">
+        <label>
+          Responsável
+          <input name="responsible_name" value="${escapeAttr(agency.responsible_name ?? "")}" placeholder="Nome do responsável">
+        </label>
+        <label>
+          CRECI
+          <input name="creci" value="${escapeAttr(agency.creci ?? "")}" placeholder="CRECI">
+        </label>
+      </div>
+      <div class="settings-grid">
+        <label>
+          WhatsApp institucional
+          <input name="whatsapp" value="${escapeAttr(agency.whatsapp ?? "")}" placeholder="(00) 00000-0000">
+        </label>
+        <label>
+          Telefone
+          <input name="phone" value="${escapeAttr(agency.phone ?? "")}" placeholder="(00) 0000-0000">
+        </label>
+      </div>
+      <label>
+        Email público
+        <input name="email" type="email" value="${escapeAttr(agency.email ?? "")}" placeholder="contato@imobiliaria.com">
+      </label>
+      <label>
+        Email interno para leads
+        <input name="leads_email" type="email" value="${escapeAttr(agency.leads_email ?? "")}" placeholder="leads@imobiliaria.com">
+      </label>
+      <button type="submit">Salvar configurações</button>
+      <p class="muted">Perfil atual: ${escapeHtml(state.profile?.role ?? "user")} · Supabase ${hasSupabaseConfig ? "configurado" : "pendente"} · Moderação ${state.schemaFeatures.moderation ? "ativa" : "compatibilidade"}</p>
+    </form>
   `;
 
   elements.adminReportsList.innerHTML = "";
@@ -2178,6 +2222,52 @@ async function reviewReport(reportId) {
 
   await recordAuditEvent("report_reviewed", "report", reportId);
   showNotice("Denúncia marcada como revisada.");
+  await refreshAll();
+}
+
+async function saveAgencySettings(event) {
+  event.preventDefault();
+
+  if (!isModerator()) {
+    showNotice("Apenas administradores podem alterar configurações.", "error");
+    return;
+  }
+
+  const formData = new FormData(event.target);
+  const fields = ["trade_name", "legal_name", "responsible_name", "creci", "whatsapp", "phone", "email", "leads_email"];
+  const payload = Object.fromEntries(
+    fields.map((field) => {
+      const value = String(formData.get(field) ?? "").trim();
+      return [field, value || null];
+    })
+  );
+  payload.status = "active";
+
+  if (!payload.trade_name || !payload.legal_name) {
+    showNotice("Informe nome público e razão social da imobiliária.", "error");
+    return;
+  }
+
+  const changedFields = fields.filter((field) => String(state.agency?.[field] ?? "") !== String(payload[field] ?? ""));
+  const query = state.agency?.id
+    ? supabaseClient.from("real_estate_agencies").update(payload).eq("id", state.agency.id)
+    : supabaseClient.from("real_estate_agencies").insert(payload);
+
+  const { error } = await query;
+
+  if (isMissingRelationError(error, "real_estate_agencies")) {
+    showNotice("Configurações da imobiliária dependem da nova migração Supabase.", "error");
+    return;
+  }
+
+  if (handleDbError(error, "salvar configurações da imobiliária")) {
+    return;
+  }
+
+  await recordAuditEvent("agency_settings_updated", "real_estate_agency", state.agency?.id ?? null, {
+    changed_fields: changedFields
+  });
+  showNotice("Configurações da imobiliária salvas.");
   await refreshAll();
 }
 

@@ -1077,6 +1077,43 @@ create policy "real estate agencies public active read"
   for select
   using (status = 'active');
 
+drop policy if exists "real estate agencies admin insert" on public.real_estate_agencies;
+create policy "real estate agencies admin insert"
+  on public.real_estate_agencies
+  for insert
+  with check (
+    exists (
+      select 1
+      from public.profiles moderator
+      where moderator.id = auth.uid()
+        and moderator.role in ('real_estate_admin', 'admin')
+        and moderator.account_status = 'active'
+    )
+  );
+
+drop policy if exists "real estate agencies admin update" on public.real_estate_agencies;
+create policy "real estate agencies admin update"
+  on public.real_estate_agencies
+  for update
+  using (
+    exists (
+      select 1
+      from public.profiles moderator
+      where moderator.id = auth.uid()
+        and moderator.role in ('real_estate_admin', 'admin')
+        and moderator.account_status = 'active'
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from public.profiles moderator
+      where moderator.id = auth.uid()
+        and moderator.role in ('real_estate_admin', 'admin')
+        and moderator.account_status = 'active'
+    )
+  );
+
 drop policy if exists "negotiation leads admin read" on public.negotiation_leads;
 create policy "negotiation leads admin read"
   on public.negotiation_leads

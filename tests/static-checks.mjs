@@ -41,6 +41,8 @@ for (const objectName of requiredSqlObjects) {
 
 assert(files.js.includes("sanitizeAuditMetadata"), "app.js deve sanitizar metadados de auditoria");
 assert(files.js.includes("recordAuditEvent"), "app.js deve registrar eventos de auditoria");
+assert(files.js.includes("saveAgencySettings"), "app.js deve permitir editar configuracoes da imobiliaria");
+assert(files.sql.includes("real estate agencies admin update"), "supabase.sql deve permitir atualizacao administrativa da imobiliaria");
 
 const forbiddenPublicTerms = [
   "checkout",
