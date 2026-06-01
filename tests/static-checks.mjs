@@ -12,7 +12,9 @@ const files = {
   unitMaintenance: await readFile("tests/unit-maintenance.mjs", "utf8"),
   unitTurnstile: await readFile("tests/unit-turnstile.mjs", "utf8"),
   e2ePublic: await readFile("tests/e2e-public-flow.mjs", "utf8"),
-  backupDryRun: await readFile("tests/backup-restore-dry-run.mjs", "utf8")
+  backupDryRun: await readFile("tests/backup-restore-dry-run.mjs", "utf8"),
+  backupScript: await readFile("scripts/backup-project.mjs", "utf8"),
+  restoreScript: await readFile("scripts/restore-project.mjs", "utf8")
 };
 
 const requiredDomIds = [
@@ -75,6 +77,8 @@ assert(files.unitTurnstile.includes("unit-turnstile ok"), "tests/unit-turnstile.
 assert(files.e2ePublic.includes("e2e-public-flow ok"), "tests/e2e-public-flow.mjs deve existir");
 assert(files.backupDryRun.includes("backup-restore-dry-run ok"), "tests/backup-restore-dry-run.mjs deve existir");
 assert(files.imageSecurity.includes("OCR no navegador"), "SEGURANCA_IMAGENS.md deve documentar OCR");
+assert(files.backupScript.includes("SUPABASE_DB_URL"), "backup-project.mjs deve suportar dump real do Supabase");
+assert(files.restoreScript.includes("--apply-db"), "restore-project.mjs deve suportar restauracao controlada do banco");
 
 const forbiddenPublicTerms = [
   "checkout",

@@ -27,6 +27,31 @@ node tests/backup-restore-dry-run.mjs
 
 O teste copia os arquivos para uma pasta temporária, confere hash SHA-256 e valida a presença de objetos essenciais do schema.
 
+## Backup versionado
+
+Para gerar um backup local com manifest:
+
+```powershell
+node scripts/backup-project.mjs --output backups/repasse-manual
+```
+
+Se `SUPABASE_DB_URL` estiver definido e `pg_dump` existir no PATH, o script tambem cria `supabase-dump.sql`. Sem essa variavel, ele preserva os arquivos criticos e registra no manifest que o dump real do banco foi ignorado.
+
+## Verificação de restauração
+
+Para conferir se um backup preserva os hashes esperados:
+
+```powershell
+node scripts/restore-project.mjs --backup backups/repasse-manual
+```
+
+Para restaurar tambem o dump do banco, use somente em ambiente controlado:
+
+```powershell
+$env:SUPABASE_DB_URL="<connection-string>"
+node scripts/restore-project.mjs --backup backups/repasse-manual --apply-db
+```
+
 ## Restauração do banco
 
 1. Abrir o SQL Editor do Supabase.

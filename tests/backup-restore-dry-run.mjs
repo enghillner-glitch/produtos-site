@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { cp, mkdir, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -20,6 +21,7 @@ const criticalFiles = [
 ];
 
 const backupRoot = join(tmpdir(), `repasse-backup-dry-run-${randomUUID()}`);
+let scriptedBackupRoot;
 
 try {
   await mkdir(backupRoot, { recursive: true });
@@ -40,9 +42,28 @@ try {
   assert(restoredSchema.includes("create table if not exists public.items"), "schema restaurado deve conter items");
   assert(restoredSchema.includes("run_scheduled_maintenance"), "schema restaurado deve conter manutencao");
 
+  scriptedBackupRoot = join(tmpdir(), `repasse-scripted-backup-${randomUUID()}`);
+  const backupResult = spawnSync(process.execPath, [
+    "scripts/backup-project.mjs",
+    "--output",
+    scriptedBackupRoot,
+    "--skip-db"
+  ], { encoding: "utf8" });
+  assert.equal(backupResult.status, 0, backupResult.stderr || backupResult.stdout);
+
+  const restoreResult = spawnSync(process.execPath, [
+    "scripts/restore-project.mjs",
+    "--backup",
+    scriptedBackupRoot
+  ], { encoding: "utf8" });
+  assert.equal(restoreResult.status, 0, restoreResult.stderr || restoreResult.stdout);
+
   console.log(`backup-restore-dry-run ok: ${backupRoot}`);
 } finally {
   await rm(backupRoot, { recursive: true, force: true });
+  if (scriptedBackupRoot) {
+    await rm(scriptedBackupRoot, { recursive: true, force: true });
+  }
 }
 
 function sha256(content) {

@@ -62,6 +62,8 @@ Testes estaticos/smoke:
 node --check app.js
 node --check api/maintenance.js
 node --check api/verify-turnstile.js
+node --check scripts/backup-project.mjs
+node --check scripts/restore-project.mjs
 node tests/static-checks.mjs
 node tests/unit-maintenance.mjs
 node tests/unit-turnstile.mjs
