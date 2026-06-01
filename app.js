@@ -1907,11 +1907,12 @@ async function savePrivateLocation(itemId, privateLocation) {
 
 async function uploadItemImages(itemId, files, startIndex) {
   for (const [index, file] of files.entries()) {
-    const extension = file.name.split(".").pop() || "jpg";
+    const prepared = await prepareImageForUpload(file);
+    const extension = prepared.extension;
     const path = `${state.user.id}/${itemId}/${crypto.randomUUID()}.${extension}`;
     const uploadResponse = await supabaseClient.storage
       .from(config.storageBucket)
-      .upload(path, file, { upsert: false });
+      .upload(path, prepared.blob, { contentType: prepared.blob.type || file.type, upsert: false });
 
     if (handleDbError(uploadResponse.error, "enviar imagem")) {
       return true;
@@ -1931,6 +1932,38 @@ async function uploadItemImages(itemId, files, startIndex) {
   }
 
   return false;
+}
+
+async function prepareImageForUpload(file) {
+  if (!file.type.startsWith("image/")) {
+    return {
+      blob: file,
+      extension: file.name.split(".").pop() || "jpg"
+    };
+  }
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const maxSize = 1600;
+    const scale = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    context.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close?.();
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.82));
+    return blob
+      ? { blob, extension: "webp" }
+      : { blob: file, extension: file.name.split(".").pop() || "jpg" };
+  } catch (_error) {
+    return {
+      blob: file,
+      extension: file.name.split(".").pop() || "jpg"
+    };
+  }
 }
 
 function previewSelectedImages() {
