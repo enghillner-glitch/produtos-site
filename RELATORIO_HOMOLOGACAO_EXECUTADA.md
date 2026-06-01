@@ -48,7 +48,7 @@ O DOCX mestre revisado foi renderizado em 40 paginas PNG e inspecionado visualme
 
 O verificador `scripts/check-deployment-config.mjs` foi criado para a etapa pos-migracao. Apos aplicar o `supabase.sql` em dois blocos no SQL Editor do Supabase, a execucao confirmou que as tabelas avancadas `negotiation_leads`, `agreement_cancellations`, `final_agreement_terms`, `notifications`, `email_queue`, `consent_records` e `favorite_items` estao disponiveis em producao. Tambem confirmou que a RPC anonima foi bloqueada com status `401`.
 
-As variaveis obrigatorias `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` e `CRON_SECRET` foram cadastradas na Vercel em 2026-06-01. A chave server-side foi revisada para usar a API key legacy `service_role`, nao o segredo JWT bruto. O proximo deploy deve carregar essas variaveis nas funcoes server-side.
+As variaveis obrigatorias `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` e `CRON_SECRET` foram cadastradas na Vercel em 2026-06-01. A chave server-side foi revisada para usar a API key legacy `service_role`, nao o segredo JWT bruto. A rota `/api/maintenance` foi testada com `CRON_SECRET` e retornou `200`, executando `run_scheduled_maintenance`.
 
 ## Pendencias externas para homologacao autenticada completa
 
@@ -58,7 +58,8 @@ As variaveis obrigatorias `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` e `CRON_SE
   - `CRON_SECRET`;
   - `SUPABASE_URL`;
   - `SUPABASE_SERVICE_ROLE_KEY`;
-- Aguardar novo deploy e confirmar `/api/maintenance` retornando `401` sem token.
+- Novo deploy confirmado com `/api/maintenance` retornando `401` sem token.
+- Chamada autenticada de `/api/maintenance` confirmou `ok: true`, com email automatico desativado por ausencia do provedor opcional.
 - Variaveis opcionais ainda dependem de decisao operacional:
   - `TURNSTILE_SECRET_KEY`, se Turnstile for ativado;
   - `RESEND_API_KEY` e `EMAIL_FROM`, se emails automaticos forem ativados.
@@ -67,4 +68,4 @@ As variaveis obrigatorias `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` e `CRON_SE
 
 ## Observacao
 
-Com a migracao Supabase aplicada e as variaveis obrigatorias cadastradas na Vercel, a producao ja possui o schema avancado e a configuracao server-side necessaria. A confirmacao final depende do novo deploy refletir as variaveis.
+Com a migracao Supabase aplicada e as variaveis obrigatorias cadastradas na Vercel, a producao ja possui o schema avancado e a configuracao server-side necessaria para manutencao agendada. O envio automatico de email permanece opcional e inativo ate configurar `RESEND_API_KEY` e `EMAIL_FROM`.

@@ -52,4 +52,6 @@
 
 - [x] E2E publico em producao executado.
 
+- [x] Manutencao server-side autenticada executada em producao.
+
 - [ ] Homologacao autenticada em producao com dados reais apos aplicar `supabase.sql`.
