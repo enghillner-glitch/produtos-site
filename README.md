@@ -1,18 +1,18 @@
 # repassecomrepasse
 
-Base em transformacao a partir do antigo `trocacomtroca` para o produto **repassecomrepasse**.
+Base transformada a partir do antigo `trocacomtroca` para o produto **repassecomrepasse**.
 
 O repassecomrepasse sera uma plataforma de aproximacao entre usuarios com interesses convergentes na negociacao de imoveis. A plataforma nao realiza venda direta, analise documental, aprovacao de credito, transferencia de propriedade ou tratativas com agentes financiadores.
 
 ## Estado atual
 
-- Preparacao documental e de seguranca iniciada.
+- MVP funcional de repasse imobiliario implementado em HTML/CSS/JS + Supabase.
 
-- DOCX revisado criado como linha mestra viva, mantendo o arquivo original preservado.
+- Fluxos principais: cadastro de perfil, imovel, imagem, propostas, acordo inicial, lead interno, cancelamento, acordo final, notificacoes e administracao.
 
-- Backup minimo criado antes da substituicao funcional.
+- Backup minimo e restauracao documentados.
 
-- Fundacao, localizacao da Paraiba e pagina institucional da imobiliaria inicial ja foram iniciadas.
+- O antigo cadastro simples de produtos foi descontinuado na interface principal.
 
 ## Arquivos de orientacao
 
@@ -28,6 +28,10 @@ O repassecomrepasse sera uma plataforma de aproximacao entre usuarios com intere
 
 - `CHECKLIST_HOMOLOGACAO.md` - validacao final.
 
+- `RELATORIO_PRIVACIDADE.md` - auditoria de dados sensiveis.
+
+- `BACKUP_RESTAURACAO.md` - procedimento de restauracao.
+
 ## Backup minimo
 
 Backup desta preparacao:
@@ -40,8 +44,20 @@ Commit base preservado:
 
 ## Execucao local atual
 
-Como o projeto ainda e estatico, pode ser servido por qualquer servidor local simples ou aberto conforme a configuracao usada no ambiente Codex.
+Como o projeto e estatico, pode ser servido por qualquer servidor local simples:
+
+```powershell
+python -m http.server 4177 --bind 127.0.0.1
+```
+
+Testes estaticos/smoke:
+
+```powershell
+node --check app.js
+node tests/static-checks.mjs
+node tests/smoke-http.mjs
+```
 
 ## Proximos passos
 
-Seguir a sequencia do DOCX mestre, iniciando pela fundacao do repassecomrepasse e pela substituicao controlada do schema/telas do produto anterior.
+Aplicar `supabase.sql` no Supabase para liberar todos os recursos novos do banco em producao, principalmente moderacao, propostas avancadas, leads, cancelamentos, acordo final e notificacoes.

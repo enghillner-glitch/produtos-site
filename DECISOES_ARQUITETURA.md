@@ -162,3 +162,11 @@
 | Painel unico | Configuracoes, auditoria e denuncias aparecem no painel do usuario apenas para perfis administrativos. |
 | Denuncias revisaveis | Admin pode marcar denuncia como revisada sem remocao automatica de conteudo no MVP. |
 | Auditoria visivel | Eventos de auditoria recentes ficam consultaveis por administradores. |
+
+## 2026-06-01 - Testes e descontinuacao
+
+| Decisao | Registro |
+|---|---|
+| Testes sem bundler | Como o MVP e estatico, testes iniciais rodam por Node direto em `tests/`. |
+| E2E incremental | Smoke HTTP cobre disponibilidade; E2E autenticado fica condicionado a migracao Supabase e massa de usuarios. |
+| Projeto anterior encerrado | README e interface principal passam a tratar o produto como repassecomrepasse. |

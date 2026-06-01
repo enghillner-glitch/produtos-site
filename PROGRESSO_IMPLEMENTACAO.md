@@ -91,10 +91,10 @@ Atualizado em: 2026-05-31
 | F160 | Criar painel de configuracoes | FASE 14 - Administracao | parcial | 2026-06-01 | node --check app.js | Painel admin exibe configuracoes essenciais e flags; edicao completa fica pendente. |
 | F161 | Criar painel de auditoria | FASE 14 - Administracao | concluida | 2026-06-01 | node --check app.js | Admin visualiza eventos recentes de `audit_events`. |
 | F162 | Criar painel de denuncias | FASE 14 - Administracao | concluida | 2026-06-01 | node --check app.js | Admin visualiza denuncias e pode marcar como revisadas. |
-| F170 | Criar testes unitarios | FASE 15 - Testes e descontinuacao | nao iniciada |  |  |  |
-| F171 | Criar testes de integracao | FASE 15 - Testes e descontinuacao | nao iniciada |  |  |  |
-| F172 | Criar testes ponta a ponta | FASE 15 - Testes e descontinuacao | nao iniciada |  |  |  |
-| F173 | Auditar privacidade | FASE 15 - Testes e descontinuacao | nao iniciada |  |  |  |
-| F174 | Criar homologacao | FASE 15 - Testes e descontinuacao | nao iniciada |  |  |  |
-| F175 | Executar homologacao funcional | FASE 15 - Testes e descontinuacao | nao iniciada |  |  |  |
-| F176 | Descontinuar projeto anterior | FASE 15 - Testes e descontinuacao | nao iniciada |  |  |  |
+| F170 | Criar testes unitarios | FASE 15 - Testes e descontinuacao | parcial | 2026-06-01 | tests/static-checks.mjs | Testes estaticos cobrem marcadores de UI/schema; unidade granular fica pendente por arquitetura sem bundler. |
+| F171 | Criar testes de integracao | FASE 15 - Testes e descontinuacao | concluida | 2026-06-01 | tests/static-checks.mjs | Teste cruza IDs da UI com objetos SQL essenciais. |
+| F172 | Criar testes ponta a ponta | FASE 15 - Testes e descontinuacao | parcial | 2026-06-01 | tests/smoke-http.mjs | Smoke HTTP valida carregamento da home local/producao; E2E autenticado fica pendente. |
+| F173 | Auditar privacidade | FASE 15 - Testes e descontinuacao | concluida | 2026-06-01 | RELATORIO_PRIVACIDADE.md | Relatorio de privacidade criado. |
+| F174 | Criar homologacao | FASE 15 - Testes e descontinuacao | concluida | 2026-06-01 | CHECKLIST_HOMOLOGACAO.md | Checklist de homologacao atualizado. |
+| F175 | Executar homologacao funcional | FASE 15 - Testes e descontinuacao | parcial | 2026-06-01 | node --check; static-checks; smoke-http | Homologacao estatica/local executada; fluxo autenticado depende de migracao Supabase em producao. |
+| F176 | Descontinuar projeto anterior | FASE 15 - Testes e descontinuacao | concluida | 2026-06-01 | README.md | Interface principal e documentacao indicam repassecomrepasse e removem dependencia do cadastro simples anterior. |
