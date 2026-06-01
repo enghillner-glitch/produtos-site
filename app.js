@@ -125,7 +125,8 @@ const state = {
     leads: true,
     cancellations: true,
     finalAgreements: true,
-    notifications: true
+    notifications: true,
+    favorites: true
   },
   selectedDetailItem: null
 };
@@ -455,6 +456,7 @@ async function loadUserData() {
     loadCancellations(),
     loadFinalAgreements(),
     loadNotifications(),
+    loadFavoriteItems(),
     loadAdminData()
   ]);
 }
@@ -777,6 +779,29 @@ async function loadNotifications() {
   }
 
   state.notifications = data ?? [];
+}
+
+async function loadFavoriteItems() {
+  if (!state.schemaFeatures.favorites) {
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("favorite_items")
+    .select("item_id")
+    .eq("user_id", state.user.id);
+
+  if (isMissingRelationError(error, "favorite_items")) {
+    state.schemaFeatures.favorites = false;
+    return;
+  }
+
+  if (handleDbError(error, "carregar favoritos")) {
+    return;
+  }
+
+  state.favoriteItemIds = new Set((data ?? []).map((favorite) => favorite.item_id));
+  localStorage.setItem("repasse:favorites", JSON.stringify([...state.favoriteItemIds]));
 }
 
 async function loadAdminData() {
@@ -2215,13 +2240,35 @@ function csvEscape(value) {
   return text;
 }
 
-function toggleFavorite(itemId) {
+async function toggleFavorite(itemId) {
   if (state.favoriteItemIds.has(itemId)) {
     state.favoriteItemIds.delete(itemId);
+    if (state.user && state.schemaFeatures.favorites) {
+      const { error } = await supabaseClient
+        .from("favorite_items")
+        .delete()
+        .eq("user_id", state.user.id)
+        .eq("item_id", itemId);
+      if (isMissingRelationError(error, "favorite_items")) {
+        state.schemaFeatures.favorites = false;
+      } else if (handleDbError(error, "remover favorito")) {
+        return;
+      }
+    }
     showNotice("Imóvel removido dos favoritos.");
   } else {
     state.favoriteItemIds.add(itemId);
-    showNotice("Imóvel salvo nos favoritos deste navegador.");
+    if (state.user && state.schemaFeatures.favorites) {
+      const { error } = await supabaseClient
+        .from("favorite_items")
+        .upsert({ user_id: state.user.id, item_id: itemId }, { onConflict: "user_id,item_id" });
+      if (isMissingRelationError(error, "favorite_items")) {
+        state.schemaFeatures.favorites = false;
+      } else if (handleDbError(error, "salvar favorito")) {
+        return;
+      }
+    }
+    showNotice(state.user && state.schemaFeatures.favorites ? "Imóvel salvo nos seus favoritos." : "Imóvel salvo nos favoritos deste navegador.");
   }
 
   localStorage.setItem("repasse:favorites", JSON.stringify([...state.favoriteItemIds]));

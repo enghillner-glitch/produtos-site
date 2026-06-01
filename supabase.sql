@@ -234,6 +234,13 @@ create table if not exists public.consent_records (
   unique (user_id, consent_type, version)
 );
 
+create table if not exists public.favorite_items (
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  item_id uuid not null references public.items(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (user_id, item_id)
+);
+
 alter table public.profiles
   add column if not exists user_type text not null default 'individual',
   add column if not exists role text not null default 'user',
@@ -478,6 +485,7 @@ create index if not exists final_agreement_terms_status_idx on public.final_agre
 create index if not exists notifications_user_idx on public.notifications(user_id, created_at desc);
 create index if not exists email_queue_status_idx on public.email_queue(status, created_at asc);
 create index if not exists consent_records_user_idx on public.consent_records(user_id, accepted_at desc);
+create index if not exists favorite_items_item_idx on public.favorite_items(item_id, created_at desc);
 
 insert into public.real_estate_agencies (
   legal_name,
@@ -657,6 +665,7 @@ alter table public.final_agreement_terms enable row level security;
 alter table public.notifications enable row level security;
 alter table public.email_queue enable row level security;
 alter table public.consent_records enable row level security;
+alter table public.favorite_items enable row level security;
 
 drop policy if exists "profiles public read" on public.profiles;
 create policy "profiles public read"
@@ -1198,6 +1207,24 @@ create policy "consent own update"
   for update
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
+
+drop policy if exists "favorite own read" on public.favorite_items;
+create policy "favorite own read"
+  on public.favorite_items
+  for select
+  using (user_id = auth.uid());
+
+drop policy if exists "favorite own insert" on public.favorite_items;
+create policy "favorite own insert"
+  on public.favorite_items
+  for insert
+  with check (user_id = auth.uid());
+
+drop policy if exists "favorite own delete" on public.favorite_items;
+create policy "favorite own delete"
+  on public.favorite_items
+  for delete
+  using (user_id = auth.uid());
 
 insert into storage.buckets (id, name, public)
 values ('item-images', 'item-images', true)

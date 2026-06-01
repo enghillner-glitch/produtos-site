@@ -44,7 +44,7 @@ Atualizado em: 2026-05-31
 | F071 | Criar pagina detalhada | FASE 6 - Vitrine | concluida | 2026-06-01 | Browser local; node --check app.js | Detalhe em modal mostra galeria, localizacao, dados financeiros, preferencias e acoes. |
 | F072 | Criar filtros e busca | FASE 6 - Vitrine | concluida | 2026-06-01 | Browser local; node --check app.js | Busca, estado, municipio, bairro, tipo, situacao e ordenacao estao disponiveis. |
 | F073 | Ordenar e carregar mais | FASE 6 - Vitrine | concluida | 2026-06-01 | Browser local; node --check app.js | Vitrine ordena por recentes/repasse e carrega mais em lotes de 12. |
-| F074 | Favoritar imovel | FASE 6 - Vitrine | parcial | 2026-06-01 | Browser local; node --check app.js | Favoritos locais por navegador via localStorage; persistencia no banco fica pendente. |
+| F074 | Favoritar imovel | FASE 6 - Vitrine | concluida | 2026-06-01 | node --check app.js | Favoritos persistem em `favorite_items` para usuarios logados, com `localStorage` como fallback. |
 | F075 | Compartilhar anuncio | FASE 6 - Vitrine | concluida | 2026-06-01 | Browser local; node --check app.js | Compartilhamento usa Web Share quando disponivel ou copia link do anuncio. |
 | F076 | Denunciar anuncio | FASE 6 - Vitrine | concluida | 2026-06-01 | node --check app.js | Denuncia de anuncio ja integrada ao fluxo de detalhe e tabela reports. |
 | F077 | Criar SEO seguro | FASE 6 - Vitrine | concluida | 2026-06-01 | Browser local | Metatags description e Open Graph basicas adicionadas sem expor dados privados. |
