@@ -11,6 +11,7 @@ const PRODUCT = {
   institutionalNotice:
     "O repassecomrepasse é uma plataforma de aproximação entre interessados em negociações imobiliárias. A análise documental e os encaminhamentos junto a bancos, construtoras, credores e agentes financiadores são realizados por intermédio da imobiliária responsável."
 };
+const CONSENT_VERSION = "2026-06-01-mvp";
 
 const LOCATION = window.LOCATION_DATA ?? {
   states: [{ code: "PB", name: "Paraíba" }],
@@ -96,6 +97,7 @@ const state = {
   profile: null,
   contact: null,
   privateData: null,
+  consent: null,
   agency: null,
   publicItems: [],
   myItems: [],
@@ -168,6 +170,7 @@ const elements = {
   profileWhatsapp: $("profileWhatsapp"),
   profileState: $("profileState"),
   profileCity: $("profileCity"),
+  profileConsent: $("profileConsent"),
   profileStatus: $("profileStatus"),
   myItemsGrid: $("myItemsGrid"),
   myItemsEmpty: $("myItemsEmpty"),
@@ -412,6 +415,7 @@ async function loadUserData() {
   state.profile = null;
   state.contact = null;
   state.privateData = null;
+  state.consent = null;
   state.myItems = [];
   state.moderationItems = [];
   state.leads = [];
@@ -471,6 +475,19 @@ async function loadProfile() {
 
   handleDbError(privateResponse.error, "carregar dados restritos do perfil");
   state.privateData = privateResponse.data ?? null;
+
+  const consentResponse = await supabaseClient
+    .from("consent_records")
+    .select("*")
+    .eq("user_id", state.user.id)
+    .eq("consent_type", "terms_privacy")
+    .eq("version", CONSENT_VERSION)
+    .maybeSingle();
+
+  if (!isMissingRelationError(consentResponse.error, "consent_records")) {
+    handleDbError(consentResponse.error, "carregar consentimento");
+    state.consent = consentResponse.data ?? null;
+  }
 }
 
 async function loadMyItems() {
@@ -1010,6 +1027,7 @@ function renderDashboard() {
   elements.profileState.value = state.profile?.state ?? "PB";
   populateMunicipalitySelect(elements.profileCity, elements.profileState.value || "PB", false);
   elements.profileCity.value = state.profile?.city ?? "";
+  elements.profileConsent.checked = Boolean(state.consent);
   const profileComplete = isProfileComplete();
   const accountInactive = state.profile?.account_status === "inactive";
   elements.profileStatus.textContent = accountInactive ? "Inativo" : profileComplete ? "Completo" : "Pendente";
@@ -1517,6 +1535,11 @@ async function saveProfile(event) {
     return;
   }
 
+  if (!elements.profileConsent.checked) {
+    showNotice("Confirme a ciência sobre intermediação, privacidade e tratamento de dados.", "error");
+    return;
+  }
+
   if (!isValidDocument(documentType, documentDigits) && !state.privateData?.document_hash) {
     showNotice(`Informe um ${documentType === "cpf" ? "CPF" : "CNPJ"} válido para concluir o perfil.`, "error");
     return;
@@ -1567,8 +1590,28 @@ async function saveProfile(event) {
     }
   }
 
+  if (await saveConsentRecord()) {
+    return;
+  }
   showNotice("Perfil salvo.");
   await refreshAll();
+}
+
+async function saveConsentRecord() {
+  const { error } = await supabaseClient
+    .from("consent_records")
+    .upsert({
+      user_id: state.user.id,
+      consent_type: "terms_privacy",
+      version: CONSENT_VERSION,
+      text_hash: await sha256Hex(CONSENT_VERSION)
+    }, { onConflict: "user_id,consent_type,version" });
+
+  if (isMissingRelationError(error, "consent_records")) {
+    return false;
+  }
+
+  return handleDbError(error, "salvar consentimento");
 }
 
 async function deactivateAccount() {

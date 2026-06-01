@@ -224,6 +224,16 @@ create table if not exists public.email_queue (
   processed_at timestamptz
 );
 
+create table if not exists public.consent_records (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  consent_type text not null,
+  version text not null,
+  text_hash text not null,
+  accepted_at timestamptz not null default now(),
+  unique (user_id, consent_type, version)
+);
+
 alter table public.profiles
   add column if not exists user_type text not null default 'individual',
   add column if not exists role text not null default 'user',
@@ -467,6 +477,7 @@ create index if not exists final_agreement_terms_proposal_idx on public.final_ag
 create index if not exists final_agreement_terms_status_idx on public.final_agreement_terms(status, updated_at desc);
 create index if not exists notifications_user_idx on public.notifications(user_id, created_at desc);
 create index if not exists email_queue_status_idx on public.email_queue(status, created_at asc);
+create index if not exists consent_records_user_idx on public.consent_records(user_id, accepted_at desc);
 
 insert into public.real_estate_agencies (
   legal_name,
@@ -645,6 +656,7 @@ alter table public.agreement_cancellations enable row level security;
 alter table public.final_agreement_terms enable row level security;
 alter table public.notifications enable row level security;
 alter table public.email_queue enable row level security;
+alter table public.consent_records enable row level security;
 
 drop policy if exists "profiles public read" on public.profiles;
 create policy "profiles public read"
@@ -1126,6 +1138,25 @@ create policy "email queue admin read"
         and moderator.account_status = 'active'
     )
   );
+
+drop policy if exists "consent own read" on public.consent_records;
+create policy "consent own read"
+  on public.consent_records
+  for select
+  using (user_id = auth.uid());
+
+drop policy if exists "consent own insert" on public.consent_records;
+create policy "consent own insert"
+  on public.consent_records
+  for insert
+  with check (user_id = auth.uid());
+
+drop policy if exists "consent own update" on public.consent_records;
+create policy "consent own update"
+  on public.consent_records
+  for update
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
 
 insert into storage.buckets (id, name, public)
 values ('item-images', 'item-images', true)

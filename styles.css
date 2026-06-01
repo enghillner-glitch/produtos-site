@@ -153,6 +153,13 @@ label {
   gap: 7px;
 }
 
+.checkbox-label {
+  align-items: start;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto 1fr;
+}
+
 input,
 select,
 textarea {

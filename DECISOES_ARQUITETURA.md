@@ -146,3 +146,11 @@
 | Notificacao interna primeiro | O MVP usa notificacoes internas no painel como canal confiavel antes de automacao externa de email. |
 | Fila de email preparada | Eventos importantes enfileiram mensagens em `email_queue`, mas envio real depende de integracao futura. |
 | Job como RPC | Manutencao agendada fica encapsulada em `run_scheduled_maintenance` para acionar por cron externo depois. |
+
+## 2026-06-01 - Seguranca e privacidade
+
+| Decisao | Registro |
+|---|---|
+| Consentimento versionado | Perfil passa a registrar aceite em `consent_records` com versao fixa do MVP. |
+| Dados sensiveis separados | CPF/CNPJ, contatos e endereco completo seguem fora dos dados publicos dos anuncios. |
+| Backup incremental | Procedimento de restauracao fica documentado, com teste real de dump reservado para ambiente com dados reais. |
