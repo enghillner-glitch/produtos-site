@@ -28,6 +28,7 @@ $env:APP_URL='http://127.0.0.1:4177/'; node tests/smoke-http.mjs
 $env:APP_URL='http://127.0.0.1:4177/'; node tests/e2e-public-flow.mjs
 $env:APP_URL='https://produtos-site.vercel.app/'; node tests/smoke-http.mjs
 $env:APP_URL='https://produtos-site.vercel.app/'; node tests/e2e-public-flow.mjs
+node scripts/check-production-readiness.mjs
 ```
 
 ## Resultado

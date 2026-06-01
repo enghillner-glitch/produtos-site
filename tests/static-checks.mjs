@@ -15,6 +15,7 @@ const files = {
   backupDryRun: await readFile("tests/backup-restore-dry-run.mjs", "utf8"),
   backupScript: await readFile("scripts/backup-project.mjs", "utf8"),
   restoreScript: await readFile("scripts/restore-project.mjs", "utf8"),
+  readinessScript: await readFile("scripts/check-production-readiness.mjs", "utf8"),
   homologationReport: await readFile("RELATORIO_HOMOLOGACAO_EXECUTADA.md", "utf8")
 };
 
@@ -80,6 +81,7 @@ assert(files.backupDryRun.includes("backup-restore-dry-run ok"), "tests/backup-r
 assert(files.imageSecurity.includes("OCR no navegador"), "SEGURANCA_IMAGENS.md deve documentar OCR");
 assert(files.backupScript.includes("SUPABASE_DB_URL"), "backup-project.mjs deve suportar dump real do Supabase");
 assert(files.restoreScript.includes("--apply-db"), "restore-project.mjs deve suportar restauracao controlada do banco");
+assert(files.readinessScript.includes("production-readiness ok"), "check-production-readiness.mjs deve existir");
 assert(files.homologationReport.includes("Todos os testes automatizados executados passaram"), "relatorio de homologacao deve registrar resultado");
 
 const forbiddenPublicTerms = [
