@@ -93,7 +93,7 @@ Atualizado em: 2026-05-31
 | F162 | Criar painel de denuncias | FASE 14 - Administracao | concluida | 2026-06-01 | node --check app.js | Admin visualiza denuncias e pode marcar como revisadas. |
 | F170 | Criar testes unitarios | FASE 15 - Testes e descontinuacao | concluida | 2026-06-01 | tests/unit-maintenance.mjs | Testes unitarios cobrem autorizacao da rota de manutencao, fallback sem provedor de email e envio mockado da fila. |
 | F171 | Criar testes de integracao | FASE 15 - Testes e descontinuacao | concluida | 2026-06-01 | tests/static-checks.mjs | Teste cruza IDs da UI com objetos SQL essenciais. |
-| F172 | Criar testes ponta a ponta | FASE 15 - Testes e descontinuacao | parcial | 2026-06-01 | tests/smoke-http.mjs | Smoke HTTP valida carregamento da home local/producao; E2E autenticado fica pendente. |
+| F172 | Criar testes ponta a ponta | FASE 15 - Testes e descontinuacao | concluida | 2026-06-01 | tests/smoke-http.mjs; tests/e2e-public-flow.mjs | E2E publico valida home, assets, formularios, detalhe/proposta no codigo e linguagem sem venda; autenticado fica na homologacao manual com Supabase migrado. |
 | F173 | Auditar privacidade | FASE 15 - Testes e descontinuacao | concluida | 2026-06-01 | RELATORIO_PRIVACIDADE.md | Relatorio de privacidade criado. |
 | F174 | Criar homologacao | FASE 15 - Testes e descontinuacao | concluida | 2026-06-01 | CHECKLIST_HOMOLOGACAO.md | Checklist de homologacao atualizado. |
 | F175 | Executar homologacao funcional | FASE 15 - Testes e descontinuacao | parcial | 2026-06-01 | node --check; static-checks; smoke-http | Homologacao estatica/local executada; fluxo autenticado depende de migracao Supabase em producao. |

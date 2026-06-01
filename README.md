@@ -60,6 +60,7 @@ node --check api/maintenance.js
 node tests/static-checks.mjs
 node tests/unit-maintenance.mjs
 node tests/smoke-http.mjs
+node tests/e2e-public-flow.mjs
 ```
 
 ## Proximos passos

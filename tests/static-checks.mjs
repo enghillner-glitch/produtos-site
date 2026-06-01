@@ -7,7 +7,8 @@ const files = {
   sql: await readFile("supabase.sql", "utf8"),
   vercel: await readFile("vercel.json", "utf8"),
   maintenance: await readFile("api/maintenance.js", "utf8"),
-  unitMaintenance: await readFile("tests/unit-maintenance.mjs", "utf8")
+  unitMaintenance: await readFile("tests/unit-maintenance.mjs", "utf8"),
+  e2ePublic: await readFile("tests/e2e-public-flow.mjs", "utf8")
 };
 
 const requiredDomIds = [
@@ -59,6 +60,7 @@ assert(files.maintenance.includes("CRON_SECRET"), "api/maintenance.js deve exigi
 assert(files.maintenance.includes("RESEND_API_KEY"), "api/maintenance.js deve suportar envio automatico de emails");
 assert(files.sql.includes("from auth.users"), "supabase.sql deve preencher destino da fila de emails");
 assert(files.unitMaintenance.includes("unit-maintenance ok"), "tests/unit-maintenance.mjs deve existir");
+assert(files.e2ePublic.includes("e2e-public-flow ok"), "tests/e2e-public-flow.mjs deve existir");
 
 const forbiddenPublicTerms = [
   "checkout",
