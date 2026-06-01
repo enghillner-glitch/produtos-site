@@ -68,6 +68,13 @@ const cancellationStatusLabels = {
   rejected: "Retornado para ajustes"
 };
 
+const finalAgreementStatusLabels = {
+  requested: "Aguardando aceites",
+  accepted: "Aceito pelas partes",
+  finalized: "Formalizado",
+  cancelled: "Cancelado"
+};
+
 const cashDirectionLabels = {
   none: "Sem diferença em dinheiro",
   requester_pays: "Interessado pagaria a diferença",
@@ -96,6 +103,8 @@ const state = {
   leads: [],
   cancellations: [],
   cancellationsByProposalId: new Map(),
+  finalAgreements: [],
+  finalAgreementsByProposalId: new Map(),
   leadUpdatesByProposalId: new Map(),
   proposals: [],
   imagesByItem: new Map(),
@@ -109,7 +118,8 @@ const state = {
     moderation: true,
     advancedProposals: true,
     leads: true,
-    cancellations: true
+    cancellations: true,
+    finalAgreements: true
   },
   selectedDetailItem: null
 };
@@ -403,6 +413,8 @@ async function loadUserData() {
   state.leads = [];
   state.cancellations = [];
   state.cancellationsByProposalId = new Map();
+  state.finalAgreements = [];
+  state.finalAgreementsByProposalId = new Map();
   state.leadUpdatesByProposalId = new Map();
   state.proposals = [];
   state.proposalsItemsById = new Map();
@@ -415,7 +427,15 @@ async function loadUserData() {
   }
 
   await loadProfile();
-  await Promise.all([loadMyItems(), loadProposals(), loadModerationItems(), loadLeads(), loadLeadUpdates(), loadCancellations()]);
+  await Promise.all([
+    loadMyItems(),
+    loadProposals(),
+    loadModerationItems(),
+    loadLeads(),
+    loadLeadUpdates(),
+    loadCancellations(),
+    loadFinalAgreements()
+  ]);
 }
 
 async function loadProfile() {
@@ -670,6 +690,36 @@ async function loadCancellations() {
   await loadProfiles(unique(state.cancellations.map((cancellation) => cancellation.requested_by)));
 }
 
+async function loadFinalAgreements() {
+  state.finalAgreements = [];
+  state.finalAgreementsByProposalId = new Map();
+
+  if (!state.schemaFeatures.finalAgreements) {
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("final_agreement_terms")
+    .select("*")
+    .order("version", { ascending: false });
+
+  if (isMissingRelationError(error, "final_agreement_terms")) {
+    state.schemaFeatures.finalAgreements = false;
+    return;
+  }
+
+  if (handleDbError(error, "carregar acordos finais")) {
+    return;
+  }
+
+  state.finalAgreements = data ?? [];
+  for (const agreement of state.finalAgreements) {
+    if (!state.finalAgreementsByProposalId.has(agreement.proposal_id)) {
+      state.finalAgreementsByProposalId.set(agreement.proposal_id, agreement);
+    }
+  }
+}
+
 async function loadProfiles(userIds) {
   if (!userIds.length) {
     return;
@@ -818,6 +868,12 @@ function handleDocumentClick(event) {
     copyLeadSummary(actionTarget.dataset.leadId);
   } else if (action === "export-leads") {
     exportLeadsCsv();
+  } else if (action === "request-final-agreement") {
+    requestFinalAgreement(actionTarget.dataset.proposalId);
+  } else if (action === "accept-final-agreement") {
+    acceptFinalAgreement(actionTarget.dataset.finalId);
+  } else if (action === "finalize-final-agreement") {
+    finalizeFinalAgreement(actionTarget.dataset.finalId);
   }
 }
 
@@ -1076,6 +1132,7 @@ function renderLeadCard(lead) {
       <button type="button" data-action="assign-lead" data-lead-id="${lead.id}">Assumir</button>
       <button class="secondary" type="button" data-action="note-lead" data-lead-id="${lead.id}">Observação</button>
       <button class="secondary" type="button" data-action="copy-lead-summary" data-lead-id="${lead.id}">Copiar resumo</button>
+      <button class="secondary" type="button" data-action="request-final-agreement" data-proposal-id="${lead.proposal_id}">Acordo final</button>
     </div>
   `;
 
@@ -1181,6 +1238,7 @@ function renderProposalCard(proposal, mode) {
   const canCancel = proposal.status === "pending" && createdBy === state.user.id;
   const leadUpdate = state.leadUpdatesByProposalId.get(proposal.id);
   const cancellation = state.cancellationsByProposalId.get(proposal.id);
+  const finalAgreement = state.finalAgreementsByProposalId.get(proposal.id);
 
   const cashText = proposal.cash_difference > 0
     ? `${formatter.format(Number(proposal.cash_difference))} - ${cashDirectionLabels[proposal.cash_direction]}`
@@ -1206,6 +1264,17 @@ function renderProposalCard(proposal, mode) {
       actions.push(`<button class="secondary" type="button" data-action="fail-proposal" data-proposal-id="${proposal.id}">Proposta não aconteceu</button>`);
     }
   }
+  if (finalAgreement?.status === "requested" && [proposal.requester_id, proposal.owner_id].includes(state.user.id)) {
+    const alreadyAccepted =
+      (state.user.id === proposal.requester_id && finalAgreement.requester_accepted_at) ||
+      (state.user.id === proposal.owner_id && finalAgreement.owner_accepted_at);
+    if (!alreadyAccepted) {
+      actions.push(`<button type="button" data-action="accept-final-agreement" data-final-id="${finalAgreement.id}">Aceitar acordo final</button>`);
+    }
+  }
+  if (isModerator() && finalAgreement?.status === "accepted") {
+    actions.push(`<button type="button" data-action="finalize-final-agreement" data-final-id="${finalAgreement.id}">Formalizar conclusão</button>`);
+  }
   actions.push(`<button class="secondary" type="button" data-action="report-user" data-user-id="${counterpartId}">Denunciar usuário</button>`);
 
   card.innerHTML = `
@@ -1230,6 +1299,7 @@ function renderProposalCard(proposal, mode) {
     ${proposal.accepted_at ? `<p class="muted">Acordo inicial aceito em ${formatDateTime(proposal.accepted_at)}.</p>` : ""}
     ${leadUpdate ? `<div class="contact-box"><strong>Acompanhamento da imobiliária</strong><span>${escapeHtml(leadStatusLabels[leadUpdate.status] ?? leadUpdate.status)} desde ${formatDateTime(leadUpdate.updated_at)}.</span></div>` : ""}
     ${cancellation ? `<p class="muted">Cancelamento: ${escapeHtml(cancellationStatusLabels[cancellation.status] ?? cancellation.status)}.</p>` : ""}
+    ${finalAgreement ? renderFinalAgreementBox(finalAgreement) : ""}
     ${proposal.status === "pending" ? `<p class="muted">${canRespond ? "Aguardando sua resposta." : "Aguardando resposta da outra pessoa."}</p>` : ""}
     ${proposal.message ? `<p><strong>Mensagem:</strong> ${escapeHtml(proposal.message)}</p>` : ""}
     ${proposal.status === "accepted" ? renderContactBox(contact) : ""}
@@ -1248,6 +1318,17 @@ function formatProposalOffer(proposal, offered, offered2) {
     return "Somente diferença em dinheiro";
   }
   return "Imóvel indisponível";
+}
+
+function renderFinalAgreementBox(agreement) {
+  return `
+    <div class="contact-box">
+      <strong>Acordo final v${Number(agreement.version)}</strong>
+      <span>${escapeHtml(finalAgreementStatusLabels[agreement.status] ?? agreement.status)}</span>
+      <span>${escapeHtml(truncate(agreement.terms_text, 220))}</span>
+      <span>Interessado: ${agreement.requester_accepted_at ? "aceito" : "pendente"} | Anunciante: ${agreement.owner_accepted_at ? "aceito" : "pendente"}</span>
+    </div>
+  `;
 }
 
 function renderContactBox(contact) {
@@ -2257,6 +2338,66 @@ async function resolveAgreementCancellation(cancellationId, approved) {
   }
 
   showNotice(approved ? "Cancelamento aprovado e imóveis liberados." : "Pedido retornado para ajustes.");
+  await refreshAll();
+}
+
+async function requestFinalAgreement(proposalId) {
+  if (!state.schemaFeatures.finalAgreements) {
+    showNotice("Acordo final depende da nova migração Supabase.", "error");
+    return;
+  }
+
+  const terms = prompt("Descreva os termos finais para aceite das partes:");
+  if (!terms?.trim()) {
+    return;
+  }
+
+  const { error } = await supabaseClient.rpc("request_final_agreement", {
+    p_proposal_id: proposalId,
+    p_terms_text: terms.trim()
+  });
+
+  if (isMissingFunctionError(error, "request_final_agreement")) {
+    state.schemaFeatures.finalAgreements = false;
+    showNotice("Acordo final depende da nova migração Supabase.", "error");
+    return;
+  }
+
+  if (handleDbError(error, "solicitar acordo final")) {
+    return;
+  }
+
+  showNotice("Acordo final enviado para aceite das partes.");
+  await refreshAll();
+}
+
+async function acceptFinalAgreement(finalId) {
+  if (!confirm("Confirmar aceite dos termos finais?")) {
+    return;
+  }
+
+  const { error } = await supabaseClient.rpc("accept_final_agreement", { p_terms_id: finalId });
+
+  if (handleDbError(error, "aceitar acordo final")) {
+    return;
+  }
+
+  showNotice("Aceite do acordo final registrado.");
+  await refreshAll();
+}
+
+async function finalizeFinalAgreement(finalId) {
+  if (!confirm("Formalizar conclusão administrativa deste acordo?")) {
+    return;
+  }
+
+  const { error } = await supabaseClient.rpc("finalize_final_agreement", { p_terms_id: finalId });
+
+  if (handleDbError(error, "formalizar acordo final")) {
+    return;
+  }
+
+  showNotice("Acordo final formalizado.");
   await refreshAll();
 }
 

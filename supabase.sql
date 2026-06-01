@@ -183,6 +183,22 @@ create table if not exists public.agreement_cancellations (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.final_agreement_terms (
+  id uuid primary key default gen_random_uuid(),
+  proposal_id uuid not null references public.exchange_proposals(id) on delete cascade,
+  version integer not null default 1,
+  terms_text text not null,
+  status text not null default 'requested' check (status in ('requested', 'accepted', 'finalized', 'cancelled')),
+  created_by uuid not null references public.profiles(id) on delete cascade,
+  requester_accepted_at timestamptz,
+  owner_accepted_at timestamptz,
+  finalized_by uuid references public.profiles(id) on delete set null,
+  finalized_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (proposal_id, version)
+);
+
 alter table public.profiles
   add column if not exists user_type text not null default 'individual',
   add column if not exists role text not null default 'user',
@@ -339,6 +355,15 @@ alter table public.agreement_cancellations
   add constraint agreement_cancellations_status_check
   check (status in ('requested', 'approved', 'rejected'));
 
+alter table public.final_agreement_terms
+  add column if not exists finalized_by uuid references public.profiles(id) on delete set null,
+  add column if not exists finalized_at timestamptz;
+
+alter table public.final_agreement_terms drop constraint if exists final_agreement_terms_status_check;
+alter table public.final_agreement_terms
+  add constraint final_agreement_terms_status_check
+  check (status in ('requested', 'accepted', 'finalized', 'cancelled'));
+
 alter table public.profiles drop constraint if exists profiles_user_type_check;
 alter table public.profiles
   add constraint profiles_user_type_check
@@ -413,6 +438,8 @@ create index if not exists negotiation_leads_participants_idx on public.negotiat
 create index if not exists negotiation_leads_assigned_idx on public.negotiation_leads(assigned_to, status);
 create index if not exists agreement_cancellations_proposal_idx on public.agreement_cancellations(proposal_id, status);
 create index if not exists agreement_cancellations_requested_idx on public.agreement_cancellations(requested_by, created_at desc);
+create index if not exists final_agreement_terms_proposal_idx on public.final_agreement_terms(proposal_id, version desc);
+create index if not exists final_agreement_terms_status_idx on public.final_agreement_terms(status, updated_at desc);
 
 insert into public.real_estate_agencies (
   legal_name,
@@ -571,6 +598,11 @@ create trigger agreement_cancellations_set_updated_at
 before update on public.agreement_cancellations
 for each row execute function public.set_updated_at();
 
+drop trigger if exists final_agreement_terms_set_updated_at on public.final_agreement_terms;
+create trigger final_agreement_terms_set_updated_at
+before update on public.final_agreement_terms
+for each row execute function public.set_updated_at();
+
 alter table public.profiles enable row level security;
 alter table public.profile_private_data enable row level security;
 alter table public.profile_contacts enable row level security;
@@ -583,6 +615,7 @@ alter table public.audit_events enable row level security;
 alter table public.real_estate_agencies enable row level security;
 alter table public.negotiation_leads enable row level security;
 alter table public.agreement_cancellations enable row level security;
+alter table public.final_agreement_terms enable row level security;
 
 drop policy if exists "profiles public read" on public.profiles;
 create policy "profiles public read"
@@ -1018,6 +1051,26 @@ create policy "agreement cancellations admin update"
     )
   );
 
+drop policy if exists "final agreements participant read" on public.final_agreement_terms;
+create policy "final agreements participant read"
+  on public.final_agreement_terms
+  for select
+  using (
+    exists (
+      select 1
+      from public.exchange_proposals ep
+      where ep.id = final_agreement_terms.proposal_id
+        and auth.uid() in (ep.requester_id, ep.owner_id)
+    )
+    or exists (
+      select 1
+      from public.profiles moderator
+      where moderator.id = auth.uid()
+        and moderator.role in ('real_estate_admin', 'admin')
+        and moderator.account_status = 'active'
+    )
+  );
+
 insert into storage.buckets (id, name, public)
 values ('item-images', 'item-images', true)
 on conflict (id) do update set public = true;
@@ -1352,6 +1405,177 @@ begin
   returning id into v_new_id;
 
   return v_new_id;
+end;
+$$;
+
+create or replace function public.request_final_agreement(
+  p_proposal_id uuid,
+  p_terms_text text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_proposal public.exchange_proposals;
+  v_next_version integer;
+  v_id uuid;
+begin
+  if not exists (
+    select 1
+    from public.profiles moderator
+    where moderator.id = auth.uid()
+      and moderator.role in ('real_estate_admin', 'admin')
+      and moderator.account_status = 'active'
+  ) then
+    raise exception 'Apenas a administração pode solicitar acordo final.';
+  end if;
+
+  select *
+  into v_proposal
+  from public.exchange_proposals
+  where id = p_proposal_id
+  for update;
+
+  if not found then
+    raise exception 'Proposta não encontrada.';
+  end if;
+
+  if v_proposal.status <> 'accepted' then
+    raise exception 'Acordo final exige acordo inicial aceito.';
+  end if;
+
+  if nullif(trim(coalesce(p_terms_text, '')), '') is null then
+    raise exception 'Informe os termos finais.';
+  end if;
+
+  select coalesce(max(version), 0) + 1
+  into v_next_version
+  from public.final_agreement_terms
+  where proposal_id = p_proposal_id;
+
+  update public.final_agreement_terms
+  set status = 'cancelled'
+  where proposal_id = p_proposal_id
+    and status = 'requested';
+
+  insert into public.final_agreement_terms (
+    proposal_id,
+    version,
+    terms_text,
+    status,
+    created_by
+  )
+  values (
+    p_proposal_id,
+    v_next_version,
+    trim(p_terms_text),
+    'requested',
+    auth.uid()
+  )
+  returning id into v_id;
+
+  update public.negotiation_leads
+  set status = 'final_agreement'
+  where proposal_id = p_proposal_id
+    and status <> 'closed';
+
+  return v_id;
+end;
+$$;
+
+create or replace function public.accept_final_agreement(p_terms_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_terms public.final_agreement_terms;
+  v_proposal public.exchange_proposals;
+begin
+  select *
+  into v_terms
+  from public.final_agreement_terms
+  where id = p_terms_id
+  for update;
+
+  if not found then
+    raise exception 'Termos finais não encontrados.';
+  end if;
+
+  if v_terms.status <> 'requested' then
+    raise exception 'Estes termos não estão aguardando aceite.';
+  end if;
+
+  select *
+  into v_proposal
+  from public.exchange_proposals
+  where id = v_terms.proposal_id;
+
+  if auth.uid() = v_proposal.requester_id then
+    update public.final_agreement_terms
+    set requester_accepted_at = coalesce(requester_accepted_at, now())
+    where id = p_terms_id;
+  elsif auth.uid() = v_proposal.owner_id then
+    update public.final_agreement_terms
+    set owner_accepted_at = coalesce(owner_accepted_at, now())
+    where id = p_terms_id;
+  else
+    raise exception 'Apenas participantes podem aceitar os termos finais.';
+  end if;
+
+  update public.final_agreement_terms
+  set status = 'accepted'
+  where id = p_terms_id
+    and requester_accepted_at is not null
+    and owner_accepted_at is not null;
+end;
+$$;
+
+create or replace function public.finalize_final_agreement(p_terms_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_terms public.final_agreement_terms;
+begin
+  if not exists (
+    select 1
+    from public.profiles moderator
+    where moderator.id = auth.uid()
+      and moderator.role in ('real_estate_admin', 'admin')
+      and moderator.account_status = 'active'
+  ) then
+    raise exception 'Apenas a administração pode formalizar conclusão.';
+  end if;
+
+  select *
+  into v_terms
+  from public.final_agreement_terms
+  where id = p_terms_id
+  for update;
+
+  if not found then
+    raise exception 'Termos finais não encontrados.';
+  end if;
+
+  if v_terms.status <> 'accepted' then
+    raise exception 'A formalização exige aceite das duas partes.';
+  end if;
+
+  update public.final_agreement_terms
+  set status = 'finalized',
+      finalized_by = auth.uid(),
+      finalized_at = now()
+  where id = p_terms_id;
+
+  update public.negotiation_leads
+  set status = 'closed'
+  where proposal_id = v_terms.proposal_id;
 end;
 $$;
 

@@ -76,10 +76,10 @@ Atualizado em: 2026-05-31
 | F120 | Solicitar cancelamento apos Acordo Inicial | FASE 10 - Cancelamento e retorno | concluida | 2026-06-01 | node --check app.js | Participante pode solicitar cancelamento rastreavel do acordo aceito, informando motivo. |
 | F121 | Encerrar cancelamento e liberar imoveis | FASE 10 - Cancelamento e retorno | concluida | 2026-06-01 | supabase.sql | Administracao aprova o pedido, marca proposta como `failed`, cancela lead e reabre imoveis. |
 | F122 | Retornar para ajustes | FASE 10 - Cancelamento e retorno | concluida | 2026-06-01 | supabase.sql | Administracao rejeita o cancelamento e devolve o lead para etapa de negociacao. |
-| F130 | Criar termos finais versionados | FASE 11 - Acordo Final | nao iniciada |  |  |  |
-| F131 | Solicitar Acordo Final | FASE 11 - Acordo Final | nao iniciada |  |  |  |
-| F132 | Controlar aceite parcial e completo | FASE 11 - Acordo Final | nao iniciada |  |  |  |
-| F133 | Formalizar conclusao administrativa | FASE 11 - Acordo Final | nao iniciada |  |  |  |
+| F130 | Criar termos finais versionados | FASE 11 - Acordo Final | concluida | 2026-06-01 | supabase.sql | Tabela `final_agreement_terms` guarda versoes dos termos finais por proposta. |
+| F131 | Solicitar Acordo Final | FASE 11 - Acordo Final | concluida | 2026-06-01 | node --check app.js | Administracao solicita acordo final a partir do lead. |
+| F132 | Controlar aceite parcial e completo | FASE 11 - Acordo Final | concluida | 2026-06-01 | supabase.sql | Aceites de interessado e anunciante sao registrados separadamente e fecham status `accepted`. |
+| F133 | Formalizar conclusao administrativa | FASE 11 - Acordo Final | concluida | 2026-06-01 | supabase.sql | Administracao formaliza conclusao e fecha o lead como `closed`. |
 | F140 | Criar notificacoes internas | FASE 12 - Notificacoes e jobs | nao iniciada |  |  |  |
 | F141 | Criar e-mails automaticos | FASE 12 - Notificacoes e jobs | nao iniciada |  |  |  |
 | F142 | Criar jobs agendados | FASE 12 - Notificacoes e jobs | nao iniciada |  |  |  |

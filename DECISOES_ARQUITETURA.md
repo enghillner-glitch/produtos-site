@@ -130,3 +130,11 @@
 | Cancelamento rastreavel | Depois do acordo inicial, o participante solicita cancelamento com motivo em vez de reabrir imoveis diretamente. |
 | Resolucao administrativa | A administracao aprova para liberar os imoveis ou rejeita para devolver o lead a negociacao. |
 | Compatibilidade temporaria | O RPC antigo `mark_exchange_failed` permanece como fallback enquanto ambientes sem a nova migracao existirem. |
+
+## 2026-06-01 - Acordo final
+
+| Decisao | Registro |
+|---|---|
+| Termos versionados | Cada pedido de acordo final cria nova versao em `final_agreement_terms`, cancelando versoes pendentes anteriores. |
+| Aceite bilateral | Interessado e anunciante aceitam separadamente; o status passa a `accepted` somente com os dois aceites. |
+| Fechamento administrativo | Somente administracao formaliza a conclusao e fecha o lead. |
