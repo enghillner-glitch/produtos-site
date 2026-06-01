@@ -83,3 +83,13 @@
 | Edicao sem perda de endereco | Endereco restrito do proprio usuario e carregado no formulario de edicao para evitar obrigar redigitacao. |
 | Dados financeiros sem venda direta | O cadastro registra repasse pretendido, saldo devedor, parcela e parcelas restantes como informacoes de analise, nao como checkout ou venda direta. |
 | Legitimidade obrigatoria | O anunciante precisa confirmar legitimidade para iniciar tratativas antes de salvar o imovel. |
+
+## 2026-06-01 - Moderacao de anuncios
+
+| Decisao | Registro |
+|---|---|
+| Vitrine so com aprovados | Quando a migracao de moderacao estiver aplicada, a vitrine publica lista apenas `items.status = available` e `items.moderation_status = approved`. |
+| Compatibilidade de schema | O front detecta ausencia temporaria da coluna `moderation_status` e usa fallback para nao quebrar a vitrine antes da migracao remota. |
+| Fila interna simples | Perfis `real_estate_admin` e `admin` veem uma fila de anuncios pendentes para aprovar ou pedir ajustes. |
+| Anti-escalacao de papel | Trigger em `profiles` impede usuario comum de elevar o proprio `role` ou virar `real_estate_admin` por chamada direta a API. |
+| Edicao volta para revisao | Trigger em `items` preserva moderacao em pausas simples, mas devolve alteracoes de conteudo para `pending`. |

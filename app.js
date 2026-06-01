@@ -36,6 +36,12 @@ const statusLabels = {
   inactive: "Inativo"
 };
 
+const moderationStatusLabels = {
+  pending: "Em revisão",
+  approved: "Aprovado",
+  rejected: "Ajustar anúncio"
+};
+
 const proposalStatusLabels = {
   pending: "Pendente",
   accepted: "Aceita",
@@ -58,12 +64,16 @@ const state = {
   agency: null,
   publicItems: [],
   myItems: [],
+  moderationItems: [],
   proposals: [],
   imagesByItem: new Map(),
   proposalsItemsById: new Map(),
   profilesById: new Map(),
   contactsByUserId: new Map(),
   privateLocationsByItem: new Map(),
+  schemaFeatures: {
+    moderation: true
+  },
   selectedDetailItem: null
 };
 
@@ -108,6 +118,9 @@ const elements = {
   sentProposals: $("sentProposals"),
   receivedEmpty: $("receivedEmpty"),
   sentEmpty: $("sentEmpty"),
+  moderationSection: $("moderationSection"),
+  moderationList: $("moderationList"),
+  moderationEmpty: $("moderationEmpty"),
   authModal: $("authModal"),
   loginFields: $("loginFields"),
   authEmail: $("authEmail"),
@@ -287,11 +300,27 @@ async function loadActiveAgency() {
 }
 
 async function loadPublicItems() {
-  const { data, error } = await supabaseClient
+  let query = supabaseClient
     .from("items")
     .select("*")
-    .eq("status", "available")
-    .order("created_at", { ascending: false });
+    .eq("status", "available");
+
+  if (state.schemaFeatures.moderation) {
+    query = query.eq("moderation_status", "approved");
+  }
+
+  let { data, error } = await query.order("created_at", { ascending: false });
+
+  if (isMissingColumnError(error, "moderation_status")) {
+    state.schemaFeatures.moderation = false;
+    const fallback = await supabaseClient
+      .from("items")
+      .select("*")
+      .eq("status", "available")
+      .order("created_at", { ascending: false });
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (handleDbError(error, "carregar imóveis disponíveis")) {
     state.publicItems = [];
@@ -301,12 +330,12 @@ async function loadPublicItems() {
   state.publicItems = data ?? [];
   await loadImagesForItems(state.publicItems.map((item) => item.id));
 }
-
 async function loadUserData() {
   state.profile = null;
   state.contact = null;
   state.privateData = null;
   state.myItems = [];
+  state.moderationItems = [];
   state.proposals = [];
   state.proposalsItemsById = new Map();
   state.profilesById = new Map();
@@ -317,7 +346,8 @@ async function loadUserData() {
     return;
   }
 
-  await Promise.all([loadProfile(), loadMyItems(), loadProposals()]);
+  await loadProfile();
+  await Promise.all([loadMyItems(), loadProposals(), loadModerationItems()]);
 }
 
 async function loadProfile() {
@@ -385,6 +415,30 @@ async function loadPrivateLocations(itemIds) {
   state.privateLocationsByItem = new Map((data ?? []).map((location) => [location.item_id, location]));
 }
 
+async function loadModerationItems() {
+  state.moderationItems = [];
+
+  if (!isModerator() || !state.schemaFeatures.moderation) {
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("items")
+    .select("*")
+    .eq("moderation_status", "pending")
+    .order("updated_at", { ascending: true });
+
+  if (handleDbError(error, "carregar fila de moderação")) {
+    return;
+  }
+
+  state.moderationItems = data ?? [];
+  await Promise.all([
+    loadImagesForItems(state.moderationItems.map((item) => item.id)),
+    loadProfiles(unique(state.moderationItems.map((item) => item.owner_id)))
+  ]);
+}
+
 async function loadProposals() {
   const { data, error } = await supabaseClient
     .from("exchange_proposals")
@@ -437,7 +491,9 @@ async function loadProfiles(userIds) {
   const { data, error } = await supabaseClient.from("profiles").select("*").in("id", userIds);
 
   if (!handleDbError(error, "carregar nomes de usuários")) {
-    state.profilesById = new Map((data ?? []).map((profile) => [profile.id, profile]));
+    for (const profile of data ?? []) {
+      state.profilesById.set(profile.id, profile);
+    }
   }
 }
 
@@ -542,6 +598,10 @@ function handleDocumentClick(event) {
     reportTarget("item", actionTarget.dataset.itemId, actionTarget.dataset.userId);
   } else if (action === "report-user") {
     reportTarget("user", null, actionTarget.dataset.userId);
+  } else if (action === "approve-item") {
+    moderateItem(actionTarget.dataset.itemId, "approved");
+  } else if (action === "reject-item") {
+    moderateItem(actionTarget.dataset.itemId, "rejected");
   }
 }
 
@@ -629,6 +689,7 @@ function renderDashboard() {
 
   renderMyItems();
   renderProposals();
+  renderModerationQueue();
 }
 
 function renderAgency() {
@@ -689,6 +750,41 @@ function renderProposalList(container, empty, proposals, mode) {
   }
 }
 
+function renderModerationQueue() {
+  const visible = isModerator() && state.schemaFeatures.moderation;
+  elements.moderationSection.hidden = !visible;
+
+  if (!visible) {
+    return;
+  }
+
+  elements.moderationList.innerHTML = "";
+  elements.moderationEmpty.hidden = state.moderationItems.length > 0;
+
+  for (const item of state.moderationItems) {
+    const owner = state.profilesById.get(item.owner_id);
+    const card = document.createElement("article");
+    card.className = "moderation-card";
+    card.innerHTML = `
+      <div>
+        <div class="item-title-row">
+          <h3>${escapeHtml(item.title)}</h3>
+          <span class="pill status pending">${moderationStatusLabels[item.moderation_status] ?? item.moderation_status}</span>
+        </div>
+        <p class="muted">Anunciante: ${escapeHtml(owner?.full_name ?? "Usuário")}</p>
+        <p class="location">${escapeHtml(item.city)} - ${escapeHtml(item.neighborhood)}</p>
+        <p>${escapeHtml(truncate(item.description, 180))}</p>
+        <p><strong>Repasse pretendido:</strong> ${formatter.format(Number(item.transfer_amount ?? 0))}</p>
+      </div>
+      <div class="proposal-actions">
+        <button type="button" data-action="approve-item" data-item-id="${item.id}">Aprovar</button>
+        <button class="secondary" type="button" data-action="reject-item" data-item-id="${item.id}">Solicitar ajuste</button>
+      </div>
+    `;
+    elements.moderationList.appendChild(card);
+  }
+}
+
 function renderItemCard(item, options) {
   const images = state.imagesByItem.get(item.id) ?? [];
   const firstImage = images[0]?.public_url;
@@ -716,6 +812,8 @@ function renderItemCard(item, options) {
         <h3>${escapeHtml(item.title)}</h3>
         <span class="pill status ${item.status}">${statusLabels[item.status] ?? item.status}</span>
       </div>
+      ${options.context === "mine" && state.schemaFeatures.moderation ? `<span class="pill moderation ${item.moderation_status}">${moderationStatusLabels[item.moderation_status] ?? item.moderation_status ?? "Em revisão"}</span>` : ""}
+      ${item.moderation_note ? `<p><strong>Moderação:</strong> ${escapeHtml(item.moderation_note)}</p>` : ""}
       <div class="pill-row">
         <span class="pill">${escapeHtml(item.category)}</span>
         <span class="pill">${escapeHtml(item.condition)}</span>
@@ -1101,6 +1199,12 @@ async function saveItem(event) {
     notes: elements.itemAddressNotes.value.trim()
   };
 
+  if (state.schemaFeatures.moderation) {
+    payload.moderation_status = "pending";
+    payload.moderation_note = null;
+    payload.moderation_updated_at = new Date().toISOString();
+  }
+
   if (Object.entries(payload).some(([key, value]) => key !== "legitimacy_confirmed" && value === "") || !privateLocation.street || !privateLocation.number) {
     showNotice("Preencha todos os campos obrigatórios do imóvel.", "error");
     return;
@@ -1118,6 +1222,12 @@ async function saveItem(event) {
 
   if (!payload.legitimacy_confirmed) {
     showNotice("Confirme sua legitimidade para cadastrar o imóvel.", "error");
+    return;
+  }
+
+  const publicText = [payload.title, payload.description, payload.neighborhood, payload.trade_preferences].join(" ");
+  if (hasContactLikeContent(publicText)) {
+    showNotice("Remova telefone, email ou link dos campos públicos do anúncio.", "error");
     return;
   }
 
@@ -1224,13 +1334,52 @@ async function toggleItemStatus(itemId) {
   }
 
   const nextStatus = item.status === "inactive" ? "available" : "inactive";
-  const { error } = await supabaseClient.from("items").update({ status: nextStatus }).eq("id", itemId);
+  const updatePayload = { status: nextStatus };
+  if (state.schemaFeatures.moderation && nextStatus === "available" && item.moderation_status !== "approved") {
+    updatePayload.moderation_status = "pending";
+    updatePayload.moderation_updated_at = new Date().toISOString();
+  }
+
+  const { error } = await supabaseClient.from("items").update(updatePayload).eq("id", itemId);
 
   if (handleDbError(error, "alterar status do imóvel")) {
     return;
   }
 
   showNotice(nextStatus === "available" ? "Imóvel reativado." : "Imóvel inativado.");
+  await refreshAll();
+}
+
+async function moderateItem(itemId, moderationStatus) {
+  if (!isModerator()) {
+    showNotice("Apenas perfis de moderação podem revisar anúncios.", "error");
+    return;
+  }
+
+  const payload = {
+    moderation_status: moderationStatus,
+    moderation_note: null,
+    moderation_updated_at: new Date().toISOString()
+  };
+
+  if (moderationStatus === "rejected") {
+    const note = prompt("Informe o ajuste solicitado ao anunciante:");
+    if (!note?.trim()) {
+      return;
+    }
+    payload.moderation_note = note.trim();
+  }
+
+  const { error } = await supabaseClient
+    .from("items")
+    .update(payload)
+    .eq("id", itemId);
+
+  if (handleDbError(error, "moderar anúncio")) {
+    return;
+  }
+
+  showNotice(moderationStatus === "approved" ? "Anúncio aprovado." : "Ajuste solicitado ao anunciante.");
   await refreshAll();
 }
 
@@ -1295,7 +1444,9 @@ async function openProposalModal(itemId) {
     return;
   }
 
-  const availableMyItems = state.myItems.filter((item) => item.status === "available");
+  const availableMyItems = state.myItems.filter(
+    (item) => item.status === "available" && (!state.schemaFeatures.moderation || item.moderation_status === "approved")
+  );
   elements.proposalForm.reset();
   elements.proposalRequestedItemId.value = itemId;
   elements.proposalIntro.textContent = `Você está enviando uma proposta pelo imóvel "${requested.title}".`;
@@ -1429,6 +1580,13 @@ function isProfileComplete() {
   );
 }
 
+function isModerator() {
+  return Boolean(
+    state.profile?.account_status === "active" &&
+    ["real_estate_admin", "admin"].includes(state.profile?.role)
+  );
+}
+
 function updateProfileDocumentUi() {
   const documentType = getDocumentTypeForUserType(elements.profileUserType.value);
   const label = documentType === "cpf" ? "CPF" : "CNPJ";
@@ -1462,6 +1620,13 @@ function maskDocument(documentType, digits) {
 
 function readMoneyInput(input) {
   return Number(input.value || 0);
+}
+
+function hasContactLikeContent(value) {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  const emailPattern = /[^\s@]+@[^\s@]+\.[^\s@]+/i;
+  const urlPattern = /\b(https?:\/\/|www\.|\.com\b|\.br\b)/i;
+  return emailPattern.test(value) || urlPattern.test(value) || digits.length >= 10;
 }
 
 async function sha256Hex(value) {
@@ -1534,6 +1699,11 @@ function handleDbError(error, action) {
   }
 
   return true;
+}
+
+function isMissingColumnError(error, columnName) {
+  const message = error?.message || "";
+  return message.includes(columnName) && (message.includes("column") || message.includes("schema cache"));
 }
 
 function unique(values) {

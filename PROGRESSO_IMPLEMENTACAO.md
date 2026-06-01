@@ -35,11 +35,11 @@ Atualizado em: 2026-05-31
 | F055 | Registrar declaracao de legitimidade | FASE 5 - Cadastro de imoveis | concluida | 2026-05-31 | node --check app.js; Supabase SQL | Cadastro exige confirmacao de legitimidade e grava legitimacy_confirmed. |
 | F056 | Enviar e tratar fotos | FASE 5 - Cadastro de imoveis | parcial | 2026-05-31 | Browser local; node --check app.js | Upload existente preservado; limite de 5 imagens e tipos JPG/PNG/WebP validados. Falta compressao/redimensionamento. |
 | F057 | Controlar estados do anuncio | FASE 5 - Cadastro de imoveis | concluida | 2026-05-31 | node --check app.js | Estados available, traded e inactive ja controlam vitrine, painel e propostas aceitas. |
-| F058 | Enviar anuncio para moderacao | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |
-| F059 | Criar fila de moderacao | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |
-| F060 | Bloquear contatos em textos e imagens | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |
-| F061 | Editar anuncio com nova moderacao | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |
-| F062 | Pausar, expirar e renovar anuncio | FASE 5 - Cadastro de imoveis | nao iniciada |  |  |  |
+| F058 | Enviar anuncio para moderacao | FASE 5 - Cadastro de imoveis | concluida | 2026-06-01 | node --check app.js; Browser local | Novos anuncios e edicoes passam a ficar com moderation_status pending quando schema remoto estiver atualizado. |
+| F059 | Criar fila de moderacao | FASE 5 - Cadastro de imoveis | concluida | 2026-06-01 | node --check app.js; Browser local | Painel de moderacao para papeis real_estate_admin/admin lista anuncios pendentes e permite aprovar ou solicitar ajuste. |
+| F060 | Bloquear contatos em textos e imagens | FASE 5 - Cadastro de imoveis | parcial | 2026-06-01 | node --check app.js | Textos publicos bloqueiam telefone, email e link; analise de contato em imagens fica pendente. |
+| F061 | Editar anuncio com nova moderacao | FASE 5 - Cadastro de imoveis | concluida | 2026-06-01 | node --check app.js | Edicoes do anunciante retornam o anuncio para revisao, protegidas tambem por trigger SQL. |
+| F062 | Pausar, expirar e renovar anuncio | FASE 5 - Cadastro de imoveis | parcial | 2026-06-01 | node --check app.js | Pausar e reativar ja existem via inactive/available; expiracao automatica e renovacao programada ficam pendentes. |
 | F070 | Criar cartao da vitrine | FASE 6 - Vitrine | nao iniciada |  |  |  |
 | F071 | Criar pagina detalhada | FASE 6 - Vitrine | nao iniciada |  |  |  |
 | F072 | Criar filtros e busca | FASE 6 - Vitrine | nao iniciada |  |  |  |

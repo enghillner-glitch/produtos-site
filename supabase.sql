@@ -60,6 +60,9 @@ create table if not exists public.items (
   monthly_payment numeric(12, 2) not null default 0,
   installments_remaining integer not null default 0,
   legitimacy_confirmed boolean not null default false,
+  moderation_status text not null default 'pending' check (moderation_status in ('pending', 'approved', 'rejected')),
+  moderation_note text,
+  moderation_updated_at timestamptz,
   status text not null default 'available' check (status in ('available', 'traded', 'inactive')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -156,6 +159,17 @@ alter table public.items
   add column if not exists installments_remaining integer not null default 0;
 alter table public.items
   add column if not exists legitimacy_confirmed boolean not null default false;
+alter table public.items
+  add column if not exists moderation_status text not null default 'pending';
+alter table public.items
+  add column if not exists moderation_note text;
+alter table public.items
+  add column if not exists moderation_updated_at timestamptz;
+
+update public.items
+set moderation_status = 'approved',
+    moderation_updated_at = coalesce(moderation_updated_at, now())
+where moderation_updated_at is null;
 
 alter table public.items drop constraint if exists items_state_check;
 alter table public.items
@@ -171,6 +185,11 @@ alter table public.items
     and monthly_payment >= 0
     and installments_remaining >= 0
   );
+
+alter table public.items drop constraint if exists items_moderation_status_check;
+alter table public.items
+  add constraint items_moderation_status_check
+  check (moderation_status in ('pending', 'approved', 'rejected'));
 
 alter table public.profiles drop constraint if exists profiles_user_type_check;
 alter table public.profiles
@@ -225,6 +244,7 @@ alter table public.items
   ));
 
 create index if not exists items_status_city_idx on public.items(status, city, neighborhood);
+create index if not exists items_moderation_status_idx on public.items(moderation_status, updated_at desc);
 create index if not exists profile_private_document_hash_idx on public.profile_private_data(document_hash);
 create unique index if not exists profile_private_document_unique_idx on public.profile_private_data(document_type, document_hash);
 create index if not exists items_owner_idx on public.items(owner_id);
@@ -265,10 +285,90 @@ begin
 end;
 $$;
 
+create or replace function public.protect_profile_role_fields()
+returns trigger
+language plpgsql
+as $$
+begin
+  if auth.uid() = old.id then
+    new.role = old.role;
+
+    if new.user_type = 'real_estate_admin' and old.user_type <> 'real_estate_admin' then
+      new.user_type = old.user_type;
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+create or replace function public.protect_item_moderation_fields()
+returns trigger
+language plpgsql
+as $$
+declare
+  v_is_moderator boolean;
+  v_content_changed boolean;
+begin
+  select exists (
+    select 1
+    from public.profiles p
+    where p.id = auth.uid()
+      and p.role in ('real_estate_admin', 'admin')
+      and p.account_status = 'active'
+  ) into v_is_moderator;
+
+  if coalesce(v_is_moderator, false) then
+    return new;
+  end if;
+
+  if auth.uid() = new.owner_id then
+    if tg_op = 'INSERT' then
+      new.moderation_status = 'pending';
+      new.moderation_note = null;
+      new.moderation_updated_at = now();
+      return new;
+    end if;
+
+    v_content_changed =
+      old.title is distinct from new.title
+      or old.description is distinct from new.description
+      or old.category is distinct from new.category
+      or old.condition is distinct from new.condition
+      or old.state is distinct from new.state
+      or old.city is distinct from new.city
+      or old.neighborhood is distinct from new.neighborhood
+      or old.trade_preferences is distinct from new.trade_preferences
+      or old.transfer_amount is distinct from new.transfer_amount
+      or old.outstanding_balance is distinct from new.outstanding_balance
+      or old.monthly_payment is distinct from new.monthly_payment
+      or old.installments_remaining is distinct from new.installments_remaining
+      or old.legitimacy_confirmed is distinct from new.legitimacy_confirmed;
+
+    if v_content_changed then
+      new.moderation_status = 'pending';
+      new.moderation_note = null;
+      new.moderation_updated_at = now();
+    else
+      new.moderation_status = old.moderation_status;
+      new.moderation_note = old.moderation_note;
+      new.moderation_updated_at = old.moderation_updated_at;
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
 drop trigger if exists profiles_set_updated_at on public.profiles;
 create trigger profiles_set_updated_at
 before update on public.profiles
 for each row execute function public.set_updated_at();
+
+drop trigger if exists profiles_protect_role_fields on public.profiles;
+create trigger profiles_protect_role_fields
+before update on public.profiles
+for each row execute function public.protect_profile_role_fields();
 
 drop trigger if exists profile_contacts_set_updated_at on public.profile_contacts;
 create trigger profile_contacts_set_updated_at
@@ -289,6 +389,11 @@ drop trigger if exists items_set_updated_at on public.items;
 create trigger items_set_updated_at
 before update on public.items
 for each row execute function public.set_updated_at();
+
+drop trigger if exists items_protect_moderation_fields on public.items;
+create trigger items_protect_moderation_fields
+before insert or update on public.items
+for each row execute function public.protect_item_moderation_fields();
 
 drop trigger if exists exchange_proposals_set_updated_at on public.exchange_proposals;
 create trigger exchange_proposals_set_updated_at
@@ -384,8 +489,15 @@ create policy "items visible read"
   on public.items
   for select
   using (
-    status = 'available'
+    (status = 'available' and moderation_status = 'approved')
     or owner_id = auth.uid()
+    or exists (
+      select 1
+      from public.profiles moderator
+      where moderator.id = auth.uid()
+        and moderator.role in ('real_estate_admin', 'admin')
+        and moderator.account_status = 'active'
+    )
     or exists (
       select 1
       from public.exchange_proposals ep
@@ -400,6 +512,7 @@ create policy "items own insert"
   for insert
   with check (
     owner_id = auth.uid()
+    and moderation_status = 'pending'
     and exists (
       select 1
       from public.profiles p
@@ -439,8 +552,15 @@ create policy "item images visible read"
       from public.items i
       where i.id = item_images.item_id
         and (
-          i.status = 'available'
+          (i.status = 'available' and i.moderation_status = 'approved')
           or i.owner_id = auth.uid()
+          or exists (
+            select 1
+            from public.profiles moderator
+            where moderator.id = auth.uid()
+              and moderator.role in ('real_estate_admin', 'admin')
+              and moderator.account_status = 'active'
+          )
           or exists (
             select 1
             from public.exchange_proposals ep
@@ -496,6 +616,29 @@ create policy "item private locations own update"
   using (owner_id = auth.uid())
   with check (owner_id = auth.uid());
 
+drop policy if exists "items moderator update" on public.items;
+create policy "items moderator update"
+  on public.items
+  for update
+  using (
+    exists (
+      select 1
+      from public.profiles moderator
+      where moderator.id = auth.uid()
+        and moderator.role in ('real_estate_admin', 'admin')
+        and moderator.account_status = 'active'
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from public.profiles moderator
+      where moderator.id = auth.uid()
+        and moderator.role in ('real_estate_admin', 'admin')
+        and moderator.account_status = 'active'
+    )
+  );
+
 drop policy if exists "proposals participant read" on public.exchange_proposals;
 create policy "proposals participant read"
   on public.exchange_proposals
@@ -526,6 +669,7 @@ create policy "proposals valid insert"
       where offered.id = offered_item_id
         and offered.owner_id = auth.uid()
         and offered.status = 'available'
+        and offered.moderation_status = 'approved'
     )
     and exists (
       select 1
@@ -534,6 +678,7 @@ create policy "proposals valid insert"
         and requested.owner_id = owner_id
         and requested.owner_id <> auth.uid()
         and requested.status = 'available'
+        and requested.moderation_status = 'approved'
     )
   );
 
@@ -638,6 +783,7 @@ begin
     from public.items i
     where i.id in (v_proposal.requested_item_id, v_proposal.offered_item_id)
       and i.status = 'available'
+      and i.moderation_status = 'approved'
   ) <> 2 then
     raise exception 'Os imoveis da proposta precisam estar disponiveis.';
   end if;

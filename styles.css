@@ -508,6 +508,22 @@ textarea:focus {
   color: #4a555b;
 }
 
+.moderation.pending,
+.status.pending {
+  background: #fff4cf;
+  color: #7d5200;
+}
+
+.moderation.approved {
+  background: #e3f7e8;
+  color: #14653a;
+}
+
+.moderation.rejected {
+  background: #fde8e8;
+  color: #9b1c1c;
+}
+
 .location {
   color: var(--brand-dark);
   font-weight: 900;
@@ -615,7 +631,20 @@ textarea:focus {
   gap: 12px;
 }
 
+.moderation-list {
+  display: grid;
+  gap: 12px;
+}
+
 .proposal-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.moderation-card {
   border: 1px solid var(--line);
   border-radius: 8px;
   display: grid;
