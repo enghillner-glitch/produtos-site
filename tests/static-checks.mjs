@@ -60,7 +60,7 @@ assert(files.js.includes("sanitizeAuditMetadata"), "app.js deve sanitizar metada
 assert(files.js.includes("recordAuditEvent"), "app.js deve registrar eventos de auditoria");
 assert(files.js.includes("saveAgencySettings"), "app.js deve permitir editar configuracoes da imobiliaria");
 assert(files.sql.includes("real estate agencies admin update"), "supabase.sql deve permitir atualizacao administrativa da imobiliaria");
-assert(files.sql.includes("revoke execute on all functions in schema public from public"), "supabase.sql deve revogar RPCs do papel publico");
+assert(files.sql.includes("revoke execute on function public.run_scheduled_maintenance() from public"), "supabase.sql deve revogar RPCs sensiveis do papel publico");
 assert(files.sql.includes("grant execute on function public.run_scheduled_maintenance() to service_role"), "manutencao deve ficar restrita ao service_role");
 assert(files.sql.includes("grant execute on function public.accept_exchange_proposal(uuid) to authenticated"), "RPCs de usuario devem ser liberadas apenas para authenticated");
 assert(files.js.includes("renderInitialAgreementBox"), "app.js deve renderizar acordo inicial formal");

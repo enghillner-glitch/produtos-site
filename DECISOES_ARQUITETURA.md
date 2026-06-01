@@ -175,5 +175,5 @@
 
 | Decisao | Registro |
 |---|---|
-| RPCs sem acesso anonimo | `supabase.sql` revoga `execute` de todas as funcoes no schema `public` para o papel publico e concede apenas as RPCs necessarias para `authenticated` ou `service_role`. |
+| RPCs sem acesso anonimo | `supabase.sql` revoga `execute` das funcoes do projeto para o papel publico e concede apenas as RPCs necessarias para `authenticated` ou `service_role`, sem afetar funcoes de extensoes. |
 | Manutencao somente server-side | `run_scheduled_maintenance` fica executavel apenas por `service_role`, chamada pela rota protegida `/api/maintenance`. |
