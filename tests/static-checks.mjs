@@ -47,6 +47,8 @@ assert(files.js.includes("recordAuditEvent"), "app.js deve registrar eventos de 
 assert(files.js.includes("saveAgencySettings"), "app.js deve permitir editar configuracoes da imobiliaria");
 assert(files.sql.includes("real estate agencies admin update"), "supabase.sql deve permitir atualizacao administrativa da imobiliaria");
 assert(files.js.includes("renderInitialAgreementBox"), "app.js deve renderizar acordo inicial formal");
+assert(files.html.includes('data-auth-action="resend-confirmation"'), "index.html deve permitir reenviar confirmacao de email");
+assert(files.js.includes("supabaseClient.auth.resend"), "app.js deve usar reenvio de confirmacao do Supabase Auth");
 assert(files.vercel.includes("/api/maintenance"), "vercel.json deve agendar a manutencao");
 assert(files.maintenance.includes("run_scheduled_maintenance"), "api/maintenance.js deve chamar a RPC de manutencao");
 assert(files.maintenance.includes("CRON_SECRET"), "api/maintenance.js deve exigir CRON_SECRET");

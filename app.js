@@ -1650,13 +1650,48 @@ async function handleAuth(action) {
     return;
   }
 
+  if (action === "resend-confirmation") {
+    if (!email) {
+      showNotice("Informe seu email para reenviar a confirmação.", "error");
+      return;
+    }
+
+    if (typeof supabaseClient.auth.resend !== "function") {
+      showNotice("Reenvio de confirmação não está disponível nesta versão do Supabase Auth.", "error");
+      return;
+    }
+
+    const { error } = await supabaseClient.auth.resend({
+      type: "signup",
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}${window.location.pathname}#dashboard`
+      }
+    });
+
+    if (error) {
+      showNotice(error.message, "error");
+      return;
+    }
+
+    closeModals();
+    showNotice("Se a confirmação de email estiver ativa no Supabase, enviamos um novo link.");
+    return;
+  }
+
   if (!email || !password) {
     showNotice("Informe email e senha.", "error");
     return;
   }
 
   const response = action === "signup"
-    ? await supabaseClient.auth.signUp({ email, password })
+    ? await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}${window.location.pathname}#dashboard`
+      }
+    })
     : await supabaseClient.auth.signInWithPassword({ email, password });
 
   if (response.error) {
@@ -1690,7 +1725,7 @@ function setAuthMode(mode) {
   elements.authPassword.autocomplete = recovery ? "new-password" : "current-password";
   elements.authPasswordLabel.textContent = recovery ? "Nova senha" : "Senha";
 
-  document.querySelectorAll("[data-auth-action='login'], [data-auth-action='signup'], [data-auth-action='reset-password']")
+  document.querySelectorAll("[data-auth-action='login'], [data-auth-action='signup'], [data-auth-action='reset-password'], [data-auth-action='resend-confirmation']")
     .forEach((button) => {
       button.hidden = recovery;
     });

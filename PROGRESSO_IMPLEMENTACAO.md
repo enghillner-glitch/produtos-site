@@ -22,7 +22,7 @@ Atualizado em: 2026-05-31
 | F031 | Criar pagina institucional da imobiliaria | FASE 3 - Imobiliaria | concluida | 2026-05-31 |  | Pagina/visao institucional da imobiliaria criada no SPA com leitura da imobiliaria ativa. |
 | F040 | Cadastrar pessoa fisica | FASE 4 - Usuarios e autenticacao | concluida | 2026-05-31 | node --check app.js | Perfil exige tipo Pessoa fisica e CPF restrito antes de cadastrar imoveis ou propor repasse. |
 | F041 | Cadastrar pessoa juridica | FASE 4 - Usuarios e autenticacao | concluida | 2026-05-31 | node --check app.js | Perfil aceita Pessoa juridica com CNPJ restrito. |
-| F042 | Confirmar e-mail | FASE 4 - Usuarios e autenticacao | parcial | 2026-05-31 | node --check app.js | Fluxo usa Supabase Auth e avisa o usuario para confirmar e-mail quando configurado no projeto. |
+| F042 | Confirmar e-mail | FASE 4 - Usuarios e autenticacao | concluida | 2026-06-01 | node --check app.js; tests/static-checks.mjs | Cadastro envia redirect de confirmacao e login permite reenviar email de confirmacao via Supabase Auth quando o recurso esta ativo. |
 | F043 | Implementar login e logout | FASE 4 - Usuarios e autenticacao | concluida | 2026-05-31 | node --check app.js | Login, criacao de conta e logout ja integrados ao Supabase Auth no SPA. |
 | F044 | Recuperar senha | FASE 4 - Usuarios e autenticacao | concluida | 2026-05-31 | node --check app.js; validacao Supabase | Botao Esqueci minha senha envia email de recuperacao via Supabase Auth. |
 | F045 | Criar perfil do usuario | FASE 4 - Usuarios e autenticacao | concluida | 2026-05-31 | node --check app.js | Perfil inclui nome/razao social, tipo, CPF/CNPJ restrito, WhatsApp, estado e cidade. |
