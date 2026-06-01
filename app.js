@@ -124,6 +124,11 @@ const state = {
     item: 0,
     proposal: 0
   },
+  turnstile: {
+    scriptPromise: null,
+    widgets: {},
+    tokens: {}
+  },
   schemaFeatures: {
     moderation: true,
     advancedProposals: true,
@@ -231,6 +236,7 @@ const elements = {
   itemImages: $("itemImages"),
   imageRequirement: $("imageRequirement"),
   itemImagePreview: $("itemImagePreview"),
+  itemTurnstile: $("itemTurnstile"),
   detailModal: $("detailModal"),
   itemDetail: $("itemDetail"),
   proposalModal: $("proposalModal"),
@@ -246,7 +252,8 @@ const elements = {
   advancedProposalHint: $("advancedProposalHint"),
   cashDifference: $("cashDifference"),
   cashDirection: $("cashDirection"),
-  proposalMessage: $("proposalMessage")
+  proposalMessage: $("proposalMessage"),
+  proposalTurnstile: $("proposalTurnstile")
 };
 
 init();
@@ -254,6 +261,7 @@ init();
 async function init() {
   populateSelects();
   bindEvents();
+  loadTurnstileIfConfigured();
 
   if (!supabaseClient) {
     showNotice("Supabase não está configurado. Preencha config.js para ativar o banco.", "error");
@@ -1877,7 +1885,7 @@ async function deactivateAccount() {
   showNotice("Conta desativada. Para reativar, entre novamente e salve seu perfil.");
 }
 
-function openItemForm(itemId) {
+async function openItemForm(itemId) {
   if (!requireLogin()) {
     return;
   }
@@ -1918,6 +1926,7 @@ function openItemForm(itemId) {
 
   renderExistingImagePreview(item?.id);
   openModal(elements.itemModal);
+  await renderTurnstile("item", elements.itemTurnstile);
 }
 
 async function saveItem(event) {
@@ -1932,6 +1941,10 @@ async function saveItem(event) {
   }
 
   if (!passesAntiSpamCheck("item", elements.itemHoneypot, "item-submit", 1500, 8000)) {
+    return;
+  }
+
+  if (!(await verifyTurnstileIfConfigured("item"))) {
     return;
   }
 
@@ -2038,6 +2051,7 @@ async function saveItem(event) {
 
   closeModals();
   markAntiSpamSubmission("item-submit");
+  resetTurnstile("item");
   showNotice("Imóvel salvo.");
   await refreshAll();
   setView("dashboard");
@@ -2621,6 +2635,7 @@ async function openProposalModal(itemId) {
   syncProposalOfferFields();
   closeModals();
   openModal(elements.proposalModal);
+  await renderTurnstile("proposal", elements.proposalTurnstile);
 }
 
 function syncProposalOfferFields() {
@@ -2662,6 +2677,10 @@ async function sendProposal(event) {
   }
 
   if (!passesAntiSpamCheck("proposal", elements.proposalHoneypot, "proposal-submit", 1500, 10000)) {
+    return;
+  }
+
+  if (!(await verifyTurnstileIfConfigured("proposal"))) {
     return;
   }
 
@@ -2764,6 +2783,7 @@ async function sendProposal(event) {
   });
   closeModals();
   markAntiSpamSubmission("proposal-submit");
+  resetTurnstile("proposal");
   showNotice("Proposta enviada.");
   await refreshAll();
   setView("dashboard");
@@ -3211,6 +3231,99 @@ function passesAntiSpamCheck(formKey, honeypotInput, cooldownKey, minOpenMs, coo
 
 function markAntiSpamSubmission(cooldownKey) {
   localStorage.setItem(`repasse:${cooldownKey}`, String(Date.now()));
+}
+
+function loadTurnstileIfConfigured() {
+  if (!config.turnstileSiteKey || state.turnstile.scriptPromise || window.turnstile) {
+    return state.turnstile.scriptPromise;
+  }
+
+  state.turnstile.scriptPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+    script.async = true;
+    script.defer = true;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+
+  return state.turnstile.scriptPromise;
+}
+
+async function renderTurnstile(formKey, container) {
+  if (!config.turnstileSiteKey || !container) {
+    return;
+  }
+
+  container.hidden = false;
+  state.turnstile.tokens[formKey] = "";
+
+  try {
+    await loadTurnstileIfConfigured();
+    if (!window.turnstile) {
+      return;
+    }
+
+    if (state.turnstile.widgets[formKey]) {
+      window.turnstile.reset(state.turnstile.widgets[formKey]);
+      return;
+    }
+
+    state.turnstile.widgets[formKey] = window.turnstile.render(container, {
+      sitekey: config.turnstileSiteKey,
+      callback: (token) => {
+        state.turnstile.tokens[formKey] = token;
+      },
+      "expired-callback": () => {
+        state.turnstile.tokens[formKey] = "";
+      },
+      "error-callback": () => {
+        state.turnstile.tokens[formKey] = "";
+      }
+    });
+  } catch (_error) {
+    showNotice("Não foi possível carregar a verificação humana. Tente novamente em instantes.", "error");
+  }
+}
+
+async function verifyTurnstileIfConfigured(formKey) {
+  if (!config.turnstileSiteKey) {
+    return true;
+  }
+
+  const token = state.turnstile.tokens[formKey];
+  if (!token) {
+    showNotice("Conclua a verificação humana antes de enviar.", "error");
+    return false;
+  }
+
+  try {
+    const response = await fetch("/api/verify-turnstile", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token })
+    });
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok || !result.ok) {
+      resetTurnstile(formKey);
+      showNotice("Verificação humana não confirmada. Tente novamente.", "error");
+      return false;
+    }
+
+    return true;
+  } catch (_error) {
+    showNotice("Falha ao verificar CAPTCHA. Tente novamente.", "error");
+    return false;
+  }
+}
+
+function resetTurnstile(formKey) {
+  state.turnstile.tokens[formKey] = "";
+  if (window.turnstile && state.turnstile.widgets[formKey]) {
+    window.turnstile.reset(state.turnstile.widgets[formKey]);
+  }
 }
 
 function unique(values) {

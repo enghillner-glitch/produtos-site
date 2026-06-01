@@ -34,6 +34,8 @@ O repassecomrepasse sera uma plataforma de aproximacao entre usuarios com intere
 
 - `OPERACAO_JOBS.md` - configuracao do cron diario de manutencao na Vercel.
 
+- `SEGURANCA_CAPTCHA.md` - ativacao opcional do Cloudflare Turnstile.
+
 ## Backup minimo
 
 Backup desta preparacao:
@@ -57,8 +59,10 @@ Testes estaticos/smoke:
 ```powershell
 node --check app.js
 node --check api/maintenance.js
+node --check api/verify-turnstile.js
 node tests/static-checks.mjs
 node tests/unit-maintenance.mjs
+node tests/unit-turnstile.mjs
 node tests/backup-restore-dry-run.mjs
 node tests/smoke-http.mjs
 node tests/e2e-public-flow.mjs
@@ -71,3 +75,5 @@ Aplicar `supabase.sql` no Supabase para liberar todos os recursos novos do banco
 Configurar na Vercel as variaveis `CRON_SECRET`, `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` para ativar a rota protegida `/api/maintenance` e o cron diario definido em `vercel.json`.
 
 Para envio automatico de emails da fila interna, configurar tambem `RESEND_API_KEY`, `EMAIL_FROM` e, opcionalmente, `EMAIL_BATCH_LIMIT`.
+
+Para CAPTCHA adaptativo, configurar `turnstileSiteKey` em `config.js` e `TURNSTILE_SECRET_KEY` na Vercel.

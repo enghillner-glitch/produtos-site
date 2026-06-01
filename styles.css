@@ -202,6 +202,15 @@ textarea:focus {
   width: 1px;
 }
 
+.turnstile-box {
+  min-height: 0;
+}
+
+.turnstile-box:not([hidden]) {
+  display: flex;
+  justify-content: flex-start;
+}
+
 .site-header {
   align-items: center;
   backdrop-filter: blur(14px);
