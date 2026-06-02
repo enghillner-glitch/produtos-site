@@ -1797,6 +1797,13 @@ async function handleAuth(action) {
     state.user = sessionUser;
     await refreshAll();
     setView("dashboard");
+    if (!isProfileComplete()) {
+      profileEditMode = true;
+      renderDashboard();
+      elements.profileForm.scrollIntoView({ behavior: "smooth", block: "start" });
+      showNotice("Entrada realizada. Complete seu cadastro de usuário para continuar.", "success");
+      return;
+    }
   }
   showNotice(action === "signup"
     ? "Conta criada. Se o Supabase pedir confirmação, verifique seu email antes de entrar."
@@ -1805,9 +1812,15 @@ async function handleAuth(action) {
 
 async function logout() {
   profileEditMode = false;
-  await supabaseClient.auth.signOut();
+  await supabaseClient.auth.signOut().catch((error) => {
+    console.warn("Falha ao encerrar sessao remota", error);
+  });
+  state.user = null;
   setAuthMode("login");
+  closeModals();
+  await refreshAll();
   setView("home");
+  showNotice("Você saiu da sua conta.");
 }
 
 function openPasswordRecoveryMode() {
