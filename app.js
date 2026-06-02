@@ -161,6 +161,7 @@ const elements = {
   dashboardView: $("dashboardView"),
   agencyView: $("agencyView"),
   agencyCard: $("agencyCard"),
+  dashboardNavButton: $("dashboardNavButton"),
   authControls: $("authControls"),
   pendingBadge: $("pendingBadge"),
   notificationsList: $("notificationsList"),
@@ -928,20 +929,24 @@ function setView(view, updateHash = true) {
   if (updateHash) {
     window.location.hash = view === "dashboard" ? "dashboard" : view === "agency" ? "agency" : "home";
   }
-  if (view === "dashboard" && !state.user) {
-    showLoginForDashboard();
-  } else if (view === "dashboard" && state.user) {
+  if (view === "dashboard" && state.user) {
     renderDashboard();
   }
 }
 
 async function openDashboard() {
-  setView("dashboard");
+  if (!state.user) {
+    const { data } = await supabaseClient.auth.getSession();
+    state.user = data.session?.user ?? null;
+  }
 
-  if (!(await ensureCurrentSession("Entre com seu email e senha para acessar o painel."))) {
+  if (!state.user) {
+    setView("home");
+    showLoginForDashboard("Entre com seu email e senha para acessar o painel.");
     return;
   }
 
+  setView("dashboard");
   await loadUserData();
   renderAuthControls();
   renderDashboard();
@@ -1055,6 +1060,7 @@ function handleDocumentSubmit(event) {
 
 function renderAuthControls() {
   elements.authControls.innerHTML = "";
+  elements.dashboardNavButton.hidden = !state.user;
 
   if (state.user) {
     const status = document.createElement("span");
