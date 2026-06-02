@@ -143,6 +143,8 @@ const state = {
   selectedDetailItem: null
 };
 
+let profileEditMode = false;
+
 const $ = (id) => document.getElementById(id);
 const formatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -182,6 +184,9 @@ const elements = {
   resultsCount: $("resultsCount"),
   signedOutPanel: $("signedOutPanel"),
   signedInPanel: $("signedInPanel"),
+  profileSummaryPanel: $("profileSummaryPanel"),
+  profileSummaryStatus: $("profileSummaryStatus"),
+  profileSummaryGrid: $("profileSummaryGrid"),
   profileForm: $("profileForm"),
   profileName: $("profileName"),
   profileUserType: $("profileUserType"),
@@ -947,6 +952,10 @@ function handleDocumentClick(event) {
     closeModals();
   } else if (action === "open-item-form") {
     openItemForm();
+  } else if (action === "edit-profile") {
+    profileEditMode = true;
+    renderDashboard();
+    elements.profileForm.scrollIntoView({ behavior: "smooth", block: "start" });
   } else if (action === "view-item") {
     openItemDetail(actionTarget.dataset.itemId);
   } else if (action === "favorite-item") {
@@ -1025,7 +1034,10 @@ function renderAuthControls() {
   if (state.user) {
     const status = document.createElement("span");
     status.className = "user-session";
-    status.textContent = `Bem-vindo, ${state.user.email}`;
+    status.innerHTML = `
+      <span>Logado</span>
+      <strong>${escapeHtml(state.user.email || "usuário")}</strong>
+    `;
     elements.authControls.appendChild(status);
 
     const button = document.createElement("button");
@@ -1124,6 +1136,9 @@ function renderDashboard() {
   elements.profileStatus.textContent = accountInactive ? "Inativo" : profileComplete ? "Completo" : "Pendente";
   elements.profileStatus.classList.toggle("complete", profileComplete);
   elements.profileStatus.classList.toggle("inactive", accountInactive);
+  elements.profileSummaryPanel.hidden = !profileComplete || profileEditMode;
+  elements.profileForm.hidden = profileComplete && !profileEditMode;
+  renderProfileSummary(profileComplete, accountInactive);
   syncProfileGatedActions(profileComplete);
 
   renderMyItems();
@@ -1133,6 +1148,44 @@ function renderDashboard() {
   renderLeads();
   renderCancellationQueue();
   renderAdminPanel();
+}
+
+function renderProfileSummary(profileComplete, accountInactive) {
+  elements.profileSummaryStatus.textContent = accountInactive ? "Inativo" : profileComplete ? "Completo" : "Pendente";
+  elements.profileSummaryStatus.classList.toggle("complete", profileComplete);
+  elements.profileSummaryStatus.classList.toggle("inactive", accountInactive);
+
+  const userTypeLabel = state.profile?.user_type === "company" ? "Pessoa jurídica" : "Pessoa física";
+  const documentLabel = state.privateData?.document_type === "cnpj" ? "CNPJ" : "CPF";
+  const documentValue = state.privateData?.document_encrypted || "Documento cadastrado";
+  const email = state.user?.email || "Email não informado";
+
+  elements.profileSummaryGrid.innerHTML = `
+    <div>
+      <span>Usuário logado</span>
+      <strong>${escapeHtml(email)}</strong>
+    </div>
+    <div>
+      <span>Nome / Razão social</span>
+      <strong>${escapeHtml(state.profile?.full_name || "Não informado")}</strong>
+    </div>
+    <div>
+      <span>Tipo de pessoa</span>
+      <strong>${escapeHtml(userTypeLabel)}</strong>
+    </div>
+    <div>
+      <span>${escapeHtml(documentLabel)}</span>
+      <strong>${escapeHtml(documentValue)}</strong>
+    </div>
+    <div>
+      <span>WhatsApp</span>
+      <strong>${escapeHtml(state.contact?.whatsapp || "Não informado")}</strong>
+    </div>
+    <div>
+      <span>Localidade</span>
+      <strong>${escapeHtml([state.profile?.city, state.profile?.state].filter(Boolean).join(" - ") || "Não informada")}</strong>
+    </div>
+  `;
 }
 
 function renderAgency() {
@@ -1726,12 +1779,19 @@ async function handleAuth(action) {
   }
 
   closeModals();
+  const sessionUser = response.data?.session?.user ?? null;
+  if (sessionUser) {
+    state.user = sessionUser;
+    await refreshAll();
+    setView("dashboard");
+  }
   showNotice(action === "signup"
     ? "Conta criada. Se o Supabase pedir confirmação, verifique seu email antes de entrar."
     : "Entrada realizada com sucesso.");
 }
 
 async function logout() {
+  profileEditMode = false;
   await supabaseClient.auth.signOut();
   setAuthMode("login");
   setView("home");
@@ -1858,6 +1918,7 @@ async function persistProfile() {
   if (await saveConsentRecord()) {
     return;
   }
+  profileEditMode = false;
   await refreshAll();
   showNotice("Perfil salvo com sucesso. Agora você pode cadastrar imóveis.", "success");
 }
@@ -1916,7 +1977,7 @@ async function deactivateAccount() {
 }
 
 async function openItemForm(itemId) {
-  if (!requireLogin()) {
+  if (!(await ensureCurrentSession())) {
     return;
   }
 
@@ -1967,7 +2028,7 @@ async function openItemForm(itemId) {
 async function saveItem(event) {
   event.preventDefault();
 
-  if (!requireLogin()) {
+  if (!(await ensureCurrentSession())) {
     return;
   }
 
@@ -3198,6 +3259,26 @@ async function sha256Hex(value) {
 
 function requireLogin() {
   if (state.user) {
+    return true;
+  }
+
+  openModal(elements.authModal);
+  showNotice("Entre ou crie uma conta para continuar.");
+  return false;
+}
+
+async function ensureCurrentSession() {
+  if (state.user) {
+    return true;
+  }
+
+  const { data } = await supabaseClient.auth.getSession();
+  state.user = data.session?.user ?? null;
+
+  if (state.user) {
+    await loadUserData();
+    renderAuthControls();
+    renderDashboard();
     return true;
   }
 

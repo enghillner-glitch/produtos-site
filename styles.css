@@ -255,6 +255,12 @@ textarea:focus {
   gap: 10px;
 }
 
+#authControls {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
 .badge {
   align-items: center;
   background: var(--accent);
@@ -290,10 +296,13 @@ textarea:focus {
 }
 
 .user-session {
-  background: var(--soft);
-  border: 1px solid var(--line);
+  align-items: center;
+  background: #e7f8ed;
+  border: 1px solid #a7dfbb;
   border-radius: 999px;
-  color: var(--ink);
+  color: #145f36;
+  display: inline-flex;
+  gap: 8px;
   font-size: 13px;
   font-weight: 800;
   max-width: min(360px, 42vw);
@@ -301,6 +310,20 @@ textarea:focus {
   padding: 8px 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.user-session span {
+  background: var(--brand);
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 11px;
+  padding: 3px 7px;
+  text-transform: uppercase;
+}
+
+.user-session strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .hero-band {
@@ -314,6 +337,7 @@ textarea:focus {
 .hero-copy,
 .safety-card,
 .filters,
+.profile-summary-panel,
 .profile-panel,
 .safety-panel,
 .agency-card,
@@ -690,14 +714,42 @@ textarea:focus {
 }
 
 .profile-panel,
+.profile-summary-panel,
 .safety-panel,
 .dashboard-section {
   padding: 20px;
 }
 
+.profile-summary-panel,
 .profile-panel {
   display: grid;
   gap: 14px;
+}
+
+.profile-summary-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.profile-summary-grid div {
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+}
+
+.profile-summary-grid span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.profile-summary-grid strong {
+  color: var(--ink);
+  overflow-wrap: anywhere;
 }
 
 .panel-title {
@@ -959,6 +1011,11 @@ textarea:focus {
 
   .nav-actions {
     justify-content: stretch;
+  }
+
+  #authControls {
+    display: flex;
+    width: 100%;
   }
 
   .nav-actions button,
