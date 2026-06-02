@@ -914,6 +914,10 @@ function routeFromHash() {
   }
 
   const view = hash === "#dashboard" ? "dashboard" : hash === "#agency" ? "agency" : "home";
+  if (view === "dashboard") {
+    openDashboard();
+    return;
+  }
   setView(view);
 }
 
@@ -929,10 +933,26 @@ function setView(view, updateHash = true) {
   }
 }
 
+async function openDashboard() {
+  setView("dashboard");
+
+  if (!(await ensureCurrentSession("Entre com seu email e senha para acessar o painel."))) {
+    return;
+  }
+
+  await loadUserData();
+  renderAuthControls();
+  renderDashboard();
+}
+
 async function handleDocumentClick(event) {
   const viewLink = event.target.closest("[data-view-link]");
   if (viewLink) {
-    setView(viewLink.dataset.viewLink);
+    if (viewLink.dataset.viewLink === "dashboard") {
+      await openDashboard();
+    } else {
+      setView(viewLink.dataset.viewLink);
+    }
     return;
   }
 
@@ -1802,15 +1822,30 @@ async function handleAuth(action) {
 
 async function logout() {
   profileEditMode = false;
-  await supabaseClient.auth.signOut().catch((error) => {
-    console.warn("Falha ao encerrar sessao remota", error);
-  });
   state.user = null;
+  clearLocalAuthStorage();
   setAuthMode("login");
   closeModals();
   await refreshAll();
   setView("home");
   showNotice("Você saiu da sua conta.");
+
+  supabaseClient.auth.signOut({ scope: "local" }).catch((error) => {
+    console.warn("Falha ao encerrar sessao remota", error);
+  });
+}
+
+function clearLocalAuthStorage() {
+  try {
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith("sb-") && key.endsWith("-auth-token"))
+      .forEach((key) => localStorage.removeItem(key));
+    Object.keys(sessionStorage)
+      .filter((key) => key.startsWith("sb-") && key.endsWith("-auth-token"))
+      .forEach((key) => sessionStorage.removeItem(key));
+  } catch (error) {
+    console.warn("Falha ao limpar sessao local", error);
+  }
 }
 
 function openPasswordRecoveryMode() {
@@ -3288,7 +3323,7 @@ function requireLogin() {
   return false;
 }
 
-async function ensureCurrentSession() {
+async function ensureCurrentSession(message = "Entre ou crie uma conta para continuar.") {
   if (state.user) {
     return true;
   }
@@ -3303,7 +3338,7 @@ async function ensureCurrentSession() {
     return true;
   }
 
-  showLoginForDashboard("Entre ou crie uma conta para continuar.");
+  showLoginForDashboard(message);
   return false;
 }
 
