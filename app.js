@@ -914,13 +914,6 @@ function routeFromHash() {
   }
 
   const view = hash === "#dashboard" ? "dashboard" : hash === "#agency" ? "agency" : "home";
-  if (view === "dashboard" && !state.user) {
-    setView("dashboard");
-    setAuthMode("login");
-    openModal(elements.authModal);
-    showNotice("Entre ou crie uma conta para acessar o painel.");
-    return;
-  }
   setView(view);
 }
 
@@ -931,18 +924,15 @@ function setView(view, updateHash = true) {
   if (updateHash) {
     window.location.hash = view === "dashboard" ? "dashboard" : view === "agency" ? "agency" : "home";
   }
+  if (view === "dashboard" && !state.user) {
+    showLoginForDashboard();
+  }
 }
 
 async function handleDocumentClick(event) {
   const viewLink = event.target.closest("[data-view-link]");
   if (viewLink) {
-    const targetView = viewLink.dataset.viewLink;
-    if (targetView === "dashboard" && !state.user) {
-      setView("dashboard");
-      await ensureCurrentSession();
-      return;
-    }
-    setView(targetView);
+    setView(viewLink.dataset.viewLink);
     return;
   }
 
@@ -3294,8 +3284,7 @@ function requireLogin() {
     return true;
   }
 
-  openModal(elements.authModal);
-  showNotice("Entre ou crie uma conta para continuar.");
+  showLoginForDashboard("Entre ou crie uma conta para continuar.");
   return false;
 }
 
@@ -3314,9 +3303,14 @@ async function ensureCurrentSession() {
     return true;
   }
 
-  openModal(elements.authModal);
-  showNotice("Entre ou crie uma conta para continuar.");
+  showLoginForDashboard("Entre ou crie uma conta para continuar.");
   return false;
+}
+
+function showLoginForDashboard(message = "Entre com seu email e senha para acessar o painel.") {
+  setAuthMode("login");
+  openModal(elements.authModal);
+  showNotice(message);
 }
 
 function requireCompleteProfile() {
