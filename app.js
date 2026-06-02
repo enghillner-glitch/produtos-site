@@ -914,6 +914,13 @@ function routeFromHash() {
   }
 
   const view = hash === "#dashboard" ? "dashboard" : hash === "#agency" ? "agency" : "home";
+  if (view === "dashboard" && !state.user) {
+    setView("dashboard");
+    setAuthMode("login");
+    openModal(elements.authModal);
+    showNotice("Entre ou crie uma conta para acessar o painel.");
+    return;
+  }
   setView(view);
 }
 
@@ -926,10 +933,16 @@ function setView(view, updateHash = true) {
   }
 }
 
-function handleDocumentClick(event) {
+async function handleDocumentClick(event) {
   const viewLink = event.target.closest("[data-view-link]");
   if (viewLink) {
-    setView(viewLink.dataset.viewLink);
+    const targetView = viewLink.dataset.viewLink;
+    if (targetView === "dashboard" && !state.user) {
+      setView("dashboard");
+      await ensureCurrentSession();
+      return;
+    }
+    setView(targetView);
     return;
   }
 
