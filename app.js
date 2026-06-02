@@ -930,6 +930,8 @@ function setView(view, updateHash = true) {
   }
   if (view === "dashboard" && !state.user) {
     showLoginForDashboard();
+  } else if (view === "dashboard" && state.user) {
+    renderDashboard();
   }
 }
 
