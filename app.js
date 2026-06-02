@@ -3215,6 +3215,12 @@ async function reportTarget(targetType, itemId, userId) {
 }
 
 function isProfileComplete() {
+  const hasRestrictedDocument = Boolean(
+    state.privateData?.document_hash ||
+    state.privateData?.document_encrypted ||
+    state.privateData?.document_type
+  );
+
   return Boolean(
     state.profile?.account_status !== "inactive" &&
     state.profile?.full_name &&
@@ -3222,7 +3228,7 @@ function isProfileComplete() {
     state.profile?.state &&
     state.profile?.city &&
     state.contact?.whatsapp &&
-    state.privateData?.document_hash
+    hasRestrictedDocument
   );
 }
 
