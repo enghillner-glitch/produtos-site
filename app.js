@@ -3333,13 +3333,15 @@ function requireCompleteProfile() {
 }
 
 function syncProfileGatedActions(profileComplete = isProfileComplete()) {
-  const shouldHideItemActions = state.user && !profileComplete;
+  const shouldHideItemActions = !state.user || !profileComplete;
 
   document.querySelectorAll("[data-action='open-item-form']").forEach((button) => {
     button.hidden = shouldHideItemActions;
     button.disabled = shouldHideItemActions;
     button.title = shouldHideItemActions
-      ? "Complete e salve seu perfil antes de cadastrar imóveis."
+      ? state.user
+        ? "Complete e salve seu perfil antes de cadastrar imóveis."
+        : "Entre para cadastrar imóveis."
       : "";
   });
 
@@ -3347,7 +3349,7 @@ function syncProfileGatedActions(profileComplete = isProfileComplete()) {
     node.remove();
   });
 
-  if (!shouldHideItemActions || elements.signedInPanel.hidden) {
+  if (!state.user || profileComplete || elements.signedInPanel.hidden) {
     return;
   }
 
