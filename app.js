@@ -199,6 +199,7 @@ const elements = {
   profileCity: $("profileCity"),
   profileConsent: $("profileConsent"),
   profileStatus: $("profileStatus"),
+  profileCancelEdit: $("profileCancelEdit"),
   myItemsGrid: $("myItemsGrid"),
   myItemsEmpty: $("myItemsEmpty"),
   receivedProposals: $("receivedProposals"),
@@ -373,6 +374,10 @@ function bindEvents() {
   elements.profileForm.addEventListener("submit", saveProfile);
   elements.itemForm.addEventListener("submit", saveItem);
   elements.itemImages.addEventListener("change", previewSelectedImages);
+  for (const input of [elements.itemTransferAmount, elements.itemOutstandingBalance, elements.itemMonthlyPayment]) {
+    input.addEventListener("focus", () => input.select());
+    input.addEventListener("blur", () => setMoneyInputValue(input, readMoneyInput(input)));
+  }
   elements.proposalForm.addEventListener("submit", sendProposal);
   elements.proposalType.addEventListener("change", syncProposalOfferFields);
   elements.cashDifference.addEventListener("input", syncProposalOfferFields);
@@ -986,6 +991,10 @@ async function handleDocumentClick(event) {
     profileEditMode = true;
     renderDashboard();
     elements.profileForm.scrollIntoView({ behavior: "smooth", block: "start" });
+  } else if (action === "cancel-profile-edit") {
+    profileEditMode = false;
+    renderDashboard();
+    elements.profileSummaryPanel.scrollIntoView({ behavior: "smooth", block: "start" });
   } else if (action === "view-item") {
     openItemDetail(actionTarget.dataset.itemId);
   } else if (action === "favorite-item") {
@@ -1169,6 +1178,9 @@ function renderDashboard() {
   elements.profileStatus.classList.toggle("inactive", accountInactive);
   elements.profileSummaryPanel.hidden = !profileComplete || profileEditMode;
   elements.profileForm.hidden = profileComplete && !profileEditMode;
+  if (elements.profileCancelEdit) {
+    elements.profileCancelEdit.hidden = !profileComplete || !profileEditMode;
+  }
   renderProfileSummary(profileComplete, accountInactive);
   syncProfileGatedActions(profileComplete);
 
@@ -2056,18 +2068,18 @@ async function openItemForm(itemId) {
   elements.itemModalTitle.textContent = item ? "Editar imóvel" : "Cadastrar imóvel";
   elements.itemState.value = item?.state ?? "PB";
   populateMunicipalitySelect(elements.itemCity, elements.itemState.value, false);
+  setMoneyInputValue(elements.itemTransferAmount, item?.transfer_amount ?? 0);
+  setMoneyInputValue(elements.itemOutstandingBalance, item?.outstanding_balance ?? 0);
+  setMoneyInputValue(elements.itemMonthlyPayment, item?.monthly_payment ?? 0);
   elements.imageRequirement.textContent = item
-    ? "Inclua novas imagens somente se quiser adicionar mais fotos. Máximo de 5 por imóvel."
-    : "Inclua de 1 a 5 imagens.";
+    ? "Inclua novas imagens somente se quiser adicionar mais fotos. Máximo de 5 por imóvel. Para selecionar várias, use Ctrl ou Shift na janela de arquivos."
+    : "Inclua de 1 a 5 imagens. Para selecionar várias, use Ctrl ou Shift na janela de arquivos.";
 
   if (item) {
     const privateLocation = state.privateLocationsByItem.get(item.id);
     elements.itemTitle.value = item.title;
     elements.itemCategory.value = item.category;
     elements.itemCondition.value = item.condition;
-    elements.itemTransferAmount.value = item.transfer_amount ?? 0;
-    elements.itemOutstandingBalance.value = item.outstanding_balance ?? 0;
-    elements.itemMonthlyPayment.value = item.monthly_payment ?? 0;
     elements.itemInstallmentsRemaining.value = item.installments_remaining ?? 0;
     elements.itemCity.value = item.city;
     elements.itemNeighborhood.value = item.neighborhood;
@@ -2351,7 +2363,13 @@ function previewSelectedImages() {
   const files = Array.from(elements.itemImages.files ?? []);
   elements.itemImagePreview.innerHTML = "";
 
-  for (const file of files.slice(0, 5)) {
+  if (files.length > 5) {
+    elements.itemImages.value = "";
+    showNotice("Selecione no máximo 5 imagens para o imóvel.", "error");
+    return;
+  }
+
+  for (const file of files) {
     const img = document.createElement("img");
     img.alt = file.name;
     img.src = URL.createObjectURL(file);
@@ -3304,7 +3322,34 @@ function maskDocument(documentType, digits) {
 }
 
 function readMoneyInput(input) {
-  return Number(input.value || 0);
+  const raw = String(input?.value ?? "").trim();
+  if (!raw) {
+    return 0;
+  }
+
+  const cleaned = raw.replace(/[^\d,.-]/g, "");
+  if (!cleaned) {
+    return 0;
+  }
+
+  let normalized = cleaned;
+  if (cleaned.includes(",")) {
+    normalized = cleaned.replace(/\./g, "").replace(",", ".");
+  } else if ((cleaned.match(/\./g) ?? []).length > 1) {
+    const parts = cleaned.split(".");
+    normalized = `${parts.slice(0, -1).join("")}.${parts.at(-1)}`;
+  }
+
+  const value = Number(normalized);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function setMoneyInputValue(input, value) {
+  if (!input) {
+    return;
+  }
+
+  input.value = formatter.format(Number(value || 0));
 }
 
 function hasContactLikeContent(value) {

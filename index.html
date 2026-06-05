@@ -173,6 +173,7 @@
                 Declaro ciência sobre intermediação, privacidade e tratamento de dados do repassecomrepasse.
               </label>
               <button type="submit">Salvar perfil</button>
+              <button class="secondary" id="profileCancelEdit" type="button" data-action="cancel-profile-edit" hidden>Cancelar</button>
               <button class="danger" type="button" data-action="deactivate-account">Desativar minha conta</button>
             </form>
 
@@ -394,19 +395,19 @@
             <select id="itemCondition" required></select>
           </label>
           <label>
-            Valor do repasse pretendido
-            <input id="itemTransferAmount" type="number" min="0" step="0.01" inputmode="decimal" value="0" required />
+            Valor total do repasse pretendido
+            <input id="itemTransferAmount" type="text" inputmode="decimal" value="R$ 0,00" required />
           </label>
           <label>
-            Saldo devedor aproximado
-            <input id="itemOutstandingBalance" type="number" min="0" step="0.01" inputmode="decimal" value="0" required />
+            Saldo devedor restante (valor aproximado)
+            <input id="itemOutstandingBalance" type="text" inputmode="decimal" value="R$ 0,00" required />
           </label>
           <label>
-            Parcela mensal aproximada
-            <input id="itemMonthlyPayment" type="number" min="0" step="0.01" inputmode="decimal" value="0" required />
+            Parcela mensal de (valor aproximado)
+            <input id="itemMonthlyPayment" type="text" inputmode="decimal" value="R$ 0,00" required />
           </label>
           <label>
-            Parcelas restantes
+            Nº. de parcelas restantes (quantidade aproximada)
             <input id="itemInstallmentsRemaining" type="number" min="0" step="1" inputmode="numeric" value="0" required />
           </label>
           <label>
@@ -448,8 +449,8 @@
           </label>
           <label class="wide">
             Imagens
-            <input id="itemImages" type="file" accept="image/jpeg,image/png,image/webp" multiple />
-            <span class="field-hint" id="imageRequirement">Inclua de 1 a 5 imagens do imóvel.</span>
+            <input id="itemImages" type="file" accept="image/jpeg,image/png,image/webp" multiple="multiple" />
+            <span class="field-hint" id="imageRequirement">Inclua de 1 a 5 imagens do imóvel. Para selecionar várias, use Ctrl ou Shift na janela de arquivos.</span>
           </label>
           <div class="image-preview-list" id="itemImagePreview"></div>
           <div class="turnstile-box wide" id="itemTurnstile" hidden></div>
