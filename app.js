@@ -928,6 +928,10 @@ function routeFromHash() {
 }
 
 function setView(view, updateHash = true) {
+  if (view !== "dashboard" && profileEditMode) {
+    profileEditMode = false;
+  }
+
   elements.homeView.hidden = view !== "home";
   elements.dashboardView.hidden = view !== "dashboard";
   elements.agencyView.hidden = view !== "agency";
@@ -2054,6 +2058,11 @@ async function openItemForm(itemId) {
 
   if (!requireCompleteProfile()) {
     return;
+  }
+
+  if (profileEditMode) {
+    profileEditMode = false;
+    renderDashboard();
   }
 
   const item = itemId ? state.myItems.find((candidate) => candidate.id === itemId) : null;
