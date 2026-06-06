@@ -955,9 +955,9 @@ async function openDashboard() {
     return;
   }
 
-  setView("dashboard");
   await loadUserData();
   renderAuthControls();
+  setView("dashboard");
   renderDashboard();
 }
 
