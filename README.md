@@ -10,6 +10,15 @@ Plataforma web-first para conectar estabelecimentos verificados a pessoas com in
 - Google Business Profile em modo manual/simulado.
 - Android Auto desabilitado no MVP.
 
+## OAuth Google e Business Profile
+
+- O login Google real ainda depende de credenciais criadas no Google Cloud Console.
+- Campos preparados em `config.js`: `googleOAuthClientId` e `googleOAuthRedirectUri`.
+- Redirect URI previsto para producao: `https://produtos-site.vercel.app/auth/callback`.
+- Em desenvolvimento local, cadastrar tambem `http://127.0.0.1:4189/auth/callback`.
+- O MVP atual simula a autenticacao e a deteccao de Perfis da Empresa para validar o fluxo antes da aprovacao/acesso real a Google Business Profile API.
+- Para producao real, o Client Secret e os refresh tokens devem ficar em backend/serverless, nunca no JavaScript publico.
+
 ## Rodar localmente
 
 ```powershell

@@ -24,6 +24,11 @@ assert.match(js, /consumerAppView/);
 assert.match(js, /sidebar-collapsed/);
 assert.match(js, /dashboardPlaceSelect/);
 assert.match(js, /select-dashboard-place/);
+assert.match(js, /googleBusinessProfile/);
+assert.match(js, /connect-google-business/);
+assert.match(js, /simulate-no-business-profile/);
+assert.match(js, /select-google-location/);
+assert.match(js, /Google Business Profile/);
 
 assert.match(css, /app-shell/);
 assert.match(css, /\[hidden\]\s*\{\s*display:\s*none\s*!important;\s*\}/);

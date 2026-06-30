@@ -88,6 +88,12 @@ const initialState = {
   isLoggedIn: false,
   route: "dashboard",
   selectedPlaceId: "place-market",
+  googleBusinessProfile: {
+    status: "not_connected",
+    connectedEmail: "",
+    detectedAt: null,
+    selectedLocationId: ""
+  },
   places: seedPlaces,
   alerts: [
     {
@@ -214,6 +220,10 @@ const views = {
   consumer: $("#consumerView"),
   settings: $("#settingsView")
 };
+
+function businessProfileStatus() {
+  return state.googleBusinessProfile?.status ?? "not_connected";
+}
 
 function loadState() {
   try {
@@ -398,7 +408,7 @@ function render() {
     places: "Estabelecimentos",
     moderation: "Moderação",
     consumer: "Experiência do consumidor > Oportunidades Próximas",
-    settings: "Integração Google"
+    settings: "Conexão Google Business Profile"
   };
   $("#breadcrumb").textContent = labels[state.route] ?? "Dashboard";
   $("#moderationCount").textContent = state.alerts.filter((alert) => alert.mainStatus === "in_review").length;
@@ -880,13 +890,51 @@ function opportunityCard(alert) {
 }
 
 function renderSettings() {
+  const status = businessProfileStatus();
+  const connected = status === "locations_found" || status === "location_selected";
+  const eligiblePlaces = state.places.filter((place) => place.isVerified);
   views.settings.innerHTML = `
-    <div class="page-title"><div><h2>Integração Google</h2><p>O MVP usa modo manual/simulado. OAuth real será fase posterior.</p></div></div>
+    <div class="page-title">
+      <div>
+        <h2>Conexão Google Business Profile</h2>
+        <p>Identifique os Perfis da Empresa relacionados à conta Google do lojista.</p>
+      </div>
+      ${connected ? '<button class="primary" data-route="dashboard">Ir para o Dashboard</button>' : ""}
+    </div>
     <section class="card">
-      <h3>Conexão Google Business Profile</h3>
-      <p>Para criar Alertas no MVP, use estabelecimentos verificados manualmente. A plataforma não é afiliada, associada ou endossada pelo Google.</p>
-      <button class="secondary" disabled>Conectar Perfil da Empresa (fase posterior)</button>
+      <h3>1. Conta Google autenticada</h3>
+      <p><strong>João Silva</strong><br><small>joao@example.com</small></p>
+      <span class="status approved">Login Google simulado concluído</span>
     </section>
+    <section class="card" style="margin-top:18px">
+      <h3>2. Buscar Perfis da Empresa relacionados</h3>
+      <p>No ambiente real, esta etapa solicita OAuth com permissão do Google Business Profile e chama a API para listar contas e locais. Neste MVP, a identificação está simulada com os estabelecimentos verificados manualmente.</p>
+      <div class="quick-actions">
+        <button class="primary" data-action="connect-google-business">${connected ? "Sincronizar novamente" : "Conectar Perfil da Empresa"}</button>
+        <button class="secondary" data-action="simulate-no-business-profile">Simular conta sem Perfil da Empresa</button>
+      </div>
+      <p class="status ${connected ? "approved" : status === "no_locations" ? "rejected" : "in_review"}" style="margin-top:16px">
+        ${status === "no_locations" ? "Nenhum Perfil da Empresa encontrado para esta conta." : connected ? `${eligiblePlaces.length} perfis encontrados para esta conta.` : "Aguardando autorização para consultar perfis."}
+      </p>
+    </section>
+    ${connected ? `
+      <section class="card" style="margin-top:18px">
+        <h3>3. Selecione o estabelecimento</h3>
+        <p>Somente locais verificados/elegíveis podem publicar Alertas de Oportunidade.</p>
+        <div class="grid">
+          ${state.places.map((place) => `
+            <button class="choice ${state.selectedPlaceId === place.id ? "selected" : ""} ${!place.isEligibleForPublishing ? "disabled" : ""}" data-action="select-google-location" data-id="${place.id}" ${!place.isEligibleForPublishing ? "disabled" : ""}>
+              <span>
+                <strong>${place.name}</strong><br>
+                <small>${place.address}</small><br>
+                ${place.isEligibleForPublishing ? '<span class="status approved">Verificado e elegível</span>' : '<span class="status rejected">Não elegível para publicação</span>'}
+              </span>
+              <span>${category(place.categoryId).icon}</span>
+            </button>
+          `).join("")}
+        </div>
+      </section>
+    ` : ""}
     <section class="card" style="margin-top:18px">
       <h3>Canais futuros</h3>
       <p><strong>Android Auto:</strong> desabilitado neste momento. Sem publicação, sem push, sem link no carro.</p>
@@ -980,14 +1028,51 @@ function handleClick(event) {
 
   if (action === "login") {
     state.isLoggedIn = true;
-    state.route = "dashboard";
+    const hasSelectedLocation = businessProfileStatus() === "location_selected";
+    state.googleBusinessProfile = {
+      ...state.googleBusinessProfile,
+      connectedEmail: state.googleBusinessProfile?.connectedEmail || "joao@example.com"
+    };
+    state.route = hasSelectedLocation ? "dashboard" : "settings";
     saveState();
     render();
-    showToast("Entrada simulada realizada com sucesso.", "success");
+    showToast("Login Google simulado concluido. Conecte o Perfil da Empresa para identificar estabelecimentos.", "success");
   } else if (action === "logout") {
     state.isLoggedIn = false;
     saveState();
     render();
+  } else if (action === "connect-google-business") {
+    state.googleBusinessProfile = {
+      status: "locations_found",
+      connectedEmail: state.googleBusinessProfile?.connectedEmail || "joao@example.com",
+      detectedAt: new Date().toISOString(),
+      selectedLocationId: state.googleBusinessProfile?.selectedLocationId || state.selectedPlaceId || ""
+    };
+    saveState();
+    renderSettings();
+    showToast("Perfis do Google Business Profile identificados em modo simulado.", "success");
+  } else if (action === "simulate-no-business-profile") {
+    state.googleBusinessProfile = {
+      status: "no_locations",
+      connectedEmail: state.googleBusinessProfile?.connectedEmail || "joao@example.com",
+      detectedAt: new Date().toISOString(),
+      selectedLocationId: ""
+    };
+    saveState();
+    renderSettings();
+    showToast("Nenhum Perfil da Empresa foi encontrado para esta conta simulada.", "error");
+  } else if (action === "select-google-location") {
+    const place = placeById(id);
+    if (!place?.isEligibleForPublishing) return showToast("Este estabelecimento nao esta elegivel para publicacao.", "error");
+    state.selectedPlaceId = id;
+    state.googleBusinessProfile = {
+      ...state.googleBusinessProfile,
+      status: "location_selected",
+      selectedLocationId: id
+    };
+    saveState();
+    renderSettings();
+    showToast(`${place.name} conectado ao portal.`, "success");
   } else if (action === "toggle-sidebar") {
     if (window.matchMedia("(max-width: 1100px)").matches) {
       $(".sidebar").classList.toggle("open");
