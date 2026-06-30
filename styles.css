@@ -105,9 +105,6 @@ button { border: 0; cursor: pointer; }
 .app-shell { min-height: 100vh; display: grid; grid-template-columns: 280px 1fr; background: #fff; }
 .app-shell.sidebar-collapsed { grid-template-columns: 0 1fr; }
 .app-shell.sidebar-collapsed .sidebar { overflow: hidden; padding-inline: 0; transform: translateX(-100%); }
-.app-shell.consumer-mode { grid-template-columns: 1fr; }
-.app-shell.consumer-mode .sidebar { display: none; }
-.app-shell.consumer-mode .content { background: #f8fbff; }
 .sidebar { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; border-right: 1px solid var(--line); background: #fff; padding: 24px 18px; }
 .app-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; font-size: 1.2rem; }
 .logo-pin { width: 42px; height: 42px; border-radius: 50% 50% 50% 12px; transform: rotate(-45deg); background: var(--green); }
@@ -184,6 +181,10 @@ th { font-size: .86rem; color: #344054; background: #f8fbff; }
 .success-check { width: 82px; height: 82px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 18px; background: var(--green); color: #fff; font-size: 3rem; }
 
 .consumer-shell { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
+.consumer-app-shell { min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; background: #f8fbff; }
+.consumer-topbar { min-height: 78px; display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 0 28px; border-bottom: 1px solid var(--line); background: #fff; }
+.consumer-actions { display: flex; align-items: center; gap: 12px; }
+.consumer-content { padding: 28px; }
 .opportunity-card { display: grid; grid-template-columns: 130px 1fr auto; gap: 18px; align-items: center; border: 1px solid var(--line); border-radius: 10px; background: #fff; padding: 14px; }
 .opportunity-image { height: 104px; border-radius: 8px; display: grid; place-items: center; background: linear-gradient(135deg, #128653, #f59e0b); color: #fff; font-weight: 900; text-align: center; }
 .pill-list { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -210,10 +211,13 @@ th { font-size: .86rem; color: #344054; background: #f8fbff; }
   .steps { grid-template-columns: repeat(4, 1fr); }
   .topbar { flex-wrap: wrap; padding: 14px; }
   .topbar-actions { flex-wrap: wrap; }
+  .consumer-topbar { flex-wrap: wrap; padding: 14px; }
+  .consumer-actions { flex-wrap: wrap; }
 }
 
 @media (max-width: 720px) {
   .content { padding: 16px; }
+  .consumer-content { padding: 16px; }
   .form-grid { grid-template-columns: 1fr; }
   .steps { grid-template-columns: repeat(2, 1fr); }
   .opportunity-card { grid-template-columns: 1fr; }

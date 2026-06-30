@@ -381,12 +381,12 @@ function routeTo(route) {
 
 function render() {
   $("#landingView").hidden = state.isLoggedIn;
-  $("#appView").hidden = !state.isLoggedIn;
+  $("#appView").hidden = !state.isLoggedIn || state.route === "consumer";
+  $("#consumerAppView").hidden = !state.isLoggedIn || state.route !== "consumer";
   if (!state.isLoggedIn) return;
 
-  $("#appView").classList.toggle("consumer-mode", state.route === "consumer");
   $$(".sidebar nav button").forEach((button) => button.classList.toggle("active", button.dataset.route === state.route || (state.route === "created" && button.dataset.route === "wizard")));
-  Object.entries(views).forEach(([name, view]) => {
+  Object.entries(views).filter(([name]) => name !== "consumer").forEach(([name, view]) => {
     view.hidden = name !== state.route;
   });
 
