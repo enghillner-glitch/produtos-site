@@ -26,6 +26,7 @@ assert.match(js, /dashboardPlaceSelect/);
 assert.match(js, /select-dashboard-place/);
 
 assert.match(css, /app-shell/);
+assert.match(css, /\[hidden\]\s*\{\s*display:\s*none\s*!important;\s*\}/);
 assert.match(css, /wizard-shell/);
 assert.match(css, /consumer-shell/);
 assert.match(css, /consumer-app-shell/);

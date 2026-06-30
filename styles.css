@@ -15,6 +15,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; background: #f8fbff; color: var(--ink); }
 button, input, select, textarea { font: inherit; }
 button { border: 0; cursor: pointer; }
