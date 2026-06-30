@@ -1,0 +1,10 @@
+{
+  "name": "oportunidades-proximas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MVP web-first da plataforma Oportunidades Próximas.",
+  "scripts": {
+    "check": "node --check app.js && node tests/static-checks.mjs",
+    "serve": "python -m http.server 4189 --bind 127.0.0.1"
+  }
+}

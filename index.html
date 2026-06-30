@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Oportunidades Próximas</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="toast" class="toast" hidden></div>
+
+  <section id="landingView" class="landing-shell">
+    <main class="landing-card">
+      <div class="brand-row">
+        <span class="logo-mark">OP</span>
+        <span>Sua marca</span>
+      </div>
+      <div class="landing-content">
+        <div class="landing-copy">
+          <p class="eyebrow">Portal web do lojista</p>
+          <h1>Conecte seu estabelecimento a clientes interessados perto de você.</h1>
+          <p>Crie Alertas de Oportunidade vinculados ao seu estabelecimento e alcance pessoas com interesses compatíveis, no momento certo e no lugar certo.</p>
+          <button class="google-button" data-action="login">
+            <span>G</span>
+            Entrar com Google
+          </button>
+          <button class="secondary wide" data-action="show-how">Como funciona a plataforma</button>
+          <p class="legal">Ao continuar, você concorda com os Termos de Uso e a Política de Privacidade.</p>
+        </div>
+        <div class="hero-illustration" aria-hidden="true">
+          <div class="pin"></div>
+          <div class="store">
+            <div class="awning"></div>
+            <div class="door"></div>
+            <div class="window"></div>
+          </div>
+          <div class="orbit orbit-a">%</div>
+          <div class="orbit orbit-b">🔔</div>
+          <div class="orbit orbit-c">🛍</div>
+        </div>
+      </div>
+      <footer class="non-affiliation">A plataforma não é afiliada, associada ou endossada pelo Google.</footer>
+    </main>
+  </section>
+
+  <section id="appView" class="app-shell" hidden>
+    <aside class="sidebar">
+      <div class="app-brand">
+        <span class="logo-pin"></span>
+        <strong>Oportunidades<br />Próximas</strong>
+      </div>
+      <nav>
+        <button data-route="dashboard" class="active">Dashboard</button>
+        <button data-route="alerts">Alertas de Oportunidade</button>
+        <button data-route="wizard">Criar Alerta</button>
+        <button data-route="places">Estabelecimentos</button>
+        <button data-route="moderation">Moderação</button>
+        <button data-route="consumer">Vitrine do consumidor</button>
+        <button data-route="settings">Integração Google</button>
+      </nav>
+      <button class="logout" data-action="logout">Sair</button>
+    </aside>
+
+    <div class="main-shell">
+      <header class="topbar">
+        <button class="icon-button" data-action="toggle-sidebar" aria-label="Menu">☰</button>
+        <div id="breadcrumb" class="breadcrumb">Dashboard</div>
+        <div class="topbar-actions">
+          <select id="currentPlaceSelect" aria-label="Estabelecimento atual"></select>
+          <span class="badge">Android Auto desabilitado</span>
+          <button class="icon-button" data-route="moderation" aria-label="Notificações">🔔<span id="moderationCount" class="dot">0</span></button>
+          <div class="user-chip">JS <span>João Silva<br /><small>Proprietário</small></span></div>
+        </div>
+      </header>
+
+      <main class="content">
+        <section id="dashboardView" class="view"></section>
+        <section id="alertsView" class="view" hidden></section>
+        <section id="wizardView" class="view" hidden></section>
+        <section id="createdView" class="view" hidden></section>
+        <section id="placesView" class="view" hidden></section>
+        <section id="moderationView" class="view" hidden></section>
+        <section id="consumerView" class="view" hidden></section>
+        <section id="settingsView" class="view" hidden></section>
+      </main>
+
+      <footer class="app-footer">
+        <span>A plataforma não é afiliada, associada ou endossada pelo Google.</span>
+        <span>Termos de Uso • Política de Privacidade • Suporte</span>
+      </footer>
+    </div>
+  </section>
+
+  <dialog id="detailDialog" class="modal">
+    <div id="detailContent"></div>
+    <button class="secondary" data-action="close-dialog">Fechar</button>
+  </dialog>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
