@@ -16,6 +16,9 @@ Plataforma web-first para conectar estabelecimentos verificados a pessoas com in
 - Campos preparados em `config.js`: `googleOAuthClientId` e `googleOAuthRedirectUri`.
 - Redirect URI previsto para producao: `https://produtos-site.vercel.app/auth/callback`.
 - Em desenvolvimento local, cadastrar tambem `http://127.0.0.1:4189/auth/callback`.
+- Client ID configurado para o projeto Google Cloud `minhasmvs`.
+- O botao "Entrar com Google" inicia OAuth real quando `googleOAuthClientId` estiver preenchido.
+- O callback recebe o `code` OAuth e deixa o usuario no fluxo de Conexao Google Business Profile.
 - O MVP atual simula a autenticacao e a deteccao de Perfis da Empresa para validar o fluxo antes da aprovacao/acesso real a Google Business Profile API.
 - Para producao real, o Client Secret e os refresh tokens devem ficar em backend/serverless, nunca no JavaScript publico.
 

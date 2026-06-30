@@ -2,6 +2,8 @@ const config = window.OPPORTUNITIES_CONFIG ?? {};
 const ANDROID_AUTO_ENABLED = Boolean(config.androidAutoEnabled);
 const EMAIL_CHANNEL_ENABLED = Boolean(config.emailChannelEnabled);
 const STORAGE_KEY = "opportunities-next-mvp:v1";
+const GOOGLE_BUSINESS_SCOPE = "https://www.googleapis.com/auth/business.manage";
+const GOOGLE_BASIC_SCOPES = ["openid", "email", "profile"];
 
 const categories = [
   { id: "supermarkets", label: "Supermercados", description: "Compras do dia a dia, alimentos, bebidas e limpeza.", icon: "🛒" },
@@ -223,6 +225,70 @@ const views = {
 
 function businessProfileStatus() {
   return state.googleBusinessProfile?.status ?? "not_connected";
+}
+
+function googleRedirectUri() {
+  if (location.origin.includes("127.0.0.1") || location.origin.includes("localhost")) {
+    return `${location.origin}/auth/callback`;
+  }
+  return config.googleOAuthRedirectUri || `${location.origin}/auth/callback`;
+}
+
+function randomOAuthState() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function startGoogleOAuth() {
+  if (!config.googleOAuthClientId) return false;
+  const oauthState = randomOAuthState();
+  sessionStorage.setItem("googleOAuthState", oauthState);
+  const params = new URLSearchParams({
+    client_id: config.googleOAuthClientId,
+    redirect_uri: googleRedirectUri(),
+    response_type: "code",
+    scope: [...GOOGLE_BASIC_SCOPES, GOOGLE_BUSINESS_SCOPE].join(" "),
+    access_type: "offline",
+    prompt: "consent",
+    include_granted_scopes: "true",
+    state: oauthState
+  });
+  location.href = `${config.googleOAuthAuthUri || "https://accounts.google.com/o/oauth2/v2/auth"}?${params.toString()}`;
+  return true;
+}
+
+function handleGoogleOAuthCallback() {
+  const params = new URLSearchParams(location.search);
+  const code = params.get("code");
+  const error = params.get("error");
+  if (!code && !error) return;
+
+  const expectedState = sessionStorage.getItem("googleOAuthState");
+  const receivedState = params.get("state");
+  history.replaceState({}, document.title, `${location.origin}/`);
+
+  if (error) {
+    showToast(`OAuth Google cancelado ou recusado: ${error}`, "error");
+    return;
+  }
+  if (!expectedState || expectedState !== receivedState) {
+    showToast("Retorno OAuth invalido. Tente entrar novamente.", "error");
+    return;
+  }
+
+  sessionStorage.removeItem("googleOAuthState");
+  state.isLoggedIn = true;
+  state.route = "settings";
+  state.googleBusinessProfile = {
+    ...state.googleBusinessProfile,
+    status: "oauth_code_received",
+    connectedEmail: "Conta Google autorizada",
+    detectedAt: new Date().toISOString(),
+    selectedLocationId: state.googleBusinessProfile?.selectedLocationId || ""
+  };
+  saveState();
+  showToast("Autorizacao Google recebida. A troca por tokens sera feita em backend seguro.", "success");
 }
 
 function loadState() {
@@ -892,6 +958,7 @@ function opportunityCard(alert) {
 function renderSettings() {
   const status = businessProfileStatus();
   const connected = status === "locations_found" || status === "location_selected";
+  const authorized = status === "oauth_code_received";
   const eligiblePlaces = state.places.filter((place) => place.isVerified);
   views.settings.innerHTML = `
     <div class="page-title">
@@ -908,13 +975,13 @@ function renderSettings() {
     </section>
     <section class="card" style="margin-top:18px">
       <h3>2. Buscar Perfis da Empresa relacionados</h3>
-      <p>No ambiente real, esta etapa solicita OAuth com permissão do Google Business Profile e chama a API para listar contas e locais. Neste MVP, a identificação está simulada com os estabelecimentos verificados manualmente.</p>
+      <p>No ambiente real, esta etapa solicita OAuth com permissao do Google Business Profile e chama a API para listar contas e locais. Neste MVP, a identificacao dos locais ainda pode ser simulada com os estabelecimentos verificados manualmente.</p>
       <div class="quick-actions">
         <button class="primary" data-action="connect-google-business">${connected ? "Sincronizar novamente" : "Conectar Perfil da Empresa"}</button>
         <button class="secondary" data-action="simulate-no-business-profile">Simular conta sem Perfil da Empresa</button>
       </div>
-      <p class="status ${connected ? "approved" : status === "no_locations" ? "rejected" : "in_review"}" style="margin-top:16px">
-        ${status === "no_locations" ? "Nenhum Perfil da Empresa encontrado para esta conta." : connected ? `${eligiblePlaces.length} perfis encontrados para esta conta.` : "Aguardando autorização para consultar perfis."}
+      <p class="status ${connected || authorized ? "approved" : status === "no_locations" ? "rejected" : "in_review"}" style="margin-top:16px">
+        ${status === "no_locations" ? "Nenhum Perfil da Empresa encontrado para esta conta." : connected ? `${eligiblePlaces.length} perfis encontrados para esta conta.` : authorized ? "Autorizacao OAuth recebida. Falta backend seguro para trocar o codigo por tokens e listar locais reais." : "Aguardando autorizacao para consultar perfis."}
       </p>
     </section>
     ${connected ? `
@@ -1027,6 +1094,7 @@ function handleClick(event) {
   const { action, id } = actionTarget.dataset;
 
   if (action === "login") {
+    if (startGoogleOAuth()) return;
     state.isLoggedIn = true;
     const hasSelectedLocation = businessProfileStatus() === "location_selected";
     state.googleBusinessProfile = {
@@ -1213,4 +1281,5 @@ function handleChange(event) {
 document.addEventListener("click", handleClick);
 document.addEventListener("change", handleChange);
 
+handleGoogleOAuthCallback();
 render();
