@@ -10,6 +10,8 @@ assert.match(html, /Oportunidades Próximas/);
 assert.match(html, /dashboardView/);
 assert.match(html, /wizardView/);
 assert.match(html, /consumerView/);
+assert.doesNotMatch(html, /data-route="consumer">Vitrine do consumidor/);
+assert.doesNotMatch(html, /currentPlaceSelect/);
 
 assert.match(js, /ANDROID_AUTO_ENABLED = Boolean\(config\.androidAutoEnabled\)/);
 assert.match(js, /androidAutoPoiPublished: false/);
@@ -17,10 +19,17 @@ assert.match(js, /mainStatus: "in_review"/);
 assert.match(js, /validateLink/);
 assert.match(js, /matchingConsumerAlerts/);
 assert.match(js, /draft\.validUntil < draft\.validFrom/);
+assert.match(js, /consumer-mode/);
+assert.match(js, /sidebar-collapsed/);
+assert.match(js, /dashboardPlaceSelect/);
+assert.match(js, /select-dashboard-place/);
 
 assert.match(css, /app-shell/);
 assert.match(css, /wizard-shell/);
 assert.match(css, /consumer-shell/);
+assert.match(css, /consumer-mode/);
+assert.match(css, /sidebar-collapsed/);
+assert.match(css, /overflow-wrap: anywhere/);
 
 assert.match(sql, /benefit_alerts/);
 assert.match(sql, /android_auto_poi_published = false/);

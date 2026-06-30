@@ -384,7 +384,7 @@ function render() {
   $("#appView").hidden = !state.isLoggedIn;
   if (!state.isLoggedIn) return;
 
-  renderCurrentPlaceSelect();
+  $("#appView").classList.toggle("consumer-mode", state.route === "consumer");
   $$(".sidebar nav button").forEach((button) => button.classList.toggle("active", button.dataset.route === state.route || (state.route === "created" && button.dataset.route === "wizard")));
   Object.entries(views).forEach(([name, view]) => {
     view.hidden = name !== state.route;
@@ -397,7 +397,7 @@ function render() {
     created: "Alertas de Oportunidade > Novo Alerta > Alerta Criado",
     places: "Estabelecimentos",
     moderation: "Moderação",
-    consumer: "Vitrine do consumidor",
+    consumer: "Experiência do consumidor > Oportunidades Próximas",
     settings: "Integração Google"
   };
   $("#breadcrumb").textContent = labels[state.route] ?? "Dashboard";
@@ -411,12 +411,6 @@ function render() {
   renderModeration();
   renderConsumer();
   renderSettings();
-}
-
-function renderCurrentPlaceSelect() {
-  const select = $("#currentPlaceSelect");
-  select.innerHTML = state.places.map((place) => `<option value="${place.id}">${place.name}</option>`).join("");
-  select.value = state.selectedPlaceId;
 }
 
 function renderDashboard() {
@@ -444,6 +438,21 @@ function renderDashboard() {
       </div>
       <button class="primary" data-route="wizard">Criar Alerta de Oportunidade</button>
     </div>
+    <section class="card" style="margin-bottom:18px">
+      <div class="form-grid">
+        <label>
+          Estabelecimento em foco
+          <select id="dashboardPlaceSelect" data-action="select-dashboard-place">
+            ${state.places.map((place) => `<option value="${place.id}" ${place.id === state.selectedPlaceId ? "selected" : ""}>${place.name}</option>`).join("")}
+          </select>
+        </label>
+        <div>
+          <strong>${currentPlace()?.name ?? "-"}</strong>
+          <p>${currentPlace()?.address ?? ""}</p>
+          <span class="status ${currentPlace()?.isEligibleForPublishing ? "approved" : "rejected"}">${currentPlace()?.isEligibleForPublishing ? "Elegível para publicação" : "Não elegível"}</span>
+        </div>
+      </div>
+    </section>
     <div class="grid cols-4">
       ${metric("Alertas ativos", counts.active, "active")}
       ${metric("Em análise", counts.in_review, "in_review")}
@@ -465,7 +474,7 @@ function renderDashboard() {
         <div class="quick-actions">
           <button class="primary" data-route="wizard">Criar Alerta de Oportunidade</button>
           <button class="secondary" data-route="alerts">Ver meus Alertas</button>
-          <button class="secondary" data-route="consumer">Ver vitrine do consumidor</button>
+          <button class="secondary" data-route="consumer">Abrir experiência do consumidor</button>
         </div>
       </section>
     </div>
@@ -734,7 +743,7 @@ function stepReview() {
 }
 
 function reviewBlock(title, main, sub) {
-  return `<div class="card"><strong>${title}</strong><p>${main ?? "-"}</p><small>${sub ?? ""}</small></div>`;
+  return `<div class="card review-block"><strong>${title}</strong><p>${main ?? "-"}</p><small>${sub ?? ""}</small></div>`;
 }
 
 function wizardActions(hasBack) {
@@ -827,7 +836,10 @@ function renderModeration() {
 function renderConsumer() {
   const matches = matchingConsumerAlerts();
   views.consumer.innerHTML = `
-    <div class="page-title"><div><h2>Oportunidades Próximas</h2><p>Vitrine web MVP filtrada por interesses declarados.</p></div></div>
+    <div class="page-title">
+      <div><h2>Oportunidades Próximas</h2><p>Experiência separada do consumidor, filtrada por interesses declarados.</p></div>
+      <button class="secondary" data-route="dashboard">Voltar ao portal do lojista</button>
+    </div>
     <div class="consumer-shell">
       <aside class="card">
         <h3>Preferências</h3>
@@ -977,7 +989,11 @@ function handleClick(event) {
     saveState();
     render();
   } else if (action === "toggle-sidebar") {
-    $(".sidebar").classList.toggle("open");
+    if (window.matchMedia("(max-width: 1100px)").matches) {
+      $(".sidebar").classList.toggle("open");
+    } else {
+      $("#appView").classList.toggle("sidebar-collapsed");
+    }
   } else if (action === "show-how") {
     showToast("A plataforma entrega oportunidades apenas quando há interesse declarado e regras de privacidade atendidas.");
   } else if (action === "select-wizard-place") {
@@ -1103,13 +1119,12 @@ function handleChange(event) {
     saveState();
     renderConsumer();
   }
+  if (action === "select-dashboard-place") {
+    state.selectedPlaceId = event.target.value;
+    saveState();
+    render();
+  }
 }
-
-$("#currentPlaceSelect").addEventListener("change", (event) => {
-  state.selectedPlaceId = event.target.value;
-  saveState();
-  render();
-});
 document.addEventListener("click", handleClick);
 document.addEventListener("change", handleChange);
 
