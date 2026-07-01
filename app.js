@@ -53,7 +53,10 @@ const benefitSuggestions = [
   "Combo especial para retirada no balcão",
   "Produto novo disponível para retirada hoje",
   "Atendimento rápido para clientes próximos",
-  "Últimas unidades com condição especial"
+  "Últimas unidades com condição especial",
+  "Frete grátis para compras acima de R$ 100",
+  "Compre hoje e retire em até 30 minutos",
+  "Brinde especial nas primeiras 20 compras"
 ];
 
 const seedPlaces = [
@@ -526,6 +529,35 @@ function categoryIdForClassification(classificationId) {
   return map[classificationId] || "offers";
 }
 
+function geminiReviewBenefitText(text) {
+  const normalized = (text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const issues = [];
+  const blockedWords = [
+    "porra", "merda", "caralho", "bosta", "puta", "puto", "foda", "fodase", "cacete",
+    "idiota", "burro", "otario", "imbecil", "vagabundo", "lixo", "trouxa"
+  ];
+  const carUnsafeTerms = [
+    "enquanto dirige", "dirigindo", "no volante", "olhe agora", "clique agora",
+    "assista", "video", "vídeo", "mande mensagem", "responda agora", "ligue agora"
+  ];
+
+  const foundBlocked = blockedWords.filter((word) => normalized.includes(word));
+  if (foundBlocked.length) issues.push("Contém palavrão, insulto ou baixo calão.");
+
+  const foundCarUnsafe = carUnsafeTerms.filter((term) => normalized.includes(term.normalize("NFD").replace(/[\u0300-\u036f]/g, "")));
+  if (foundCarUnsafe.length) issues.push("Contém chamada insegura ou inadequada para Android Auto.");
+
+  if ((text || "").trim().length > 120) issues.push("Texto longo demais para leitura segura em contexto veicular.");
+  if (/(https?:\/\/|www\.|@)/i.test(text || "")) issues.push("Não inclua links, e-mails ou atalhos no texto do benefício.");
+  if (/\b\d{4,5}[-.\s]?\d{4}\b/.test(text || "")) issues.push("Não inclua telefone no texto do benefício.");
+
+  return {
+    ok: issues.length === 0,
+    issues,
+    label: issues.length ? "Bloqueado pela revisão Gemini" : "Aprovado pela revisão Gemini"
+  };
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -860,7 +892,7 @@ function stepBenefitDescription() {
     <div class="form-grid">
       <label class="wide">
         Descreva o Benefício/Promoção
-        <textarea data-field="generatedMobileSummary" rows="5" maxlength="180" placeholder="Ex.: 10% de desconto no Álcool à vista">${escapeHtml(state.wizard.generatedMobileSummary)}</textarea>
+        <textarea class="benefit-textarea" data-field="generatedMobileSummary" rows="3" maxlength="180" placeholder="Ex.: 10% de desconto no Álcool à vista">${escapeHtml(state.wizard.generatedMobileSummary)}</textarea>
       </label>
     </div>
     <div class="suggestions-panel">
@@ -880,8 +912,8 @@ function stepClassification() {
     <h3>3. Defina a Classificação</h3>
     <p>Selecione o Tipo de Oportunidade mais adequado para orientar a revisão e a exibição do Alerta.</p>
     <div class="grid cols-2">${benefits.map((item) => `
-      <button class="choice ${state.wizard.benefitType === item.id ? "selected" : ""}" data-action="select-benefit" data-id="${item.id}">
-        <span><strong>${item.label}</strong><br><small>${item.description}</small></span><span>${item.icon}</span>
+      <button class="choice ${state.wizard.benefitType === item.id ? "selected" : ""} ${item.id === "other" ? "centered-choice" : ""}" data-action="select-benefit" data-id="${item.id}">
+        <span><strong>${item.label}</strong><br><small>${item.description}</small></span><span class="choice-icon">${item.icon}</span>
       </button>`).join("")}</div>
     ${wizardActions(true)}
   `;
@@ -922,7 +954,7 @@ function channelChoice(field, title, description, icon, disabled) {
   return `
     <label class="choice ${checked ? "selected" : ""} ${disabled ? "disabled" : ""}">
       <span><strong>${title}</strong>${disabled ? ' <span class="badge">desabilitado</span>' : ""}<br><small>${description}</small></span>
-      <span>${icon}</span>
+      <span class="choice-icon">${icon}</span>
       <input type="checkbox" data-field="${field}" ${checked ? "checked" : ""} ${disabled ? "disabled" : ""} />
     </label>
   `;
@@ -946,6 +978,7 @@ function stepLink() {
 
 function stepPreview() {
   const text = generateAlertText(state.wizard);
+  const geminiReview = geminiReviewBenefitText(state.wizard.generatedMobileSummary);
   return `
     <h3>7. Preview do seu Alerta</h3>
     <p>Confira como a oportunidade aparecerá para usuários compatíveis.</p>
@@ -968,6 +1001,10 @@ function stepPreview() {
         <p>Não há texto livre publicado diretamente. O sistema gera a mensagem a partir dos campos estruturados.</p>
         <label>Título gerado<input data-field="generatedMobileTitle" value="${text.title}" /></label>
         <label style="display:grid;gap:8px;margin-top:12px">Resumo gerado<textarea data-field="generatedMobileSummary" rows="4">${text.summary}</textarea></label>
+        <div class="gemini-review ${geminiReview.ok ? "approved" : "rejected"}">
+          <strong>${geminiReview.label}</strong>
+          <p>${geminiReview.ok ? "O texto do benefício está adequado para seguir para revisão final." : geminiReview.issues.join(" ")}</p>
+        </div>
         <div class="choice disabled" style="margin-top:16px"><span><strong>Preview Android Auto futuro</strong><br><small>Desabilitado no MVP.</small></span><span>🚘</span></div>
       </div>
     </div>
@@ -1251,6 +1288,10 @@ function validateWizardStep() {
   if (state.wizardStep === 6 && draft.externalLinkEnabled) {
     const validation = validateLink(draft.externalLinkUrl);
     if (!validation.ok) return validation.message;
+  }
+  if (state.wizardStep === 7) {
+    const geminiReview = geminiReviewBenefitText(draft.generatedMobileSummary);
+    if (!geminiReview.ok) return `Revisão Gemini bloqueou o texto: ${geminiReview.issues.join(" ")}`;
   }
   return "";
 }

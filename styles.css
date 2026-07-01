@@ -127,6 +127,7 @@ button { border: 0; cursor: pointer; }
 .breadcrumb { font-size: 1.05rem; font-weight: 750; flex: 1; }
 .topbar-actions { display: flex; align-items: center; gap: 12px; }
 .topbar select, .field, input, select, textarea { min-height: 44px; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 0 12px; color: var(--ink); }
+input[type="checkbox"] { width: 18px; height: 18px; min-height: 18px; padding: 0; accent-color: var(--blue); flex: 0 0 auto; }
 .icon-button { position: relative; width: 44px; height: 44px; border-radius: 8px; background: #fff; border: 1px solid var(--line); }
 .dot { position: absolute; top: -7px; right: -5px; min-width: 21px; height: 21px; border-radius: 50%; background: #e11d48; color: #fff; font-size: .78rem; display: grid; place-items: center; }
 .badge, .status { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px; border-radius: 999px; background: #eef4ff; color: var(--blue); font-weight: 800; font-size: .82rem; }
@@ -160,6 +161,14 @@ button { border: 0; cursor: pointer; }
 .suggestion-list { display: flex; flex-wrap: wrap; gap: 10px; }
 .suggestion-chip { min-height: 38px; border-radius: 999px; padding: 0 14px; background: #fff; border: 1px solid #bcd0ee; color: var(--blue); font-weight: 800; }
 .suggestion-chip:hover { background: #eef4ff; }
+.benefit-textarea { min-height: 94px; padding-top: 10px; resize: vertical; }
+.choice-icon { width: 34px; min-width: 34px; display: inline-grid; place-items: center; text-align: center; line-height: 1; }
+.centered-choice { justify-content: center; text-align: center; }
+.centered-choice .choice-icon { display: none; }
+.gemini-review { margin-top: 16px; padding: 14px; border-radius: 10px; border: 1px solid var(--line); }
+.gemini-review p { margin: 6px 0 0; }
+.gemini-review.approved { background: var(--green-soft); color: #08713f; border-color: #b8e4c8; }
+.gemini-review.rejected { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
 .metric-card strong { display: block; font-size: 2rem; margin-top: 8px; }
 .metric-card a { color: var(--blue); font-weight: 800; text-decoration: none; }
 .quick-actions { display: grid; gap: 12px; }
@@ -180,6 +189,7 @@ th { font-size: .86rem; color: #344054; background: #f8fbff; }
 .form-grid label { display: grid; gap: 7px; font-weight: 800; color: #1d2b44; }
 .form-grid .wide { grid-column: 1 / -1; }
 .choice { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 78px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.choice > span:first-child { flex: 1; min-width: 0; }
 .choice.selected { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(11,92,255,.08); }
 .choice.disabled { opacity: .55; cursor: not-allowed; background: #f8fafc; }
 .summary-list { display: grid; gap: 18px; }

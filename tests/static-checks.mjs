@@ -53,9 +53,15 @@ assert.match(js, /if \(loadedState\.userProfile\.email === LEGACY_DEFAULT_EMAIL\
 assert.match(js, /localStorage\.removeItem\(STORAGE_KEY\)/);
 assert.match(js, /establishmentCategories/);
 assert.match(js, /benefitSuggestions/);
+assert.match(js, /Frete grátis para compras acima de R\$ 100/);
+assert.match(js, /Compre hoje e retire em até 30 minutos/);
+assert.match(js, /Brinde especial nas primeiras 20 compras/);
 assert.match(js, /Descreva o Benefício\/Promoção/);
 assert.match(js, /aprovação da IA Gemini/);
 assert.match(js, /apply-benefit-suggestion/);
+assert.match(js, /geminiReviewBenefitText/);
+assert.match(js, /Bloqueado pela revisão Gemini/);
+assert.match(js, /Android Auto/);
 assert.match(js, /Classificação/);
 assert.match(js, /stock_clearance/);
 assert.match(js, /Até zerar o estoque/);
@@ -92,6 +98,11 @@ assert.match(css, /user-avatar/);
 assert.match(css, /form-control/);
 assert.match(css, /checkbox-stack/);
 assert.match(css, /suggestion-chip/);
+assert.match(css, /input\[type="checkbox"\]/);
+assert.match(css, /benefit-textarea/);
+assert.match(css, /choice-icon/);
+assert.match(css, /centered-choice/);
+assert.match(css, /gemini-review/);
 
 assert.match(sql, /benefit_alerts/);
 assert.match(sql, /android_auto_poi_published = false/);
