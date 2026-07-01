@@ -14,6 +14,9 @@ assert.match(html, /consumerAppView/);
 assert.match(html, /consumerView/);
 assert.doesNotMatch(html, /data-route="consumer">Vitrine do consumidor/);
 assert.doesNotMatch(html, /currentPlaceSelect/);
+assert.match(html, /badge muted/);
+assert.match(html, /userProfileButton/);
+assert.doesNotMatch(html, /João Silva/);
 
 assert.match(js, /ANDROID_AUTO_ENABLED = Boolean\(config\.androidAutoEnabled\)/);
 assert.match(js, /androidAutoPoiPublished: false/);
@@ -34,6 +37,9 @@ assert.match(js, /startGoogleOAuth/);
 assert.match(js, /handleGoogleOAuthCallback/);
 assert.match(js, /https:\/\/www\.googleapis\.com\/auth\/business\.manage/);
 assert.match(js, /oauth_code_received/);
+assert.match(js, /state\.route = "dashboard"/);
+assert.match(js, /currentUserName/);
+assert.match(js, /localStorage\.removeItem\(STORAGE_KEY\)/);
 
 assert.match(css, /app-shell/);
 assert.match(css, /\[hidden\]\s*\{\s*display:\s*none\s*!important;\s*\}/);
@@ -42,6 +48,8 @@ assert.match(css, /consumer-shell/);
 assert.match(css, /consumer-app-shell/);
 assert.match(css, /sidebar-collapsed/);
 assert.match(css, /overflow-wrap: anywhere/);
+assert.match(css, /badge\.muted/);
+assert.match(css, /user-icon/);
 
 assert.match(sql, /benefit_alerts/);
 assert.match(sql, /android_auto_poi_published = false/);

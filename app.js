@@ -96,6 +96,10 @@ const initialState = {
     detectedAt: null,
     selectedLocationId: ""
   },
+  userProfile: {
+    displayName: "Hillner Ferreira",
+    email: "hillner.ferreira@ifpb.edu.br"
+  },
   places: seedPlaces,
   alerts: [
     {
@@ -279,11 +283,11 @@ function handleGoogleOAuthCallback() {
 
   sessionStorage.removeItem("googleOAuthState");
   state.isLoggedIn = true;
-  state.route = "settings";
+  state.route = "dashboard";
   state.googleBusinessProfile = {
     ...state.googleBusinessProfile,
     status: "oauth_code_received",
-    connectedEmail: "Conta Google autorizada",
+    connectedEmail: state.userProfile?.email || "Conta Google autorizada",
     detectedAt: new Date().toISOString(),
     selectedLocationId: state.googleBusinessProfile?.selectedLocationId || ""
   };
@@ -357,6 +361,14 @@ function placeById(id) {
 
 function currentPlace() {
   return placeById(state.selectedPlaceId) ?? state.places[0];
+}
+
+function currentUserName() {
+  return state.userProfile?.displayName || "usuário";
+}
+
+function currentUserEmail() {
+  return state.userProfile?.email || state.googleBusinessProfile?.connectedEmail || "Conta Google autorizada";
 }
 
 function isAlertCurrentlyValid(alert) {
@@ -478,6 +490,11 @@ function render() {
   };
   $("#breadcrumb").textContent = labels[state.route] ?? "Dashboard";
   $("#moderationCount").textContent = state.alerts.filter((alert) => alert.mainStatus === "in_review").length;
+  const userButton = $("#userProfileButton");
+  if (userButton) {
+    userButton.title = currentUserEmail();
+    userButton.setAttribute("aria-label", `Usuário logado: ${currentUserEmail()}`);
+  }
 
   renderDashboard();
   renderAlerts();
@@ -509,7 +526,7 @@ function renderDashboard() {
     <div class="page-title">
       <div>
         <p class="eyebrow">Portal do lojista</p>
-        <h2>Olá, João! 👋</h2>
+        <h2>Olá, ${currentUserName()}! 👋</h2>
         <p>Resumo agregado dos seus Alertas de Oportunidade.</p>
       </div>
       <button class="primary" data-route="wizard">Criar Alerta de Oportunidade</button>
@@ -1096,19 +1113,20 @@ function handleClick(event) {
   if (action === "login") {
     if (startGoogleOAuth()) return;
     state.isLoggedIn = true;
-    const hasSelectedLocation = businessProfileStatus() === "location_selected";
     state.googleBusinessProfile = {
       ...state.googleBusinessProfile,
-      connectedEmail: state.googleBusinessProfile?.connectedEmail || "joao@example.com"
+      connectedEmail: state.googleBusinessProfile?.connectedEmail || currentUserEmail()
     };
-    state.route = hasSelectedLocation ? "dashboard" : "settings";
+    state.route = "dashboard";
     saveState();
     render();
     showToast("Login Google simulado concluido. Conecte o Perfil da Empresa para identificar estabelecimentos.", "success");
   } else if (action === "logout") {
-    state.isLoggedIn = false;
-    saveState();
+    state = structuredClone(initialState);
+    localStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem("googleOAuthState");
     render();
+    showToast("Sessao encerrada no app.", "success");
   } else if (action === "connect-google-business") {
     state.googleBusinessProfile = {
       status: "locations_found",

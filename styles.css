@@ -131,11 +131,12 @@ button { border: 0; cursor: pointer; }
 .dot { position: absolute; top: -7px; right: -5px; min-width: 21px; height: 21px; border-radius: 50%; background: #e11d48; color: #fff; font-size: .78rem; display: grid; place-items: center; }
 .badge, .status { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px; border-radius: 999px; background: #eef4ff; color: var(--blue); font-weight: 800; font-size: .82rem; }
 .badge.green, .status.active, .status.approved { background: var(--green-soft); color: #08713f; }
+.badge.muted { background: #f1f5f9; color: #64748b; }
 .status.in_review { background: #fff7ed; color: #b45309; }
 .status.paused, .status.expired { background: #f2f4f7; color: #475467; }
 .status.rejected { background: #fff1f2; color: #be123c; }
-.user-chip { display: flex; align-items: center; gap: 8px; font-weight: 800; }
-.user-chip::first-letter { background: #e2e8f0; }
+.user-icon { width: 42px; height: 42px; border: 0; border-radius: 50%; display: grid; place-items: center; background: #e2e8f0; color: #0f172a; font-size: 1.15rem; cursor: default; }
+.user-icon:hover, .user-icon:focus-visible { outline: 3px solid rgba(11, 92, 255, .18); }
 .content { padding: 28px; background: linear-gradient(135deg, #ffffff, #f8fbff); }
 .view { max-width: 1480px; margin: 0 auto; }
 .page-title { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; margin-bottom: 22px; }
