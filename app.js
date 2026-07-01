@@ -855,7 +855,7 @@ function renderWizard() {
 }
 
 function renderSteps() {
-  const labels = ["Local", "Benefício", "Classificação", "Validade", "Canais", "Link opcional", "Preview", "Revisão"];
+  const labels = ["Local", "Benefício", "Classificação", "Validade", "Canais", "Link opcional", "Revisão"];
   return `<div class="steps">${labels.map((label, index) => {
     const step = index + 1;
     const cls = step === state.wizardStep ? "active" : step < state.wizardStep ? "done" : "";
@@ -864,7 +864,7 @@ function renderSteps() {
 }
 
 function renderWizardStep() {
-  const stepRenderers = [stepLocal, stepBenefitDescription, stepClassification, stepValidity, stepChannels, stepLink, stepPreview, stepReview];
+  const stepRenderers = [stepLocal, stepBenefitDescription, stepClassification, stepValidity, stepChannels, stepLink, stepReview];
   return stepRenderers[state.wizardStep - 1]();
 }
 
@@ -975,12 +975,12 @@ function stepLink() {
   `;
 }
 
-function stepPreview() {
+function stepReview() {
   const text = generateAlertText(state.wizard);
   const geminiReview = geminiReviewBenefitText(state.wizard.generatedMobileSummary);
   return `
-    <h3>7. Preview do seu Alerta</h3>
-    <p>Confira como a oportunidade aparecerá para usuários compatíveis.</p>
+    <h3>7. Revise e finalize seu Alerta</h3>
+    <p>O Alerta será enviado para análise e só ficará visível após aprovação.</p>
     <div class="grid cols-2">
       <div class="phone-preview">
         <div class="phone-screen">
@@ -995,28 +995,19 @@ function stepPreview() {
           </div>
         </div>
       </div>
-      <div class="card">
-        <h4>Texto gerado por template</h4>
+      <div>
+        <h4>Preview e aprovação do texto</h4>
         <p>Não há texto livre publicado diretamente. O sistema gera a mensagem a partir dos campos estruturados.</p>
         <label>Título gerado<input data-field="generatedMobileTitle" value="${text.title}" /></label>
         <label style="display:grid;gap:8px;margin-top:12px">Resumo gerado<textarea data-field="generatedMobileSummary" rows="4">${text.summary}</textarea></label>
         <div class="gemini-review ${geminiReview.ok ? "approved" : "rejected"}">
           <strong>${geminiReview.label}</strong>
-          <p>${geminiReview.ok ? "O texto do benefício está adequado para seguir para revisão final." : geminiReview.issues.join(" ")}</p>
+          <p>${geminiReview.ok ? "O texto do benefício está adequado para envio da revisão final." : geminiReview.issues.join(" ")}</p>
         </div>
         <div class="choice disabled" style="margin-top:16px"><span><strong>Preview Android Auto futuro</strong><br><small>Desabilitado no MVP.</small></span><span>🚘</span></div>
       </div>
     </div>
-    ${wizardActions(true)}
-  `;
-}
-
-function stepReview() {
-  const text = generateAlertText(state.wizard);
-  return `
-    <h3>8. Revise e finalize seu Alerta</h3>
-    <p>O Alerta será enviado para análise e só ficará visível após aprovação.</p>
-    <div class="grid cols-2">
+    <div class="grid cols-2 review-grid">
       ${reviewBlock("Estabelecimento", placeById(state.wizard.placeId)?.name, placeById(state.wizard.placeId)?.address)}
       ${reviewBlock("Benefício", state.wizard.generatedMobileSummary || "Não informado", "Sujeito à aprovação da IA Gemini")}
       ${reviewBlock("Classificação", benefit(state.wizard.benefitType).label, benefit(state.wizard.benefitType).description)}
@@ -1422,7 +1413,7 @@ function handleClick(event) {
   } else if (action === "next-step") {
     const validation = validateWizardStep();
     if (validation) return showToast(validation, "error");
-    state.wizardStep = Math.min(8, state.wizardStep + 1);
+    state.wizardStep = Math.min(7, state.wizardStep + 1);
     saveState();
     renderWizard();
   } else if (action === "prev-step") {

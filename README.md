@@ -40,11 +40,9 @@ http://127.0.0.1:4188/
 - Dashboard do lojista.
 - Estabelecimentos verificados manualmente.
 - Lista de Alertas de Oportunidade.
-- Wizard completo: Local, Categorias, Benefício, Validade, Canais, Link opcional, Preview, Revisão.
+- Wizard completo: Local, Benefício, Classificação, Validade, Canais, Link opcional e Revisão com preview e aprovação Gemini.
 - Tela de Alerta criado/enviado para análise.
-- Moderação manual.
-- Vitrine web do consumidor com matching por categorias.
-- Salvar, ocultar e denunciar oportunidade.
+- Histórico administrativo de alterações, exclusões e alertas expirados.
 
 ## Regras importantes
 

@@ -73,6 +73,20 @@ button { border: 0; cursor: pointer; }
   font-weight: 800;
   box-shadow: 0 10px 24px rgba(11, 92, 255, 0.22);
 }
+.google-button {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 16px 32px rgba(11, 92, 255, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.google-button:hover {
+  transform: translateY(-2px);
+  background: #0753eb;
+  box-shadow: 0 22px 42px rgba(11, 92, 255, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+.google-button:active {
+  transform: translateY(0);
+  box-shadow: 0 12px 24px rgba(11, 92, 255, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
 .google-button span { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 7px; background: #fff; color: #4285f4; }
 .secondary {
   min-height: 44px;
@@ -128,6 +142,30 @@ button { border: 0; cursor: pointer; }
 .topbar-actions { display: flex; align-items: center; gap: 12px; }
 .topbar select, .field, input, select, textarea { min-height: 44px; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 0 12px; color: var(--ink); }
 input[type="checkbox"] { width: 18px; height: 18px; min-height: 18px; padding: 0; accent-color: var(--blue); flex: 0 0 auto; }
+.form-grid input:not([type="checkbox"]):not(:disabled),
+.form-grid select:not(:disabled),
+.form-grid textarea:not(:disabled),
+.form-control input:not([type="checkbox"]):not(:disabled),
+.form-control select:not(:disabled),
+.form-control textarea:not(:disabled),
+.wizard-panel input:not([type="checkbox"]):not(:disabled),
+.wizard-panel select:not(:disabled),
+.wizard-panel textarea:not(:disabled) {
+  border-color: var(--green);
+  box-shadow: 0 0 0 1px rgba(20, 138, 80, .08);
+}
+.form-grid input:not([type="checkbox"]):not(:disabled):focus,
+.form-grid select:not(:disabled):focus,
+.form-grid textarea:not(:disabled):focus,
+.form-control input:not([type="checkbox"]):not(:disabled):focus,
+.form-control select:not(:disabled):focus,
+.form-control textarea:not(:disabled):focus,
+.wizard-panel input:not([type="checkbox"]):not(:disabled):focus,
+.wizard-panel select:not(:disabled):focus,
+.wizard-panel textarea:not(:disabled):focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(20, 138, 80, .16);
+}
 .icon-button { position: relative; width: 44px; height: 44px; border-radius: 8px; background: #fff; border: 1px solid var(--line); }
 .dot { position: absolute; top: -7px; right: -5px; min-width: 21px; height: 21px; border-radius: 50%; background: #e11d48; color: #fff; font-size: .78rem; display: grid; place-items: center; }
 .badge, .status { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px; border-radius: 999px; background: #eef4ff; color: var(--blue); font-weight: 800; font-size: .82rem; }
@@ -178,13 +216,14 @@ th, td { padding: 16px; border-bottom: 1px solid var(--line); text-align: left; 
 th { font-size: .86rem; color: #344054; background: #f8fbff; }
 .empty { padding: 38px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; background: #fff; }
 
-.wizard-shell { display: grid; grid-template-columns: 1fr; gap: 20px; }
-.steps { display: grid; grid-template-columns: repeat(8, 1fr); gap: 12px; margin: 20px 0 28px; }
+.wizard-shell { display: grid; grid-template-columns: 1fr; gap: 20px; max-width: 1180px; margin: 0 auto; }
+.steps { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; margin: 20px 0 28px; }
 .step { text-align: center; color: #52637c; font-size: .86rem; }
 .step span { display: grid; place-items: center; width: 42px; height: 42px; margin: 0 auto 8px; border-radius: 50%; border: 1px solid #b9c7dc; background: #fff; font-weight: 900; }
 .step.active span { border-color: var(--blue); background: var(--blue); color: #fff; }
 .step.done span { border-color: var(--green); background: var(--green); color: #fff; }
 .wizard-panel { min-height: 600px; }
+.review-grid { margin-top: 18px; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .form-grid label { display: grid; gap: 7px; font-weight: 800; color: #1d2b44; }
 .form-grid .wide { grid-column: 1 / -1; }
