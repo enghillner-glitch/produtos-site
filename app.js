@@ -14,6 +14,24 @@ const categories = [
   { id: "parking", label: "Estacionamentos", description: "Vagas, diárias e condições especiais de estacionamento.", icon: "🚗" }
 ];
 
+const establishmentCategories = [
+  { id: "bakery", label: "Padaria" },
+  { id: "convenience", label: "Conveniência" },
+  { id: "supermarkets", label: "Supermercado" },
+  { id: "pharmacy", label: "Farmácia" },
+  { id: "petshop", label: "PetShop" },
+  { id: "restaurant", label: "Restaurante" },
+  { id: "snack_bar", label: "Lanchonete" },
+  { id: "fuel", label: "Posto de combustível" },
+  { id: "parking", label: "Estacionamento" },
+  { id: "clothing", label: "Roupas e acessórios" },
+  { id: "electronics", label: "Eletrônicos" },
+  { id: "beauty", label: "Beleza e estética" },
+  { id: "gym", label: "Academia" },
+  { id: "services", label: "Serviços" },
+  { id: "other", label: "Outros" }
+];
+
 const benefits = [
   { id: "discount", label: "Oferta / Desconto", description: "Descontos em produtos ou serviços.", icon: "🏷" },
   { id: "combo", label: "Combo", description: "Combos e pacotes promocionais.", icon: "%" },
@@ -100,6 +118,15 @@ const initialState = {
     displayName: "Hillner Ferreira",
     email: "hillner.ferreira@ifpb.edu.br"
   },
+  historyEntries: [
+    {
+      id: "history-seed-1",
+      type: "system",
+      title: "Projeto iniciado",
+      description: "Ambiente web-first preparado para validar o Portal do Lojista.",
+      createdAt: "2026-06-29T09:00:00.000Z"
+    }
+  ],
   places: seedPlaces,
   alerts: [
     {
@@ -222,7 +249,7 @@ const views = {
   wizard: $("#wizardView"),
   created: $("#createdView"),
   places: $("#placesView"),
-  moderation: $("#moderationView"),
+  history: $("#historyView"),
   consumer: $("#consumerView"),
   settings: $("#settingsView")
 };
@@ -351,6 +378,10 @@ function category(id) {
   return categories.find((item) => item.id === id) ?? categories[0];
 }
 
+function establishmentCategory(id) {
+  return establishmentCategories.find((item) => item.id === id) ?? establishmentCategories.at(-1);
+}
+
 function benefit(id) {
   return benefits.find((item) => item.id === id) ?? benefits[0];
 }
@@ -369,6 +400,19 @@ function currentUserName() {
 
 function currentUserEmail() {
   return state.userProfile?.email || state.googleBusinessProfile?.connectedEmail || "Conta Google autorizada";
+}
+
+function addHistory(type, title, description) {
+  state.historyEntries = [
+    {
+      id: `history-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      type,
+      title,
+      description,
+      createdAt: new Date().toISOString()
+    },
+    ...(state.historyEntries ?? [])
+  ].slice(0, 80);
 }
 
 function isAlertCurrentlyValid(alert) {
@@ -484,12 +528,13 @@ function render() {
     wizard: "Alertas de Oportunidade > Novo Alerta",
     created: "Alertas de Oportunidade > Novo Alerta > Alerta Criado",
     places: "Estabelecimentos",
-    moderation: "Moderação",
+    history: "Histórico",
     consumer: "Experiência do consumidor > Oportunidades Próximas",
     settings: "Conexão Google Business Profile"
   };
   $("#breadcrumb").textContent = labels[state.route] ?? "Dashboard";
-  $("#moderationCount").textContent = state.alerts.filter((alert) => alert.mainStatus === "in_review").length;
+  const emailBadge = $("#loggedEmailBadge");
+  if (emailBadge) emailBadge.textContent = currentUserEmail();
   const userButton = $("#userProfileButton");
   if (userButton) {
     userButton.title = currentUserEmail();
@@ -501,7 +546,7 @@ function render() {
   renderWizard();
   renderCreated();
   renderPlaces();
-  renderModeration();
+  renderHistory();
   renderConsumer();
   renderSettings();
 }
@@ -638,7 +683,6 @@ function alertListRow(alert) {
 
 function alertActions(alert) {
   const actions = [`<button class="secondary" data-action="view-alert" data-id="${alert.id}">Ver</button>`];
-  if (alert.mainStatus === "in_review") actions.push(`<button class="primary" data-action="approve-alert" data-id="${alert.id}">Aprovar</button>`);
   if (alert.mainStatus === "approved") actions.push(`<button class="primary" data-action="activate-alert" data-id="${alert.id}">Ativar</button>`);
   if (alert.mainStatus === "active") actions.push(`<button class="secondary" data-action="pause-alert" data-id="${alert.id}">Pausar</button>`);
   if (alert.mainStatus === "paused") actions.push(`<button class="secondary" data-action="activate-alert" data-id="${alert.id}">Retomar</button>`);
@@ -901,28 +945,48 @@ function renderPlaces() {
         <h3>${place.name}</h3>
         <p>${place.address}</p>
         <p>${place.phone} • ${place.websiteUrl || "sem site"}</p>
+        <label class="form-control">
+          Categoria
+          <select id="placeCategory-${place.id}">
+            ${establishmentCategories.map((item) => `<option value="${item.id}" ${(place.businessCategoryId || place.categoryId) === item.id ? "selected" : ""}>${item.label}</option>`).join("")}
+          </select>
+        </label>
         <span class="status ${place.isEligibleForPublishing ? "approved" : "rejected"}">${place.isEligibleForPublishing ? "Elegível para publicação" : "Não elegível"}</span>
         <p><small>Status de integração: ${place.bindingStatus}. Google Business Profile real será fase posterior.</small></p>
+        <button class="primary" data-action="save-place-category" data-id="${place.id}">Salvar</button>
       </section>
     `).join("")}</div>
   `;
 }
 
-function renderModeration() {
-  const pending = state.alerts.filter((alert) => alert.mainStatus === "in_review");
-  views.moderation.innerHTML = `
-    <div class="page-title"><div><h2>Moderação</h2><p>Revise Alertas antes de ficarem ativos na vitrine.</p></div></div>
-    ${pending.length ? `<div class="grid">${pending.map((alert) => `
-      <section class="card">
-        <h3>${alert.titleInternal}</h3>
-        <p>${alert.generatedMobileSummary}</p>
-        <p>${placeById(alert.placeId)?.name} • ${formatDate(alert.validFrom)} até ${formatDate(alert.validUntil)}</p>
-        <div class="quick-actions">
-          <button class="primary" data-action="approve-alert" data-id="${alert.id}">Aprovar</button>
-          <button class="secondary" data-action="reject-alert" data-id="${alert.id}">Recusar</button>
-        </div>
-      </section>
-    `).join("")}</div>` : '<div class="empty">Nenhum Alerta aguardando análise.</div>'}
+function renderHistory() {
+  const expiredAlerts = state.alerts
+    .filter((alert) => effectiveStatus(alert) === "expired")
+    .map((alert) => ({
+      id: `expired-${alert.id}`,
+      type: "expired",
+      title: "Card expirado",
+      description: `${alert.titleInternal} expirou em ${formatDate(alert.validUntil)}.`,
+      createdAt: `${alert.validUntil}T23:59:00.000Z`
+    }));
+  const entries = [...(state.historyEntries ?? []), ...expiredAlerts]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  views.history.innerHTML = `
+    <div class="page-title"><div><h2>Histórico</h2><p>Registro de modificações, exclusões, expirações e eventos relevantes.</p></div></div>
+    ${entries.length ? `<section class="card table-card">
+      <table>
+        <thead><tr><th>Data</th><th>Evento</th><th>Detalhe</th><th>Tipo</th></tr></thead>
+        <tbody>${entries.map((entry) => `
+          <tr>
+            <td>${new Date(entry.createdAt).toLocaleString("pt-BR")}</td>
+            <td><strong>${entry.title}</strong></td>
+            <td>${entry.description}</td>
+            <td><span class="status ${entry.type === "expired" ? "expired" : "approved"}">${entry.type}</span></td>
+          </tr>
+        `).join("")}</tbody>
+      </table>
+    </section>` : '<div class="empty">Nenhum evento registrado ainda.</div>'}
   `;
 }
 
@@ -1091,6 +1155,7 @@ function publishAlert() {
   state.alerts.unshift(alert);
   state.lastCreatedAlertId = id;
   state.route = "created";
+  addHistory("created", "Alerta criado", `${alert.titleInternal} foi enviado para análise.`);
   saveState();
   render();
   showToast("Alerta criado e enviado para análise.", "success");
@@ -1195,33 +1260,45 @@ function handleClick(event) {
     renderWizard();
   } else if (action === "publish-alert") {
     publishAlert();
-  } else if (action === "approve-alert") {
-    updateAlert(id, { mainStatus: "approved", moderationStatus: "approved" });
-    showToast("Alerta aprovado. Ative para publicar na vitrine.", "success");
   } else if (action === "activate-alert") {
     updateAlert(id, { mainStatus: "active", moderationStatus: "approved" });
     showToast("Alerta ativo na vitrine para usuários compatíveis.", "success");
   } else if (action === "pause-alert") {
     updateAlert(id, { mainStatus: "paused" });
     showToast("Alerta pausado.");
-  } else if (action === "reject-alert") {
-    updateAlert(id, { mainStatus: "rejected", moderationStatus: "rejected" });
-    showToast("Alerta recusado.", "error");
+  } else if (action === "save-place-category") {
+    const place = placeById(id);
+    const select = $(`#placeCategory-${id}`);
+    if (!place || !select) return;
+    const previous = establishmentCategory(place.businessCategoryId || place.categoryId).label;
+    place.businessCategoryId = select.value;
+    const next = establishmentCategory(select.value).label;
+    addHistory("updated", "Categoria do estabelecimento alterada", `${place.name}: ${previous} → ${next}.`);
+    saveState();
+    renderPlaces();
+    showToast("Categoria do estabelecimento salva.", "success");
   } else if (action === "view-alert") {
     openAlertDetail(id);
   } else if (action === "save-opportunity") {
     state.consumerPreferences.savedIds = unique([...state.consumerPreferences.savedIds, id]);
+    const alert = state.alerts.find((item) => item.id === id);
+    if (alert) addHistory("saved", "Oportunidade salva", `${alert.titleInternal} foi salva pelo usuário.`);
     saveState();
     showToast("Oportunidade salva.", "success");
   } else if (action === "hide-opportunity") {
     state.consumerPreferences.hiddenIds = unique([...state.consumerPreferences.hiddenIds, id]);
+    const alert = state.alerts.find((item) => item.id === id);
+    if (alert) addHistory("hidden", "Card ocultado", `${alert.titleInternal} foi removido da experiência do consumidor.`);
     saveState();
     renderConsumer();
     showToast("Oportunidade ocultada.");
   } else if (action === "report-opportunity") {
     state.consumerPreferences.reportedIds = unique([...state.consumerPreferences.reportedIds, id]);
     const alert = state.alerts.find((item) => item.id === id);
-    if (alert) alert.metrics.reports += 1;
+    if (alert) {
+      alert.metrics.reports += 1;
+      addHistory("reported", "Denúncia registrada", `${alert.titleInternal} recebeu uma denúncia para revisão administrativa.`);
+    }
     saveState();
     renderConsumer();
     showToast("Denúncia registrada para revisão manual.", "success");
@@ -1233,7 +1310,11 @@ function handleClick(event) {
 function updateAlert(id, patch) {
   const alert = state.alerts.find((item) => item.id === id);
   if (!alert) return;
+  const previousStatus = alert.mainStatus;
   Object.assign(alert, patch);
+  if (patch.mainStatus && patch.mainStatus !== previousStatus) {
+    addHistory("updated", "Status do alerta alterado", `${alert.titleInternal}: ${statusLabel(previousStatus)} → ${statusLabel(patch.mainStatus)}.`);
+  }
   saveState();
   render();
 }
