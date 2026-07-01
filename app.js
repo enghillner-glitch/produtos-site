@@ -4,6 +4,8 @@ const EMAIL_CHANNEL_ENABLED = Boolean(config.emailChannelEnabled);
 const STORAGE_KEY = "opportunities-next-mvp:v1";
 const GOOGLE_BUSINESS_SCOPE = "https://www.googleapis.com/auth/business.manage";
 const GOOGLE_BASIC_SCOPES = ["openid", "email", "profile"];
+const LEGACY_DEFAULT_EMAIL = "hillner.ferreira@ifpb.edu.br";
+const LEGACY_DEFAULT_NAME = "Hillner Ferreira";
 
 const categories = [
   { id: "supermarkets", label: "Supermercados", description: "Compras do dia a dia, alimentos, bebidas e limpeza.", icon: "🛒" },
@@ -115,8 +117,8 @@ const initialState = {
     selectedLocationId: ""
   },
   userProfile: {
-    displayName: "Hillner Ferreira",
-    email: "hillner.ferreira@ifpb.edu.br",
+    displayName: "",
+    email: "",
     photoUrl: ""
   },
   editingPlaceId: "",
@@ -307,7 +309,7 @@ function handleGoogleOAuthCallback() {
   state.googleBusinessProfile = {
     ...state.googleBusinessProfile,
     status: "oauth_code_received",
-    connectedEmail: state.userProfile?.email || "Conta Google autorizada",
+    connectedEmail: knownUserEmail(),
     detectedAt: new Date().toISOString(),
     selectedLocationId: state.googleBusinessProfile?.selectedLocationId || ""
   };
@@ -328,6 +330,11 @@ function normalizeLoadedState(loadedState) {
   const validRoutes = new Set(["dashboard", "alerts", "wizard", "created", "places", "history", "settings"]);
   if (!validRoutes.has(loadedState.route)) loadedState.route = "dashboard";
   loadedState.userProfile = { ...initialState.userProfile, ...(loadedState.userProfile ?? {}) };
+  if (loadedState.userProfile.email === LEGACY_DEFAULT_EMAIL) loadedState.userProfile.email = "";
+  if (loadedState.userProfile.displayName === LEGACY_DEFAULT_NAME && !loadedState.userProfile.email) loadedState.userProfile.displayName = "";
+  if (loadedState.googleBusinessProfile?.connectedEmail === LEGACY_DEFAULT_EMAIL) {
+    loadedState.googleBusinessProfile.connectedEmail = "";
+  }
   loadedState.historyEntries = loadedState.historyEntries ?? [];
   loadedState.places = loadedState.places ?? structuredClone(seedPlaces);
   loadedState.editingPlaceId = "";
@@ -399,11 +406,16 @@ function currentPlace() {
 }
 
 function currentUserName() {
-  return state.userProfile?.displayName || "usuário";
+  return state.userProfile?.displayName || "lojista";
 }
 
 function currentUserEmail() {
-  return state.userProfile?.email || state.googleBusinessProfile?.connectedEmail || "Conta Google autorizada";
+  return knownUserEmail() || "Conta Google autenticada";
+}
+
+function knownUserEmail() {
+  const email = state.googleBusinessProfile?.connectedEmail || state.userProfile?.email || "";
+  return email === LEGACY_DEFAULT_EMAIL ? "" : email;
 }
 
 function currentUserAvatarUrl() {
