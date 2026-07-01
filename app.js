@@ -389,12 +389,12 @@ function saveState() {
 
 function resetWizard() {
   const place = currentPlace();
-  const placeCategoryId = place?.businessCategoryId || place?.categoryId || "";
+  const placeCategoryId = alertCategoryIdForPlace(place);
   state.wizardStep = 1;
   state.wizard = {
     placeId: place?.id ?? "",
-    primaryCategoryId: placeCategoryId || "supermarkets",
-    categoryIds: unique([placeCategoryId || "supermarkets", "offers"]),
+    primaryCategoryId: placeCategoryId,
+    categoryIds: unique([placeCategoryId, "offers"]),
     benefitType: "discount",
     validFrom: todayIso(),
     validUntil: addDaysIso(7),
@@ -472,6 +472,40 @@ function hasDefinedEstablishmentCategory(place) {
 function placeCategoryLabel(place) {
   if (!hasDefinedEstablishmentCategory(place)) return "Categoria não definida";
   return establishmentCategory(place.businessCategoryId || place.categoryId).label;
+}
+
+function alertCategoryIdForPlace(place) {
+  if (!place) return "offers";
+  const businessCategoryId = place.businessCategoryId || place.categoryId || "";
+  if (categories.some((item) => item.id === businessCategoryId)) return businessCategoryId;
+  const map = {
+    bakery: "bakeries",
+    bakeries: "bakeries",
+    convenience: "offers",
+    supermarkets: "supermarkets",
+    pharmacy: "offers",
+    petshop: "offers",
+    restaurant: "offers",
+    snack_bar: "offers",
+    fuel: "fuel",
+    parking: "parking",
+    clothing: "offers",
+    electronics: "promotion",
+    beauty: "offers",
+    gym: "offers",
+    services: "offers",
+    other: "offers"
+  };
+  if (map[businessCategoryId]) return map[businessCategoryId];
+  return categories.some((item) => item.id === place.categoryId) ? place.categoryId : "offers";
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function addHistory(type, title, description) {
@@ -1002,23 +1036,60 @@ function renderPlaces() {
   if (editingPlace) {
     views.places.innerHTML = `
       <div class="page-title">
-        <div><h2>Editar estabelecimento</h2><p>Defina a categoria usada para liberar a criação de Alertas.</p></div>
+        <div><h2>Editar estabelecimento</h2><p>Atualize os dados usados no portal e na criação de Alertas.</p></div>
       </div>
-      <section class="card place-card">
-        <h3>${editingPlace.name}</h3>
-        <p>${editingPlace.address}</p>
-        <p>${editingPlace.phone} • ${editingPlace.websiteUrl || "sem site"}</p>
-        <label class="form-control">
-          Categoria
-          <select id="editingPlaceCategory">
-            <option value="">Selecione uma categoria</option>
-            ${establishmentCategories.map((item) => `<option value="${item.id}" ${(editingPlace.businessCategoryId || editingPlace.categoryId) === item.id ? "selected" : ""}>${item.label}</option>`).join("")}
-          </select>
-        </label>
+      <section class="card">
+        <div class="form-grid">
+          <label>
+            Nome do estabelecimento
+            <input id="editingPlaceName" value="${escapeHtml(editingPlace.name)}" />
+          </label>
+          <label>
+            Categoria
+            <select id="editingPlaceCategory">
+              <option value="">Selecione uma categoria</option>
+              ${establishmentCategories.map((item) => `<option value="${item.id}" ${(editingPlace.businessCategoryId || editingPlace.categoryId) === item.id ? "selected" : ""}>${item.label}</option>`).join("")}
+            </select>
+          </label>
+          <label class="wide">
+            Endereço
+            <input id="editingPlaceAddress" value="${escapeHtml(editingPlace.address)}" />
+          </label>
+          <label>
+            Bairro
+            <input id="editingPlaceNeighborhood" value="${escapeHtml(editingPlace.neighborhood)}" />
+          </label>
+          <label>
+            Telefone
+            <input id="editingPlacePhone" value="${escapeHtml(editingPlace.phone)}" />
+          </label>
+          <label class="wide">
+            Site
+            <input id="editingPlaceWebsite" value="${escapeHtml(editingPlace.websiteUrl)}" placeholder="https://..." />
+          </label>
+          <label>
+            Latitude
+            <input id="editingPlaceLatitude" type="number" step="0.000001" value="${editingPlace.latitude ?? ""}" />
+          </label>
+          <label>
+            Longitude
+            <input id="editingPlaceLongitude" type="number" step="0.000001" value="${editingPlace.longitude ?? ""}" />
+          </label>
+          <label>
+            Status de integração
+            <select id="editingPlaceBindingStatus">
+              ${["manual_verified", "pending_verification", "category_not_allowed", "google_connected"].map((status) => `<option value="${status}" ${editingPlace.bindingStatus === status ? "selected" : ""}>${status}</option>`).join("")}
+            </select>
+          </label>
+          <div class="checkbox-stack">
+            <label><input id="editingPlaceVerified" type="checkbox" ${editingPlace.isVerified ? "checked" : ""} /> Verificado</label>
+            <label><input id="editingPlaceEligible" type="checkbox" ${editingPlace.isEligibleForPublishing ? "checked" : ""} /> Elegível para publicação</label>
+          </div>
+        </div>
         <span class="status ${editingPlace.isEligibleForPublishing ? "approved" : "rejected"}">${editingPlace.isEligibleForPublishing ? "Elegível para publicação" : "Não elegível"}</span>
         <p><small>Status de integração: ${editingPlace.bindingStatus}. Google Business Profile real será fase posterior.</small></p>
         <div class="quick-actions">
-          <button class="primary" data-action="save-place-category" data-id="${editingPlace.id}">Salvar</button>
+          <button class="primary" data-action="save-place" data-id="${editingPlace.id}">Salvar</button>
           <button class="secondary" data-action="cancel-place-edit">Cancelar</button>
         </div>
       </section>
@@ -1030,9 +1101,9 @@ function renderPlaces() {
     <div class="page-title"><div><h2>Estabelecimentos</h2><p>Modo manual/simulado do Google Business Profile para o MVP.</p></div></div>
     <div class="grid">${state.places.map((place) => `
       <section class="card place-card">
-        <h3>${place.name}</h3>
-        <p>${place.address}</p>
-        <p>${place.phone} • ${place.websiteUrl || "sem site"}</p>
+        <h3>${escapeHtml(place.name)}</h3>
+        <p>${escapeHtml(place.address)}</p>
+        <p>${escapeHtml(place.neighborhood)} • ${escapeHtml(place.phone)} • ${escapeHtml(place.websiteUrl || "sem site")}</p>
         <p><strong>Categoria:</strong> <span class="pill">${placeCategoryLabel(place)}</span></p>
         <span class="status ${place.isEligibleForPublishing ? "approved" : "rejected"}">${place.isEligibleForPublishing ? "Elegível para publicação" : "Não elegível"}</span>
         <p><small>Status de integração: ${place.bindingStatus}. Google Business Profile real será fase posterior.</small></p>
@@ -1286,7 +1357,7 @@ function handleClick(event) {
     const place = placeById(id);
     if (!place?.isEligibleForPublishing) return showToast("Selecione um estabelecimento elegível.", "error");
     if (!hasDefinedEstablishmentCategory(place)) return showToast("Defina a categoria do estabelecimento antes de criar alertas.", "error");
-    const categoryId = place.businessCategoryId || place.categoryId;
+    const categoryId = alertCategoryIdForPlace(place);
     state.wizard.placeId = id;
     state.wizard.primaryCategoryId = categoryId;
     state.wizard.categoryIds = unique([categoryId, ...state.wizard.categoryIds]);
@@ -1327,19 +1398,58 @@ function handleClick(event) {
     state.editingPlaceId = "";
     saveState();
     renderPlaces();
-  } else if (action === "save-place-category") {
+  } else if (action === "save-place") {
     const place = placeById(id);
-    const select = $("#editingPlaceCategory");
-    if (!place || !select) return;
-    if (!select.value) return showToast("Selecione uma categoria para o estabelecimento.", "error");
-    const previous = establishmentCategory(place.businessCategoryId || place.categoryId).label;
-    place.businessCategoryId = select.value;
-    const next = establishmentCategory(select.value).label;
-    addHistory("updated", "Categoria do estabelecimento alterada", `${place.name}: ${previous} → ${next}.`);
+    if (!place) return;
+    const form = {
+      name: $("#editingPlaceName")?.value.trim() ?? "",
+      address: $("#editingPlaceAddress")?.value.trim() ?? "",
+      neighborhood: $("#editingPlaceNeighborhood")?.value.trim() ?? "",
+      phone: $("#editingPlacePhone")?.value.trim() ?? "",
+      websiteUrl: $("#editingPlaceWebsite")?.value.trim() ?? "",
+      businessCategoryId: $("#editingPlaceCategory")?.value ?? "",
+      latitude: $("#editingPlaceLatitude")?.value ?? "",
+      longitude: $("#editingPlaceLongitude")?.value ?? "",
+      bindingStatus: $("#editingPlaceBindingStatus")?.value ?? "manual_verified",
+      isVerified: Boolean($("#editingPlaceVerified")?.checked),
+      isEligibleForPublishing: Boolean($("#editingPlaceEligible")?.checked)
+    };
+
+    if (!form.name) return showToast("Informe o nome do estabelecimento.", "error");
+    if (!form.address) return showToast("Informe o endereço do estabelecimento.", "error");
+    if (!form.businessCategoryId) return showToast("Selecione uma categoria para o estabelecimento.", "error");
+    if (form.latitude !== "" && !Number.isFinite(Number(form.latitude))) return showToast("Informe uma latitude válida.", "error");
+    if (form.longitude !== "" && !Number.isFinite(Number(form.longitude))) return showToast("Informe uma longitude válida.", "error");
+    if (form.websiteUrl) {
+      try {
+        const url = new URL(form.websiteUrl);
+        if (!["http:", "https:"].includes(url.protocol)) return showToast("Informe um site com http:// ou https://.", "error");
+      } catch (_error) {
+        return showToast("Informe uma URL de site válida.", "error");
+      }
+    }
+
+    const previousName = place.name;
+    const previousCategory = placeCategoryLabel(place);
+    Object.assign(place, {
+      name: form.name,
+      address: form.address,
+      neighborhood: form.neighborhood,
+      phone: form.phone,
+      websiteUrl: form.websiteUrl,
+      businessCategoryId: form.businessCategoryId,
+      latitude: form.latitude === "" ? null : Number(form.latitude),
+      longitude: form.longitude === "" ? null : Number(form.longitude),
+      bindingStatus: form.bindingStatus,
+      isVerified: form.isVerified,
+      isEligibleForPublishing: form.isEligibleForPublishing,
+      lastSyncedAt: new Date().toISOString()
+    });
+    addHistory("updated", "Estabelecimento alterado", `${previousName}: dados atualizados. Categoria: ${previousCategory} → ${placeCategoryLabel(place)}.`);
     state.editingPlaceId = "";
     saveState();
     renderPlaces();
-    showToast("Categoria do estabelecimento salva.", "success");
+    showToast("Estabelecimento salvo.", "success");
   } else if (action === "view-alert") {
     openAlertDetail(id);
   } else if (action === "close-dialog") {
