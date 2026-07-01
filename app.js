@@ -36,12 +36,24 @@ const establishmentCategories = [
 ];
 
 const benefits = [
-  { id: "discount", label: "Oferta / Desconto", description: "Descontos em produtos ou serviços.", icon: "🏷" },
-  { id: "combo", label: "Combo", description: "Combos e pacotes promocionais.", icon: "%" },
-  { id: "promotion", label: "Promoção", description: "Promoções especiais por tempo limitado.", icon: "🎁" },
-  { id: "launch", label: "Lançamento", description: "Novos produtos ou serviços.", icon: "🛒" },
-  { id: "fast_service", label: "Atendimento rápido", description: "Serviço rápido e conveniente.", icon: "⚡" },
-  { id: "other", label: "Outro", description: "Outros tipos de oportunidade.", icon: "…" }
+  { id: "promotion", label: "Promoção", description: "Ação promocional com destaque temporal.", icon: "🎁" },
+  { id: "simple_discount", label: "Desconto", description: "Redução direta de preço ou condição especial.", icon: "%" },
+  { id: "launch", label: "Lançamento", description: "Novidade de produto, serviço ou seção.", icon: "🛒" },
+  { id: "combo", label: "Combo", description: "Combinação de itens ou serviços em condição especial.", icon: "🎯" },
+  { id: "discount", label: "Oferta / Desconto", description: "Oferta ampla com desconto ou vantagem comercial.", icon: "🏷" },
+  { id: "fast_service", label: "Atendimento Rápido", description: "Agilidade, fila reduzida ou atendimento facilitado.", icon: "⚡" },
+  { id: "stock_clearance", label: "Até zerar o estoque", description: "Oportunidade válida enquanto houver disponibilidade.", icon: "📦" },
+  { id: "other", label: "Outros", description: "Outro tipo de oportunidade.", icon: "…" }
+];
+
+const benefitSuggestions = [
+  "10% de desconto no Álcool à vista",
+  "Toda seção de padaria com descontos!",
+  "Enquanto durar estoque, leve 3 pague 2",
+  "Combo especial para retirada no balcão",
+  "Produto novo disponível para retirada hoje",
+  "Atendimento rápido para clientes próximos",
+  "Últimas unidades com condição especial"
 ];
 
 const seedPlaces = [
@@ -394,7 +406,7 @@ function resetWizard() {
   state.wizard = {
     placeId: place?.id ?? "",
     primaryCategoryId: placeCategoryId,
-    categoryIds: unique([placeCategoryId, "offers"]),
+    categoryIds: unique([placeCategoryId, categoryIdForClassification("discount")]),
     benefitType: "discount",
     validFrom: todayIso(),
     validUntil: addDaysIso(7),
@@ -498,6 +510,20 @@ function alertCategoryIdForPlace(place) {
   };
   if (map[businessCategoryId]) return map[businessCategoryId];
   return categories.some((item) => item.id === place.categoryId) ? place.categoryId : "offers";
+}
+
+function categoryIdForClassification(classificationId) {
+  const map = {
+    promotion: "promotion",
+    simple_discount: "offers",
+    launch: "promotion",
+    combo: "offers",
+    discount: "offers",
+    fast_service: "offers",
+    stock_clearance: "offers",
+    other: "offers"
+  };
+  return map[classificationId] || "offers";
 }
 
 function escapeHtml(value) {
@@ -798,7 +824,7 @@ function renderWizard() {
 }
 
 function renderSteps() {
-  const labels = ["Local", "Categorias", "Benefício", "Validade", "Canais", "Link opcional", "Preview", "Revisão"];
+  const labels = ["Local", "Benefício", "Classificação", "Validade", "Canais", "Link opcional", "Preview", "Revisão"];
   return `<div class="steps">${labels.map((label, index) => {
     const step = index + 1;
     const cls = step === state.wizardStep ? "active" : step < state.wizardStep ? "done" : "";
@@ -807,7 +833,7 @@ function renderSteps() {
 }
 
 function renderWizardStep() {
-  const stepRenderers = [stepLocal, stepCategories, stepBenefit, stepValidity, stepChannels, stepLink, stepPreview, stepReview];
+  const stepRenderers = [stepLocal, stepBenefitDescription, stepClassification, stepValidity, stepChannels, stepLink, stepPreview, stepReview];
   return stepRenderers[state.wizardStep - 1]();
 }
 
@@ -827,35 +853,32 @@ function stepLocal() {
   `;
 }
 
-function stepCategories() {
+function stepBenefitDescription() {
   return `
-    <h3>2. Escolha as categorias do seu Alerta</h3>
-    <p>Selecione uma categoria principal e categorias relacionadas. O matching depende dessa escolha.</p>
-    <div class="grid cols-2">
-      <section>
-        <h4>Categoria principal</h4>
-        <div class="grid">${categories.map((item) => `
-          <button class="choice ${state.wizard.primaryCategoryId === item.id ? "selected" : ""}" data-action="select-primary-category" data-id="${item.id}">
-            <span><strong>${item.label}</strong><br><small>${item.description}</small></span><span>${item.icon}</span>
-          </button>`).join("")}</div>
-      </section>
-      <section>
-        <h4>Categorias selecionadas</h4>
-        <div class="grid">${categories.map((item) => `
-          <label class="choice">
-            <span><strong>${item.label}</strong><br><small>${item.description}</small></span>
-            <input type="checkbox" data-action="toggle-category" data-id="${item.id}" ${state.wizard.categoryIds.includes(item.id) ? "checked" : ""} />
-          </label>`).join("")}</div>
-      </section>
+    <h3>2. Descreva o Benefício/Promoção</h3>
+    <p>Faça uma descrição sucinta. O texto ficará sujeito à aprovação da IA Gemini antes de publicação.</p>
+    <div class="form-grid">
+      <label class="wide">
+        Descreva o Benefício/Promoção
+        <textarea data-field="generatedMobileSummary" rows="5" maxlength="180" placeholder="Ex.: 10% de desconto no Álcool à vista">${escapeHtml(state.wizard.generatedMobileSummary)}</textarea>
+      </label>
+    </div>
+    <div class="suggestions-panel">
+      <h4>Sugestões</h4>
+      <div class="suggestion-list">
+        ${benefitSuggestions.map((suggestion) => `
+          <button class="suggestion-chip" type="button" data-action="apply-benefit-suggestion" data-suggestion="${escapeHtml(suggestion)}">${escapeHtml(suggestion)}</button>
+        `).join("")}
+      </div>
     </div>
     ${wizardActions(true)}
   `;
 }
 
-function stepBenefit() {
+function stepClassification() {
   return `
-    <h3>3. Defina o benefício ou tipo de oportunidade</h3>
-    <p>O sistema usará essa escolha para gerar uma mensagem segura por template.</p>
+    <h3>3. Defina a Classificação</h3>
+    <p>Selecione o Tipo de Oportunidade mais adequado para orientar a revisão e a exibição do Alerta.</p>
     <div class="grid cols-2">${benefits.map((item) => `
       <button class="choice ${state.wizard.benefitType === item.id ? "selected" : ""}" data-action="select-benefit" data-id="${item.id}">
         <span><strong>${item.label}</strong><br><small>${item.description}</small></span><span>${item.icon}</span>
@@ -959,8 +982,8 @@ function stepReview() {
     <p>O Alerta será enviado para análise e só ficará visível após aprovação.</p>
     <div class="grid cols-2">
       ${reviewBlock("Estabelecimento", placeById(state.wizard.placeId)?.name, placeById(state.wizard.placeId)?.address)}
-      ${reviewBlock("Categorias", category(state.wizard.primaryCategoryId).label, `+${Math.max(state.wizard.categoryIds.length - 1, 0)} categorias`)}
-      ${reviewBlock("Benefício", benefit(state.wizard.benefitType).label, benefit(state.wizard.benefitType).description)}
+      ${reviewBlock("Benefício", state.wizard.generatedMobileSummary || "Não informado", "Sujeito à aprovação da IA Gemini")}
+      ${reviewBlock("Classificação", benefit(state.wizard.benefitType).label, benefit(state.wizard.benefitType).description)}
       ${reviewBlock("Validade", `${formatDate(state.wizard.validFrom)} até ${formatDate(state.wizard.validUntil)}`, state.wizard.allDay ? "Exibição o dia todo" : `${state.wizard.activeStartTime} às ${state.wizard.activeEndTime}`)}
       ${reviewBlock("Canais", channelSummary({ ...state.wizard, androidAutoPoiPublished: false }).join(", "), "Android Auto desabilitado")}
       ${reviewBlock("Mensagem", text.title, text.summary)}
@@ -994,8 +1017,8 @@ function renderWizardSummary() {
       <h3>Resumo do seu Alerta</h3>
       <div class="summary-list">
         <div class="summary-item"><strong>Estabelecimento</strong><br>${place?.name ?? "-"}<br><small>${place?.address ?? ""}</small></div>
-        <div class="summary-item"><strong>Categorias</strong><br><span class="pill">${category(draft.primaryCategoryId).label}</span> +${Math.max((draft.categoryIds?.length ?? 1) - 1, 0)}</div>
-        <div class="summary-item"><strong>Benefício</strong><br>${benefit(draft.benefitType).label}</div>
+        <div class="summary-item"><strong>Benefício</strong><br>${draft.generatedMobileSummary || "-"}</div>
+        <div class="summary-item"><strong>Classificação</strong><br>${benefit(draft.benefitType).label}</div>
         <div class="summary-item"><strong>Validade</strong><br>${formatDate(draft.validFrom)} até ${formatDate(draft.validUntil)}</div>
         <div class="summary-item"><strong>Canais</strong><br>${draft.mobileListEnabled ? "📱" : ""} ${draft.webEnabled ? "🌐" : ""}<br><small>Android Auto desabilitado</small></div>
       </div>
@@ -1015,8 +1038,8 @@ function renderCreated() {
       <section class="card">
         <h3>Resumo do seu Alerta <span class="status in_review">Em análise</span></h3>
         ${reviewBlock("Estabelecimento", placeById(alert.placeId)?.name, placeById(alert.placeId)?.address)}
-        ${reviewBlock("Categorias", category(alert.primaryCategoryId).label, `+${Math.max(alert.categoryIds.length - 1, 0)} categorias`)}
-        ${reviewBlock("Benefício", benefit(alert.benefitType).label, alert.generatedMobileSummary)}
+        ${reviewBlock("Benefício", alert.generatedMobileSummary, "Descrição enviada para análise")}
+        ${reviewBlock("Classificação", benefit(alert.benefitType).label, benefit(alert.benefitType).description)}
       </section>
       <section class="card">
         <h3>Próximos passos</h3>
@@ -1218,7 +1241,8 @@ function validateWizardStep() {
     if (!place?.isEligibleForPublishing) return "Selecione um estabelecimento elegível.";
     if (!hasDefinedEstablishmentCategory(place)) return "Defina a categoria do estabelecimento antes de criar alertas.";
   }
-  if (state.wizardStep === 2 && (!draft.primaryCategoryId || !draft.categoryIds.length)) return "Selecione a categoria principal.";
+  if (state.wizardStep === 2 && !draft.generatedMobileSummary?.trim()) return "Descreva o Benefício/Promoção de forma sucinta.";
+  if (state.wizardStep === 3 && !draft.benefitType) return "Selecione a classificação da oportunidade.";
   if (state.wizardStep === 4) {
     if (!draft.validFrom || !draft.validUntil) return "Informe início e fim da validade.";
     if (draft.validUntil < draft.validFrom) return "A data final não pode ser anterior à inicial.";
@@ -1360,16 +1384,16 @@ function handleClick(event) {
     const categoryId = alertCategoryIdForPlace(place);
     state.wizard.placeId = id;
     state.wizard.primaryCategoryId = categoryId;
-    state.wizard.categoryIds = unique([categoryId, ...state.wizard.categoryIds]);
+    state.wizard.categoryIds = unique([categoryId, categoryIdForClassification(state.wizard.benefitType)]);
     saveState();
     renderWizard();
-  } else if (action === "select-primary-category") {
-    state.wizard.primaryCategoryId = id;
-    state.wizard.categoryIds = unique([id, ...state.wizard.categoryIds]);
+  } else if (action === "apply-benefit-suggestion") {
+    state.wizard.generatedMobileSummary = actionTarget.dataset.suggestion || "";
     saveState();
     renderWizard();
   } else if (action === "select-benefit") {
     state.wizard.benefitType = id;
+    state.wizard.categoryIds = unique([state.wizard.primaryCategoryId, categoryIdForClassification(id)]);
     saveState();
     renderWizard();
   } else if (action === "next-step") {
@@ -1479,7 +1503,7 @@ function openAlertDetail(id) {
     <div class="grid cols-2">
       ${reviewBlock("Estabelecimento", place?.name, place?.address)}
       ${reviewBlock("Status", statusLabel(effectiveStatus(alert)), `Situação administrativa: ${alert.moderationStatus}`)}
-      ${reviewBlock("Categorias", category(alert.primaryCategoryId).label, alert.categoryIds.map((item) => category(item).label).join(", "))}
+      ${reviewBlock("Interesses internos", category(alert.primaryCategoryId).label, alert.categoryIds.map((item) => category(item).label).join(", "))}
       ${reviewBlock("Validade", `${formatDate(alert.validFrom)} até ${formatDate(alert.validUntil)}`, alert.allDay ? "O dia todo" : `${alert.activeStartTime} às ${alert.activeEndTime}`)}
       ${reviewBlock("Canais", channelSummary(alert).join(", "), "Android Auto desabilitado")}
       ${reviewBlock("Link", alert.externalLinkEnabled ? alert.externalLinkUrl : "Sem link", alert.externalLinkStatus)}
@@ -1498,17 +1522,6 @@ function handleChange(event) {
     if (field === "allDay") {
       state.wizard.activeStartTime = value ? "06:00" : state.wizard.activeStartTime;
       state.wizard.activeEndTime = value ? "22:00" : state.wizard.activeEndTime;
-    }
-    saveState();
-    renderWizard();
-  }
-  if (action === "toggle-category") {
-    const id = event.target.dataset.id;
-    state.wizard.categoryIds = event.target.checked
-      ? unique([...state.wizard.categoryIds, id])
-      : state.wizard.categoryIds.filter((item) => item !== id);
-    if (!state.wizard.categoryIds.includes(state.wizard.primaryCategoryId)) {
-      state.wizard.categoryIds.unshift(state.wizard.primaryCategoryId);
     }
     saveState();
     renderWizard();
