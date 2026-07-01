@@ -6,6 +6,7 @@ const GOOGLE_BUSINESS_SCOPE = "https://www.googleapis.com/auth/business.manage";
 const GOOGLE_BASIC_SCOPES = ["openid", "email", "profile"];
 const LEGACY_DEFAULT_EMAIL = "hillner.ferreira@ifpb.edu.br";
 const LEGACY_DEFAULT_NAME = "Hillner Ferreira";
+const GENERIC_AUTH_LABEL = "Conta Google autenticada";
 
 const categories = [
   { id: "supermarkets", label: "Supermercados", description: "Compras do dia a dia, alimentos, bebidas e limpeza.", icon: "🛒" },
@@ -269,16 +270,18 @@ function randomOAuthState() {
 function startGoogleOAuth() {
   if (!config.googleOAuthClientId) return false;
   const oauthState = randomOAuthState();
+  const oauthNonce = randomOAuthState();
   sessionStorage.setItem("googleOAuthState", oauthState);
+  sessionStorage.setItem("googleOAuthNonce", oauthNonce);
   const params = new URLSearchParams({
     client_id: config.googleOAuthClientId,
     redirect_uri: googleRedirectUri(),
-    response_type: "code",
+    response_type: "token id_token",
     scope: [...GOOGLE_BASIC_SCOPES, GOOGLE_BUSINESS_SCOPE].join(" "),
-    access_type: "offline",
     prompt: "consent",
     include_granted_scopes: "true",
-    state: oauthState
+    state: oauthState,
+    nonce: oauthNonce
   });
   location.href = `${config.googleOAuthAuthUri || "https://accounts.google.com/o/oauth2/v2/auth"}?${params.toString()}`;
   return true;
@@ -286,12 +289,16 @@ function startGoogleOAuth() {
 
 function handleGoogleOAuthCallback() {
   const params = new URLSearchParams(location.search);
+  const fragment = new URLSearchParams(location.hash.replace(/^#/, ""));
   const code = params.get("code");
-  const error = params.get("error");
-  if (!code && !error) return;
+  const idToken = fragment.get("id_token") || params.get("id_token");
+  const accessToken = fragment.get("access_token") || params.get("access_token");
+  const error = params.get("error") || fragment.get("error");
+  if (!code && !idToken && !accessToken && !error) return;
 
   const expectedState = sessionStorage.getItem("googleOAuthState");
-  const receivedState = params.get("state");
+  const expectedNonce = sessionStorage.getItem("googleOAuthNonce");
+  const receivedState = params.get("state") || fragment.get("state");
   history.replaceState({}, document.title, `${location.origin}/`);
 
   if (error) {
@@ -303,18 +310,46 @@ function handleGoogleOAuthCallback() {
     return;
   }
 
+  const profile = idToken ? decodeJwtPayload(idToken) : null;
+  if (idToken && (!profile || (expectedNonce && profile.nonce !== expectedNonce))) {
+    showToast("Retorno OAuth sem identidade Google válida. Tente entrar novamente.", "error");
+    return;
+  }
+
   sessionStorage.removeItem("googleOAuthState");
+  sessionStorage.removeItem("googleOAuthNonce");
+  if (profile) {
+    state.userProfile = {
+      ...state.userProfile,
+      displayName: profile.name || profile.given_name || state.userProfile?.displayName || "",
+      email: profile.email || state.userProfile?.email || "",
+      photoUrl: profile.picture || state.userProfile?.photoUrl || ""
+    };
+  }
   state.isLoggedIn = true;
   state.route = "dashboard";
   state.googleBusinessProfile = {
     ...state.googleBusinessProfile,
-    status: "oauth_code_received",
-    connectedEmail: knownUserEmail(),
+    status: profile ? "oauth_profile_received" : "oauth_code_received",
+    connectedEmail: profile?.email || knownUserEmail(),
     detectedAt: new Date().toISOString(),
     selectedLocationId: state.googleBusinessProfile?.selectedLocationId || ""
   };
   saveState();
-  showToast("Autorizacao Google recebida. A troca por tokens sera feita em backend seguro.", "success");
+  showToast(profile ? "Login Google concluído com identificação do usuário." : "Autorizacao Google recebida. A troca por tokens sera feita em backend seguro.", "success");
+}
+
+function decodeJwtPayload(token) {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    const json = decodeURIComponent([...atob(padded)].map((char) => `%${char.charCodeAt(0).toString(16).padStart(2, "0")}`).join(""));
+    return JSON.parse(json);
+  } catch (_error) {
+    return null;
+  }
 }
 
 function loadState() {
@@ -334,6 +369,13 @@ function normalizeLoadedState(loadedState) {
   if (loadedState.userProfile.displayName === LEGACY_DEFAULT_NAME && !loadedState.userProfile.email) loadedState.userProfile.displayName = "";
   if (loadedState.googleBusinessProfile?.connectedEmail === LEGACY_DEFAULT_EMAIL) {
     loadedState.googleBusinessProfile.connectedEmail = "";
+  }
+  if (loadedState.googleBusinessProfile?.connectedEmail === GENERIC_AUTH_LABEL) {
+    loadedState.googleBusinessProfile.connectedEmail = "";
+  }
+  if (loadedState.isLoggedIn && !loadedState.userProfile.email && !loadedState.googleBusinessProfile?.connectedEmail) {
+    loadedState.isLoggedIn = false;
+    loadedState.route = "dashboard";
   }
   loadedState.historyEntries = loadedState.historyEntries ?? [];
   loadedState.places = loadedState.places ?? structuredClone(seedPlaces);
@@ -410,12 +452,12 @@ function currentUserName() {
 }
 
 function currentUserEmail() {
-  return knownUserEmail() || "Conta Google autenticada";
+  return knownUserEmail() || GENERIC_AUTH_LABEL;
 }
 
 function knownUserEmail() {
   const email = state.googleBusinessProfile?.connectedEmail || state.userProfile?.email || "";
-  return email === LEGACY_DEFAULT_EMAIL ? "" : email;
+  return email === LEGACY_DEFAULT_EMAIL || email === GENERIC_AUTH_LABEL ? "" : email;
 }
 
 function currentUserAvatarUrl() {
@@ -1036,7 +1078,7 @@ function renderHistory() {
 function renderSettings() {
   const status = businessProfileStatus();
   const connected = status === "locations_found" || status === "location_selected";
-  const authorized = status === "oauth_code_received";
+  const authorized = status === "oauth_code_received" || status === "oauth_profile_received";
   const eligiblePlaces = state.places.filter((place) => place.isVerified);
   views.settings.innerHTML = `
     <div class="page-title">
