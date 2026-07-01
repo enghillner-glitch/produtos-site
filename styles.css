@@ -136,8 +136,8 @@ button { border: 0; cursor: pointer; }
 .status.in_review { background: #fff7ed; color: #b45309; }
 .status.paused, .status.expired { background: #f2f4f7; color: #475467; }
 .status.rejected { background: #fff1f2; color: #be123c; }
-.user-icon { width: 42px; height: 42px; border: 0; border-radius: 50%; display: grid; place-items: center; background: #e2e8f0; color: #0f172a; font-size: 1.15rem; cursor: default; }
-.user-icon:hover, .user-icon:focus-visible { outline: 3px solid rgba(11, 92, 255, .18); }
+.user-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; display: block; background: #e2e8f0; box-shadow: 0 0 0 1px rgba(15, 23, 42, .08); }
+.user-avatar:hover, .user-avatar:focus-visible { outline: 3px solid rgba(11, 92, 255, .18); }
 .content { padding: 28px; background: linear-gradient(135deg, #ffffff, #f8fbff); }
 .view { max-width: 1480px; margin: 0 auto; }
 .page-title { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; margin-bottom: 22px; }
@@ -148,6 +148,8 @@ button { border: 0; cursor: pointer; }
 .grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .card { border: 1px solid var(--line); border-radius: 10px; background: #fff; box-shadow: var(--shadow); padding: 22px; }
+.place-card { position: relative; padding-bottom: 72px; }
+.place-card-actions { position: absolute; right: 22px; bottom: 22px; }
 .form-control { display: grid; gap: 8px; margin: 16px 0; font-weight: 800; color: #1d2b44; }
 .form-control select { width: min(100%, 360px); min-height: 44px; border: 1px solid var(--line); border-radius: 8px; padding: 0 12px; background: #fff; font: inherit; }
 .metric-card strong { display: block; font-size: 2rem; margin-top: 8px; }
@@ -185,13 +187,6 @@ th { font-size: .86rem; color: #344054; background: #f8fbff; }
 .success-hero { text-align: center; padding: 48px 20px 20px; }
 .success-check { width: 82px; height: 82px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 18px; background: var(--green); color: #fff; font-size: 3rem; }
 
-.consumer-shell { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
-.consumer-app-shell { min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; background: #f8fbff; }
-.consumer-topbar { min-height: 78px; display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 0 28px; border-bottom: 1px solid var(--line); background: #fff; }
-.consumer-actions { display: flex; align-items: center; gap: 12px; }
-.consumer-content { padding: 28px; }
-.opportunity-card { display: grid; grid-template-columns: 130px 1fr auto; gap: 18px; align-items: center; border: 1px solid var(--line); border-radius: 10px; background: #fff; padding: 14px; }
-.opportunity-image { height: 104px; border-radius: 8px; display: grid; place-items: center; background: linear-gradient(135deg, #128653, #f59e0b); color: #fff; font-weight: 900; text-align: center; }
 .pill-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .pill { padding: 6px 10px; border-radius: 999px; background: var(--green-soft); color: #08713f; font-weight: 800; font-size: .82rem; }
 .modal { border: 0; border-radius: 12px; padding: 24px; width: min(720px, calc(100vw - 32px)); box-shadow: var(--shadow); }
@@ -210,22 +205,18 @@ th { font-size: .86rem; color: #344054; background: #f8fbff; }
   .sidebar.open { transform: translateX(0); }
   .app-shell.sidebar-collapsed { grid-template-columns: 1fr; }
   .app-shell.sidebar-collapsed .sidebar { width: 280px; padding: 24px 18px; }
-  .wizard-shell, .consumer-shell, .landing-content { grid-template-columns: 1fr; }
+  .wizard-shell, .landing-content { grid-template-columns: 1fr; }
   .side-summary { position: static; }
   .grid.cols-4, .grid.cols-3, .grid.cols-2 { grid-template-columns: 1fr; }
   .steps { grid-template-columns: repeat(4, 1fr); }
   .topbar { flex-wrap: wrap; padding: 14px; }
   .topbar-actions { flex-wrap: wrap; }
-  .consumer-topbar { flex-wrap: wrap; padding: 14px; }
-  .consumer-actions { flex-wrap: wrap; }
 }
 
 @media (max-width: 720px) {
   .content { padding: 16px; }
-  .consumer-content { padding: 16px; }
   .form-grid { grid-template-columns: 1fr; }
   .steps { grid-template-columns: repeat(2, 1fr); }
-  .opportunity-card { grid-template-columns: 1fr; }
   .landing-shell { padding: 10px; }
   .landing-card { min-height: auto; }
   .brand-row { margin: 22px; }
