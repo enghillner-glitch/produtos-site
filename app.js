@@ -850,7 +850,6 @@ function renderWizard() {
         ${renderSteps()}
         <section class="card wizard-panel">${renderWizardStep()}</section>
       </div>
-      ${renderWizardSummary()}
     </div>
   `;
 }
@@ -1046,23 +1045,6 @@ function wizardActions(hasBack) {
   `;
 }
 
-function renderWizardSummary() {
-  const draft = state.wizard ?? {};
-  const place = placeById(draft.placeId);
-  return `
-    <aside class="card side-summary">
-      <h3>Resumo do seu Alerta</h3>
-      <div class="summary-list">
-        <div class="summary-item"><strong>Estabelecimento</strong><br>${place?.name ?? "-"}<br><small>${place?.address ?? ""}</small></div>
-        <div class="summary-item"><strong>Benefício</strong><br>${draft.generatedMobileSummary || "-"}</div>
-        <div class="summary-item"><strong>Classificação</strong><br>${benefit(draft.benefitType).label}</div>
-        <div class="summary-item"><strong>Validade</strong><br>${formatDate(draft.validFrom)} até ${formatDate(draft.validUntil)}</div>
-        <div class="summary-item"><strong>Canais</strong><br>${draft.mobileListEnabled ? "📱" : ""} ${draft.webEnabled ? "🌐" : ""}<br><small>Android Auto desabilitado</small></div>
-      </div>
-    </aside>
-  `;
-}
-
 function renderCreated() {
   const alert = state.alerts.find((item) => item.id === state.lastCreatedAlertId) ?? state.alerts[0];
   views.created.innerHTML = `
@@ -1073,7 +1055,7 @@ function renderCreated() {
     </div>
     <div class="grid cols-2">
       <section class="card">
-        <h3>Resumo do seu Alerta <span class="status in_review">Em análise</span></h3>
+        <h3>Alerta enviado <span class="status in_review">Em análise</span></h3>
         ${reviewBlock("Estabelecimento", placeById(alert.placeId)?.name, placeById(alert.placeId)?.address)}
         ${reviewBlock("Benefício", alert.generatedMobileSummary, "Descrição enviada para análise")}
         ${reviewBlock("Classificação", benefit(alert.benefitType).label, benefit(alert.benefitType).description)}

@@ -82,12 +82,14 @@ assert.match(js, /alertCategoryIdForPlace/);
 assert.match(js, /renderHistory/);
 assert.match(js, /addHistory/);
 assert.match(js, /Condições para integração real/);
+assert.doesNotMatch(js, /function renderWizardSummary/);
 assert.doesNotMatch(js, /function renderModeration/);
 assert.doesNotMatch(js, /approve-alert/);
 
 assert.match(css, /app-shell/);
 assert.match(css, /\[hidden\]\s*\{\s*display:\s*none\s*!important;\s*\}/);
 assert.match(css, /wizard-shell/);
+assert.doesNotMatch(css, /side-summary/);
 assert.doesNotMatch(css, /consumer-shell/);
 assert.doesNotMatch(css, /consumer-app-shell/);
 assert.doesNotMatch(css, /opportunity-card/);

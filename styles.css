@@ -178,7 +178,7 @@ th, td { padding: 16px; border-bottom: 1px solid var(--line); text-align: left; 
 th { font-size: .86rem; color: #344054; background: #f8fbff; }
 .empty { padding: 38px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; background: #fff; }
 
-.wizard-shell { display: grid; grid-template-columns: 1fr 330px; gap: 20px; }
+.wizard-shell { display: grid; grid-template-columns: 1fr; gap: 20px; }
 .steps { display: grid; grid-template-columns: repeat(8, 1fr); gap: 12px; margin: 20px 0 28px; }
 .step { text-align: center; color: #52637c; font-size: .86rem; }
 .step span { display: grid; place-items: center; width: 42px; height: 42px; margin: 0 auto 8px; border-radius: 50%; border: 1px solid #b9c7dc; background: #fff; font-weight: 900; }
@@ -196,8 +196,6 @@ th { font-size: .86rem; color: #344054; background: #f8fbff; }
 .summary-item { border-bottom: 1px solid var(--line); padding-bottom: 16px; }
 .summary-item:last-child { border-bottom: 0; }
 .wizard-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 22px; }
-.side-summary { position: sticky; top: 100px; align-self: start; }
-.side-summary h3 { margin-top: 0; }
 .phone-preview { width: 260px; border: 1px solid var(--line); border-radius: 28px; background: #fff; padding: 14px; box-shadow: var(--shadow); }
 .phone-screen { min-height: 420px; border-radius: 22px; overflow: hidden; border: 1px solid #d7e0ed; background: #f8fafc; }
 .preview-hero { height: 150px; background: linear-gradient(135deg, #0f9f61, #f7d34b); display: grid; place-items: center; color: #fff; font-size: 2rem; font-weight: 900; }
@@ -224,7 +222,6 @@ th { font-size: .86rem; color: #344054; background: #f8fbff; }
   .app-shell.sidebar-collapsed { grid-template-columns: 1fr; }
   .app-shell.sidebar-collapsed .sidebar { width: 280px; padding: 24px 18px; }
   .wizard-shell, .landing-content { grid-template-columns: 1fr; }
-  .side-summary { position: static; }
   .grid.cols-4, .grid.cols-3, .grid.cols-2 { grid-template-columns: 1fr; }
   .steps { grid-template-columns: repeat(4, 1fr); }
   .topbar { flex-wrap: wrap; padding: 14px; }
