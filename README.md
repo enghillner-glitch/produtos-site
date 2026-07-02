@@ -47,7 +47,7 @@ http://127.0.0.1:4188/
 ## Regras importantes
 
 - Android Auto fica desabilitado e não conta como canal ativo.
-- Alertas enviados ficam `in_review`.
+- Alertas salvos com texto aprovado pela revisão Gemini ficam `active`.
 - Alertas só aparecem na vitrine se estiverem ativos, aprovados, vigentes, com local elegível e categoria compatível.
 - Links exigem HTTPS e não podem usar encurtadores conhecidos.
 - Textos publicados são gerados por template a partir de dados estruturados.

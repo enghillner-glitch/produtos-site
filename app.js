@@ -208,8 +208,8 @@ const initialState = {
       generatedMobileSummary: "Combo de padaria com condição especial por tempo limitado.",
       carSafeTitle: "Padaria Pão & Sabor - combo disponível",
       carSafeSummary: "Oportunidade no local.",
-      moderationStatus: "pending",
-      mainStatus: "in_review",
+      moderationStatus: "approved",
+      mainStatus: "active",
       metrics: { views: 1248, routes: 96, clicks: 72, saves: 31, reports: 0 },
       createdAt: "2026-06-24T09:00:00.000Z"
     },
@@ -715,7 +715,7 @@ function render() {
 function renderDashboard() {
   const counts = {
     active: state.alerts.filter((alert) => effectiveStatus(alert) === "active").length,
-    in_review: state.alerts.filter((alert) => alert.mainStatus === "in_review").length,
+    saved: state.alerts.length,
     paused: state.alerts.filter((alert) => alert.mainStatus === "paused").length,
     expired: state.alerts.filter((alert) => effectiveStatus(alert) === "expired").length
   };
@@ -753,7 +753,7 @@ function renderDashboard() {
     </section>
     <div class="grid cols-4">
       ${metric("Alertas ativos", counts.active, "active")}
-      ${metric("Em análise", counts.in_review, "in_review")}
+      ${metric("Alertas salvos", counts.saved, "approved")}
       ${metric("Pausados", counts.paused, "paused")}
       ${metric("Expirados", counts.expired, "expired")}
     </div>
@@ -769,7 +769,7 @@ function renderDashboard() {
       <section class="card">
         <h3>Resumo operacional</h3>
         <p><strong>${categorizedPlaces}</strong> de <strong>${state.places.length}</strong> estabelecimentos com categoria definida.</p>
-        <p><strong>${counts.in_review}</strong> alertas aguardando análise administrativa.</p>
+        <p>Alertas com texto aprovado pela revisão Gemini ficam salvos e ativos automaticamente.</p>
         <p><strong>${state.historyEntries?.length ?? 0}</strong> registros no histórico operacional.</p>
       </section>
     </div>
@@ -985,11 +985,6 @@ function stepReview() {
   const selectedPlace = placeById(state.wizard.placeId);
   return `
     <h3>7.1. Preview do alerta no app</h3>
-    <p>O Alerta será enviado para análise e só ficará visível após aprovação.</p>
-    <div class="gemini-review ${geminiReview.ok ? "approved" : "rejected"}">
-      <strong>${geminiReview.label}</strong>
-      <p>${geminiReview.ok ? "O texto do benefício está adequado para envio da revisão final." : geminiReview.issues.join(" ")}</p>
-    </div>
     <div class="android-preview">
       <div class="phone-preview">
         <div class="phone-screen">
@@ -1015,6 +1010,10 @@ function stepReview() {
         </div>
       </div>
       <div>
+        <div class="gemini-review ${geminiReview.ok ? "approved" : "rejected"}">
+          <strong>${geminiReview.label}</strong>
+          <p>${geminiReview.ok ? "O texto do benefício está adequado para salvar o alerta." : geminiReview.issues.join(" ")}</p>
+        </div>
         <h4>Como o usuário verá</h4>
         <p>O app mostra primeiro uma chamada curta, em estilo notificação Android, e depois o detalhe completo da oportunidade.</p>
         <div class="choice disabled" style="margin-top:16px"><span><strong>Android Auto futuro</strong><br><small>Desabilitado no MVP.</small></span><span>🚘</span></div>
@@ -1029,10 +1028,9 @@ function stepReview() {
       ${reviewBlock("Canais", channelSummary({ ...state.wizard, androidAutoPoiPublished: false }).join(", "), "Android Auto desabilitado")}
       ${reviewBlock("Mensagem", text.title, text.summary)}
     </div>
-    <div class="card" style="margin-top:16px"><strong>Quase pronto!</strong><br>Após enviar, seu Alerta será analisado. Prazo médio estimado: até 24 horas úteis.</div>
     <div class="wizard-actions">
       <button class="secondary" data-action="prev-step">Voltar</button>
-      <button class="primary" data-action="publish-alert">Enviar para análise</button>
+      <button class="primary" data-action="publish-alert">Salvar Alerta</button>
     </div>
   `;
 }
@@ -1055,19 +1053,19 @@ function renderCreated() {
   views.created.innerHTML = `
     <div class="success-hero">
       <div class="success-check">✓</div>
-      <h2>Seu Alerta de Oportunidade foi criado com sucesso!</h2>
-      <p>Seu Alerta foi enviado para análise. Ele ficará visível após aprovação.</p>
+      <h2>Seu Alerta de Oportunidade foi salvo com sucesso!</h2>
+      <p>O texto foi aprovado pela revisão Gemini e o alerta já está ativo nos canais permitidos.</p>
     </div>
     <div class="grid cols-2">
       <section class="card">
-        <h3>Alerta enviado <span class="status in_review">Em análise</span></h3>
+        <h3>Alerta salvo <span class="status active">Ativo</span></h3>
         ${reviewBlock("Estabelecimento", placeById(alert.placeId)?.name, placeById(alert.placeId)?.address)}
-        ${reviewBlock("Benefício", alert.generatedMobileSummary, "Descrição enviada para análise")}
+        ${reviewBlock("Benefício", alert.generatedMobileSummary, "Descrição aprovada pela revisão Gemini")}
         ${reviewBlock("Classificação", benefit(alert.benefitType).label, benefit(alert.benefitType).description)}
       </section>
       <section class="card">
         <h3>Próximos passos</h3>
-        <p><span class="status in_review">Em análise</span> Prazo médio estimado: até 24 horas úteis.</p>
+        <p><span class="status active">Ativo</span> O alerta está salvo e disponível conforme validade, canais e categoria.</p>
         <p>Você pode acompanhar o status na seção Meus Alertas.</p>
         <div class="quick-actions">
           <button class="secondary" data-route="alerts">Ver meus Alertas</button>
@@ -1320,18 +1318,18 @@ function publishAlert() {
     generatedMobileSummary: text.summary,
     carSafeTitle: `${placeById(draft.placeId)?.name ?? "Local"} - ${category(draft.primaryCategoryId).label}`,
     carSafeSummary: "Preparação futura. Android Auto desabilitado no MVP.",
-    moderationStatus: "pending",
-    mainStatus: "in_review",
+    moderationStatus: "approved",
+    mainStatus: "active",
     metrics: { views: 0, routes: 0, clicks: 0, saves: 0, reports: 0 },
     createdAt: new Date().toISOString()
   };
   state.alerts.unshift(alert);
   state.lastCreatedAlertId = id;
   state.route = "created";
-  addHistory("created", "Alerta criado", `${alert.titleInternal} foi enviado para análise.`);
+  addHistory("created", "Alerta salvo", `${alert.titleInternal} foi salvo e ativado após revisão Gemini.`);
   saveState();
   render();
-  showToast("Alerta criado e enviado para análise.", "success");
+  showToast("Alerta salvo e ativo.", "success");
 }
 
 function unique(values) {
