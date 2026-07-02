@@ -647,8 +647,13 @@ function showToast(message, type = "info") {
   toast.className = `toast ${type}`;
   toast.hidden = false;
   clearTimeout(showToast.timer);
+  clearTimeout(showToast.hideTimer);
   showToast.timer = setTimeout(() => {
-    toast.hidden = true;
+    toast.classList.add("is-hiding");
+    showToast.hideTimer = setTimeout(() => {
+      toast.hidden = true;
+      toast.classList.remove("is-hiding");
+    }, 220);
   }, 4200);
 }
 
@@ -889,8 +894,7 @@ function stepBenefitDescription() {
     <h3>2. Descreva o Benefício/Promoção</h3>
     <p>Faça uma descrição sucinta. O texto ficará sujeito à aprovação da IA Gemini antes de publicação.</p>
     <div class="form-grid">
-      <label class="wide">
-        Descreva o Benefício/Promoção
+      <label class="wide" aria-label="Descreva o Benefício/Promoção">
         <textarea class="benefit-textarea" data-field="generatedMobileSummary" rows="3" maxlength="180" placeholder="Ex.: 10% de desconto no Álcool à vista">${escapeHtml(state.wizard.generatedMobileSummary)}</textarea>
       </label>
     </div>
@@ -978,35 +982,45 @@ function stepLink() {
 function stepReview() {
   const text = generateAlertText(state.wizard);
   const geminiReview = geminiReviewBenefitText(state.wizard.generatedMobileSummary);
+  const selectedPlace = placeById(state.wizard.placeId);
   return `
-    <h3>7. Revise e finalize seu Alerta</h3>
+    <h3>7.1. Preview do alerta no app</h3>
     <p>O Alerta será enviado para análise e só ficará visível após aprovação.</p>
-    <div class="grid cols-2">
+    <div class="gemini-review ${geminiReview.ok ? "approved" : "rejected"}">
+      <strong>${geminiReview.label}</strong>
+      <p>${geminiReview.ok ? "O texto do benefício está adequado para envio da revisão final." : geminiReview.issues.join(" ")}</p>
+    </div>
+    <div class="android-preview">
       <div class="phone-preview">
         <div class="phone-screen">
-          <div class="preview-hero">OFERTA</div>
+          <div class="android-statusbar"><span>9:41</span><span>● ● ●</span></div>
           <div class="preview-body">
-            <span class="pill">${benefit(state.wizard.benefitType).label}</span>
-            <h3>${text.title}</h3>
-            <p>${text.summary}</p>
-            <p><strong>${placeById(state.wizard.placeId)?.name ?? ""}</strong><br>${placeById(state.wizard.placeId)?.address ?? ""}</p>
-            <p>Válido até ${formatDate(state.wizard.validUntil)}</p>
-            ${state.wizard.externalLinkEnabled ? `<button class="secondary">${state.wizard.buttonText}</button>` : ""}
+            <div class="android-notification">
+              <div class="notification-icon">OP</div>
+              <div>
+                <strong>${text.title}</strong>
+                <p>${text.summary}</p>
+                <small>${selectedPlace?.name ?? ""} • agora</small>
+              </div>
+            </div>
+            <div class="app-detail-preview">
+              <span class="pill">${benefit(state.wizard.benefitType).label}</span>
+              <h3>${text.title}</h3>
+              <p>${text.summary}</p>
+              <p><strong>${selectedPlace?.name ?? ""}</strong><br>${selectedPlace?.address ?? ""}</p>
+              <p class="status approved">Válido até ${formatDate(state.wizard.validUntil)}</p>
+              ${state.wizard.externalLinkEnabled ? `<button class="secondary">${state.wizard.buttonText}</button>` : ""}
+            </div>
           </div>
         </div>
       </div>
       <div>
-        <h4>Preview e aprovação do texto</h4>
-        <p>Não há texto livre publicado diretamente. O sistema gera a mensagem a partir dos campos estruturados.</p>
-        <label>Título gerado<input data-field="generatedMobileTitle" value="${text.title}" /></label>
-        <label style="display:grid;gap:8px;margin-top:12px">Resumo gerado<textarea data-field="generatedMobileSummary" rows="4">${text.summary}</textarea></label>
-        <div class="gemini-review ${geminiReview.ok ? "approved" : "rejected"}">
-          <strong>${geminiReview.label}</strong>
-          <p>${geminiReview.ok ? "O texto do benefício está adequado para envio da revisão final." : geminiReview.issues.join(" ")}</p>
-        </div>
-        <div class="choice disabled" style="margin-top:16px"><span><strong>Preview Android Auto futuro</strong><br><small>Desabilitado no MVP.</small></span><span>🚘</span></div>
+        <h4>Como o usuário verá</h4>
+        <p>O app mostra primeiro uma chamada curta, em estilo notificação Android, e depois o detalhe completo da oportunidade.</p>
+        <div class="choice disabled" style="margin-top:16px"><span><strong>Android Auto futuro</strong><br><small>Desabilitado no MVP.</small></span><span>🚘</span></div>
       </div>
     </div>
+    <h3 class="review-subtitle">7.2. Revise e finalize seu Alerta</h3>
     <div class="grid cols-2 review-grid">
       ${reviewBlock("Estabelecimento", placeById(state.wizard.placeId)?.name, placeById(state.wizard.placeId)?.address)}
       ${reviewBlock("Benefício", state.wizard.generatedMobileSummary || "Não informado", "Sujeito à aprovação da IA Gemini")}
